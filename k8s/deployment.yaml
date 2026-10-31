@@ -49,13 +49,13 @@ spec:
         imagePullPolicy: Always
         command: ["node", "dist/mcp-server/index.js"]
         ports:
-        - containerPort: 3302
+        - containerPort: 6883
           name: http
         env:
         - name: MCP_SERVER_HOST
           value: "0.0.0.0"
         - name: MCP_SERVER_PORT
-          value: "3302"
+          value: "6883"
         # The poisoned record the worker reads back; this is the injection
         # scenario the guardrail is shown catching.
         - name: MCP_DEMO_INJECTION
@@ -70,7 +70,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /healthz
-            port: 3302
+            port: 6883
           initialDelaySeconds: 5
           periodSeconds: 30
 ---
@@ -86,7 +86,7 @@ spec:
   type: ClusterIP
   ports:
   - port: 80
-    targetPort: 3302
+    targetPort: 6883
     protocol: TCP
     name: http
   selector:
@@ -119,13 +119,13 @@ spec:
         imagePullPolicy: Always
         command: ["node", "dist/worker-agent/index.js"]
         ports:
-        - containerPort: 3301
+        - containerPort: 6882
           name: http
         env:
         - name: WORKER_AGENT_HOST
           value: "0.0.0.0"
         - name: WORKER_AGENT_PORT
-          value: "3301"
+          value: "6882"
         # Published in the agent card, so callers that read the card go through
         # the gateway. The card is served at /.well-known/agent-card.json, which
         # is where the console's "Discover A2A agent card" looks.
@@ -160,7 +160,7 @@ spec:
             cpu: "250m"
         readinessProbe:
           tcpSocket:
-            port: 3301
+            port: 6882
           initialDelaySeconds: 5
           periodSeconds: 30
 ---
@@ -176,7 +176,7 @@ spec:
   type: ClusterIP
   ports:
   - port: 80
-    targetPort: 3301
+    targetPort: 6882
     protocol: TCP
     name: http
   selector:
@@ -212,13 +212,13 @@ spec:
         imagePullPolicy: Always
         command: ["node", "dist/main-agent/index.js"]
         ports:
-        - containerPort: 3300
+        - containerPort: 6881
           name: http
         env:
         - name: MAIN_AGENT_HOST
           value: "0.0.0.0"
         - name: MAIN_AGENT_PORT
-          value: "3300"
+          value: "6881"
         # The main agent's own model calls go through the gateway's custom lane.
         - name: MAIN_AGENT_PROVIDER
           value: "llamacpp"
@@ -259,7 +259,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /status
-            port: 3300
+            port: 6881
           initialDelaySeconds: 5
           periodSeconds: 30
 ---
@@ -275,7 +275,7 @@ spec:
   type: ClusterIP
   ports:
   - port: 80
-    targetPort: 3300
+    targetPort: 6881
     protocol: TCP
     name: http
   selector:

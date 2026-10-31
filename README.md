@@ -8,11 +8,11 @@ Anthropic or Google models. The main agent owns the browser conversation and del
 The worker owns the access-review tools and calls the separate MCP process.
 
 ```text
-AI Guard Client A2A tab ──SSE──▶ BFF :3001 ──▶ main agent :3300
-                                                   ├──A2A JSON-RPC──▶ worker :3301
+AI Guard Client A2A tab ──SSE──▶ BFF :3001 ──▶ main agent :6881
+                                                   ├──A2A JSON-RPC──▶ worker :6882
                                                    └──Anthropic Messages API──▶ Privilege
                                                           worker ├──Anthropic Messages API──▶ Privilege
-                                                                 └──MCP Streamable HTTP──▶ MCP :3302
+                                                                 └──MCP Streamable HTTP──▶ MCP :6883
 ```
 
 The A2A boundary carries the analyst's question and result, with a fresh random
@@ -114,22 +114,22 @@ npm run main
 ### Change the local ports
 
 Update the three port values and the local service URLs together in `.env`.
-For example, to use ports `3400`, `3401`, and `3402`:
+For example, to use ports `6881`, `6882`, and `6883`:
 
 ```dotenv
-MAIN_AGENT_PORT=3400
-WORKER_AGENT_PORT=3401
-MCP_SERVER_PORT=3402
-WORKER_A2A_URL=http://127.0.0.1:3401/a2a
-WORKER_TRACE_URL=http://127.0.0.1:3401/trace
-MCP_URL=http://127.0.0.1:3402/mcp
+MAIN_AGENT_PORT=6881
+WORKER_AGENT_PORT=6882
+MCP_SERVER_PORT=6883
+WORKER_A2A_URL=http://127.0.0.1:6882/a2a
+WORKER_TRACE_URL=http://127.0.0.1:6882/trace
+MCP_URL=http://127.0.0.1:6883/mcp
 ```
 
 Then run `npm run dev`. If the BFF is native, update its main-agent URL too:
 
 ```dotenv
 # demo_api_server/.env
-PRIVILEGE_A2A_MAIN_URL=http://127.0.0.1:3400
+PRIVILEGE_A2A_MAIN_URL=http://127.0.0.1:6881
 ```
 
 If the BFF is in Docker, use the host gateway URL shown below. If you only move
@@ -138,7 +138,7 @@ the main agent, update that URL in the BFF too.
 Each process reads `.env`. Local listeners bind to loopback. The MCP server
 seeds fictional users, grants, and resources; `open_ticket` writes to an
 in-memory store that resets when the MCP process restarts. The optional native
-browser page at <http://127.0.0.1:3300> is for standalone use only; leave the
+browser page at <http://127.0.0.1:6881> is for standalone use only; leave the
 BFF secret unset for its direct chat path. In the integrated setup, the A2A
 tab calls the main agent only through the BFF.
 
@@ -152,10 +152,10 @@ this secret or either agent's key.
 # standalone/privilege-a2a-anthropic-demo/.env
 A2A_BFF_SHARED_SECRET=<random-shared-secret>
 MAIN_AGENT_HOST=127.0.0.1
-MAIN_AGENT_PORT=3300
+MAIN_AGENT_PORT=6881
 
 # demo_api_server/.env when the BFF runs natively
-PRIVILEGE_A2A_MAIN_URL=http://127.0.0.1:3300
+PRIVILEGE_A2A_MAIN_URL=http://127.0.0.1:6881
 PRIVILEGE_A2A_BFF_SECRET=<same-random-shared-secret>
 ```
 
@@ -169,7 +169,7 @@ already maps `host.docker.internal` to the host gateway:
 MAIN_AGENT_HOST=0.0.0.0
 
 # demo_api_server/.env used by the Docker BFF
-PRIVILEGE_A2A_MAIN_URL=http://host.docker.internal:3300
+PRIVILEGE_A2A_MAIN_URL=http://host.docker.internal:6881
 PRIVILEGE_A2A_BFF_SECRET=<same-random-shared-secret>
 ```
 
@@ -217,7 +217,7 @@ shared policy for a local run. A denied gateway request is reported in the
 chat trace; rate and budget status codes are produced by the configured
 Privilege policy.
 
-The integrated demo defaults to port `3300` for MainAgent so it does not occupy
+The integrated demo defaults to port `6881` for MainAgent so it does not occupy
 the AI-DEMO2 BFF's port `3001`. Keep the BFF-to-main URL and bind host paired as
 described above when switching between native and Docker BFF operation.
 
@@ -346,9 +346,9 @@ Privilege. The demo sends only the Agent Access keys above to that route.
 | `ANTHROPIC_API_KEY` | Optional shared direct-provider key fallback |
 | `MAIN_AGENT_MODEL`, `WORKER_AGENT_MODEL` | Independent concrete Anthropic model IDs |
 | `MAIN_AGENT_HOST` | Main-agent bind host; `127.0.0.1` native, `0.0.0.0` when Docker BFF connects through the host gateway |
-| `MAIN_AGENT_PORT`, `WORKER_AGENT_PORT`, `MCP_SERVER_PORT` | Process ports; defaults are `3300`, `3301`, and `3302` |
+| `MAIN_AGENT_PORT`, `WORKER_AGENT_PORT`, `MCP_SERVER_PORT` | Process ports; defaults are `6881`, `6882`, and `6883` |
 | `A2A_BFF_SHARED_SECRET` | Main-agent inbound secret; required in integrated mode and must match the BFF value |
-| `PRIVILEGE_A2A_MAIN_URL` | BFF-only main-agent base URL; defaults to `http://127.0.0.1:3300` |
+| `PRIVILEGE_A2A_MAIN_URL` | BFF-only main-agent base URL; defaults to `http://127.0.0.1:6881` |
 | `PRIVILEGE_A2A_BFF_SECRET` | BFF-only shared secret; must match `A2A_BFF_SHARED_SECRET` |
 | `WORKER_A2A_URL` | Worker A2A base URL; client uses its `/jsonrpc` endpoint |
 | `WORKER_TRACE_URL` | Worker trace SSE endpoint |

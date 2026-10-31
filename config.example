@@ -9,9 +9,9 @@ WORKER_AGENT_HOST=127.0.0.1
 # the gateway route: https://<gateway>/<worker-app>/a2a/jsonrpc
 WORKER_PUBLIC_URL=
 MCP_SERVER_HOST=127.0.0.1
-MAIN_AGENT_PORT=3300
-WORKER_AGENT_PORT=3301
-MCP_SERVER_PORT=3302
+MAIN_AGENT_PORT=6881
+WORKER_AGENT_PORT=6882
+MCP_SERVER_PORT=6883
 
 # Required when using AI Guard Client. Set the same random value on the BFF as
 # PRIVILEGE_A2A_BFF_SECRET. Keep this server-side; never put it in the UI.
@@ -69,9 +69,9 @@ GEMINI_API_KEY=
 
 # Outbound service URLs. The gateway form is https://<gateway>/<app>/a2a,
 # https://<gateway>/<app>/trace, and https://<gateway>/<app>/mcp.
-WORKER_A2A_URL=http://127.0.0.1:3301/a2a
-WORKER_TRACE_URL=http://127.0.0.1:3301/trace
-MCP_URL=http://127.0.0.1:3302/mcp
+WORKER_A2A_URL=http://127.0.0.1:6882/a2a
+WORKER_TRACE_URL=http://127.0.0.1:6882/trace
+MCP_URL=http://127.0.0.1:6883/mcp
 
 # Three-deep chain (POST /chain): the middle agent this agent hands off to,
 # as its gateway A2A URL, for example

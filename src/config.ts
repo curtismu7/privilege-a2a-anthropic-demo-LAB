@@ -135,10 +135,10 @@ export interface MainAgentConfig {
 }
 
 export function mainAgentConfig(): MainAgentConfig {
-  const workerPort = numberValue('WORKER_AGENT_PORT', 3301);
+  const workerPort = numberValue('WORKER_AGENT_PORT', 6882);
   return {
     host: value('MAIN_AGENT_HOST', '127.0.0.1'),
-    port: numberValue('MAIN_AGENT_PORT', 3300),
+    port: numberValue('MAIN_AGENT_PORT', 6881),
     model: modelFor('MAIN_AGENT'),
     anthropic: anthropicClient('MAIN_AGENT'),
     bearer: agentAccessKey('MAIN_AGENT'),
@@ -164,12 +164,12 @@ export interface WorkerAgentConfig {
 export function workerAgentConfig(): WorkerAgentConfig {
   return {
     host: value('WORKER_AGENT_HOST', '127.0.0.1'),
-    port: numberValue('WORKER_AGENT_PORT', 3301),
-    publicUrl: value('WORKER_PUBLIC_URL', `http://127.0.0.1:${numberValue('WORKER_AGENT_PORT', 3301)}/a2a/jsonrpc`),
+    port: numberValue('WORKER_AGENT_PORT', 6882),
+    publicUrl: value('WORKER_PUBLIC_URL', `http://127.0.0.1:${numberValue('WORKER_AGENT_PORT', 6882)}/a2a/jsonrpc`),
     model: modelFor('WORKER_AGENT'),
     anthropic: anthropicClient('WORKER_AGENT'),
     bearer: agentAccessKey('WORKER_AGENT'),
-    mcpUrl: value('MCP_URL', `http://127.0.0.1:${numberValue('MCP_SERVER_PORT', 3302)}/mcp`),
+    mcpUrl: value('MCP_URL', `http://127.0.0.1:${numberValue('MCP_SERVER_PORT', 6883)}/mcp`),
     requireBearer: booleanValue('WORKER_REQUIRE_BEARER', false),
   };
 }
@@ -187,7 +187,7 @@ export interface McpServerConfig {
 export function mcpServerConfig(): McpServerConfig {
   return {
     host: value('MCP_SERVER_HOST', '127.0.0.1'),
-    port: numberValue('MCP_SERVER_PORT', 3302),
+    port: numberValue('MCP_SERVER_PORT', 6883),
     requireBearer: booleanValue('MCP_REQUIRE_BEARER', false),
     demoInjection: booleanValue('MCP_DEMO_INJECTION', false),
     jsonResponse: booleanValue('MCP_JSON_RESPONSE', false),
