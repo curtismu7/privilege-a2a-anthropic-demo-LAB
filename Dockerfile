@@ -9,7 +9,7 @@ RUN npm run build && npm prune --omit=dev
 
 FROM node:22-alpine
 # Links the GHCR package to this repo on push (see .github/workflows/build-a2a-demo-image.yml).
-LABEL org.opencontainers.image.source=https://github.com/ping-sandbox/privilege-a2a-anthropic-demo
+LABEL org.opencontainers.image.source=https://github.com/curtismu7/privilege-a2a-anthropic-demo
 WORKDIR /app
 COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules
