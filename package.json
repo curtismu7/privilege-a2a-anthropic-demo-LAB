@@ -13,7 +13,8 @@
     "mcp": "tsx --env-file=.env src/mcp-server/index.ts",
     "dev": "concurrently -n mcp,worker,main -c blue,magenta,green \"npm:mcp\" \"npm:worker\" \"npm:main\"",
     "build": "tsc",
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts",
+    "doctor": "node scripts/doctor.mjs"
   },
   "dependencies": {
     "@a2a-js/sdk": "^0.3.14",

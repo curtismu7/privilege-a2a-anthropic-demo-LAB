@@ -3,6 +3,7 @@ import express, { type Request, type Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 
 import { describeMode, mainAgentConfig, viaGateway } from '../config.js';
+import { healthDocument, infoDocument } from '../health.js';
 import { parseMode, parseProfile, parseUserName, withLabels, type Profile } from '../profile.js';
 import { systemPromptFor, toolChoiceFor } from './prompts.js';
 import { stripUnsourcedScope, textOfTurn } from './scopeFilter.js';
@@ -38,6 +39,14 @@ const DELEGATE_TOOL: Anthropic.Tool = {
 const app = express();
 app.use(express.json({ limit: '64kb' }));
 app.get('/', (_req: Request, res: Response) => res.type('html').send(renderPage()));
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(healthDocument('MAIN_AGENT'));
+});
+app.get('/api/info', (_req: Request, res: Response) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(infoDocument('MAIN_AGENT'));
+});
 app.get('/status', (_req: Request, res: Response) => {
   res.json({
     mode: describeMode('MAIN_AGENT'),
