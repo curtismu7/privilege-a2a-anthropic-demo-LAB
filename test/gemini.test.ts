@@ -68,7 +68,7 @@ test('one overloaded reply is retried', async () => {
 });
 
 // A call that never answers, but honours its abort signal like a real fetch.
-// A stalled request. AbortSignal.timeout timers do not keep the event loop alive on Node 22 (CI's version),
+// A stalled request. AbortSignal.timeout timers do not keep the event loop alive,
 // and a fake fetch has no socket to do it either, so hold the loop open until the request is aborted.
 const hangs = (signal?: AbortSignal | null) => new Promise<Response>((_resolve, reject) => {
   const keepAlive = setTimeout(() => undefined, 60_000);

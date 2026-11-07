@@ -12,7 +12,7 @@ const TOOL: Anthropic.Tool = {
 const ask = { model: 'llama-test', max_tokens: 16, messages: [{ role: 'user' as const, content: 'hi' }] };
 const okReply = (text = 'ok') => new Response(JSON.stringify({ choices: [{ message: { content: text }, finish_reason: 'stop' }] }), { status: 200 });
 // A call that never answers, but honours its abort signal like a real fetch.
-// A stalled request. AbortSignal.timeout timers do not keep the event loop alive on Node 22 (CI's version),
+// A stalled request. AbortSignal.timeout timers do not keep the event loop alive,
 // and a fake fetch has no socket to do it either, so hold the loop open until the request is aborted.
 const hangs = (signal?: AbortSignal | null) => new Promise<Response>((_resolve, reject) => {
   const keepAlive = setTimeout(() => undefined, 60_000);
