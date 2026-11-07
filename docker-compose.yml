@@ -1,0 +1,47 @@
+# Local standalone compose: one image, three processes (main agent, worker agent, MCP server),
+# like k8s/deployment.yaml. Published loopback-only; the shared lab-proxy resolves
+# privilege-a2a-anthropic-demo-lab-main-1 at request time.
+# The .env file (provider keys) must exist beside this file — see config.example.
+services:
+  mcp:
+    build: .
+    image: privilege-a2a-lab:local
+    container_name: privilege-a2a-anthropic-demo-lab-mcp-1
+    command: ["node", "dist/mcp-server/index.js"]
+    env_file: .env
+    environment:
+      MCP_SERVER_HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:6883:6883"
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+  worker:
+    image: privilege-a2a-lab:local
+    container_name: privilege-a2a-anthropic-demo-lab-worker-1
+    command: ["node", "dist/worker-agent/index.js"]
+    env_file: .env
+    environment:
+      WORKER_AGENT_HOST: 0.0.0.0
+      MCP_URL: http://privilege-a2a-anthropic-demo-lab-mcp-1:6883/mcp
+      WORKER_PUBLIC_URL: http://127.0.0.1:6882/a2a/jsonrpc
+    ports:
+      - "127.0.0.1:6882:6882"
+    depends_on: [mcp]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+  main:
+    image: privilege-a2a-lab:local
+    container_name: privilege-a2a-anthropic-demo-lab-main-1
+    command: ["node", "dist/main-agent/index.js"]
+    env_file: .env
+    environment:
+      MAIN_AGENT_HOST: 0.0.0.0
+      WORKER_A2A_URL: http://privilege-a2a-anthropic-demo-lab-worker-1:6882/a2a
+      WORKER_TRACE_URL: http://privilege-a2a-anthropic-demo-lab-worker-1:6882/trace
+    ports:
+      - "127.0.0.1:6881:6881"
+    depends_on: [worker]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
