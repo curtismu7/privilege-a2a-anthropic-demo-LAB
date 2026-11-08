@@ -1,7 +1,7 @@
 {
   "demos": [
     {
-      "id": "privilege-a2a-anthropic-demo-lab",
+      "id": "privilege-a2a-anthropic-demo",
       "name": "Privilege A2A Anthropic Demo LAB",
       "kind": "Demo",
       "description": "Three-process A2A and MCP demo: preset access-review prompts travel Main Agent -> A2A -> Worker Agent -> MCP tool, with a per-hop trace, agent-scope claims, and model calls routed through PingOne Privilege (Anthropic, Google, Groq or llama.cpp). Real mode talks to a configured provider or Privilege gateway; without credentials it runs the same flow on mock model calls. Ports 6881-6883.",
