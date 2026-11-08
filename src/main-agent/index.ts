@@ -10,6 +10,7 @@ import { stripUnsourcedScope, textOfTurn } from './scopeFilter.js';
 import { buildWorkerClient } from './a2a-client.js';
 import { MAIN, maskKey, pretty, runChain } from './chain.js';
 import { renderPage } from './ui.js';
+import { shelfInfo } from '../shelfLink.js';
 
 /** The token counts a model call reported, for the trace. Absent when the provider sent none. */
 function tokenCounts(message: Anthropic.Message): { input: number; output: number } | undefined {
@@ -46,6 +47,11 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.get('/api/info', (_req: Request, res: Response) => {
   res.set('Cache-Control', 'no-store');
   res.json(infoDocument('MAIN_AGENT'));
+});
+// The header "Shelf" button reads this.
+app.get('/api/shelf', (_req: Request, res: Response) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(shelfInfo());
 });
 app.get('/status', (_req: Request, res: Response) => {
   res.json({

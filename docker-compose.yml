@@ -38,6 +38,7 @@ services:
     env_file: .env
     environment:
       MAIN_AGENT_HOST: 0.0.0.0
+      SHELF_URL: ${SHELF_URL:-http://127.0.0.1:4400}
       WORKER_A2A_URL: http://privilege-a2a-anthropic-demo-lab-worker-1:6882/a2a
       WORKER_TRACE_URL: http://privilege-a2a-anthropic-demo-lab-worker-1:6882/trace
     ports:
