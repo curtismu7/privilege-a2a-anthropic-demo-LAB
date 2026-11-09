@@ -1,3 +1,18 @@
+import { readFileSync } from 'node:fs';
+
+// The way back to Customer Agent LAB (?from=customer-agent&uc=&vertical=): the vendored shared return-link logic (src/vendor/return-link,
+// copied to dist by `npm run build`), inlined as a classic script with its `export` keywords removed. The target comes only from its fixed
+// list, never from the address bar. UC46, UC46A and UC47 route here; the page has no scenario or vertical picker, so it shows the strip
+// and the header button only (no preselect).
+export const RETURN_LINK_APP = 'privilege-a2a-anthropic-demo';
+export const RETURN_LINK_SOURCE = readFileSync(new URL('../vendor/return-link/returnTargets.js', import.meta.url), 'utf8').replace(/^export /gm, '');
+const RETURN_LINK_SCRIPT = `(function(){${RETURN_LINK_SOURCE}
+var l=returnLinkFor('${RETURN_LINK_APP}');if(!l)return;
+function back(cls){var b=document.createElement('button');b.type='button';b.className=cls;b.textContent='\u2190 Back to '+l.label;b.title='Back to '+l.label+' (use case '+l.uc+')';b.addEventListener('click',function(){window.location.assign(l.href)});return b}
+var s=document.createElement('div');s.className='return-link return-link--strip';s.setAttribute('role','note');s.setAttribute('aria-label','Opened from '+l.label);
+var x=document.createElement('span');x.textContent='Opened from '+l.label+' \u00b7 '+l.uc+(l.vertical?' \u00b7 '+l.vertical:'');s.appendChild(x);s.appendChild(back('return-link-back'));
+document.body.insertBefore(s,document.body.firstChild);document.querySelector('header').appendChild(back('return-link return-link--header'));})();`;
+
 export function renderPage(): string {
   return `<!doctype html>
 <html lang="en">
@@ -292,6 +307,7 @@ shell-theme select{border:1px solid #4a5063;border-radius:.5rem;background:#171b
 .wait-secs{margin-left:10px;color:var(--text-muted,inherit);font-variant-numeric:tabular-nums}
 @keyframes dancing-p{0%,100%{transform:translate(0,0) rotate(0deg) scale(1)}18%{transform:translate(-2px,-3px) rotate(-5deg) scale(1.02)}36%{transform:translate(2px,1px) rotate(4deg) scale(.98)}55%{transform:translate(-1px,-2px) rotate(0deg) scale(1.01)}74%{transform:translate(2px,0) rotate(4deg) scale(.99)}}
 @media (prefers-reduced-motion:reduce){.dancing-p{animation:none}}
+.return-link--strip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:0;padding:8px 12px;border:1px solid var(--border);border-left:4px solid var(--focus);background:var(--surface);color:var(--text);font-size:13px;overflow-wrap:anywhere}
 </style>
 <script>(function(){var t=localStorage.getItem('paad.theme');if(t&&t!=='auto')document.documentElement.dataset.theme=t;})();</script>
 </head>
@@ -309,6 +325,7 @@ async function submit(text){if(!text.trim())return;send.disabled=true;bubble('us
 form.addEventListener('submit',event=>{event.preventDefault();const text=input.value.trim();input.value='';void submit(text)});document.querySelectorAll('.prompts button').forEach(button=>button.addEventListener('click',()=>void submit(button.textContent||'')));
 var themeSel=document.getElementById('theme-select');themeSel.value=localStorage.getItem('paad.theme')||'auto';themeSel.addEventListener('change',function(){var v=themeSel.value;if(v==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=v;localStorage.setItem('paad.theme',v)});
 </script>
+<script>${RETURN_LINK_SCRIPT}</script>
 </body>
 </html>`;
 }

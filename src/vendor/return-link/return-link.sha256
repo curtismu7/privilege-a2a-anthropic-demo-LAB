@@ -1,0 +1,2 @@
+# vendored byte for byte from curtismu7/AI-DEMO-Standalone shared/return-link at 461e6a8 (PR #117); re-vendor, do not edit. Only returnTargets.js: this page is server-rendered (no React), so ui.ts builds the strip and button from it.
+29cd321cef0735aaa4307286cf98edc438a6617ca16882e7f85e6c94d2d03591  returnTargets.js
