@@ -11,6 +11,7 @@ import { buildWorkerClient } from './a2a-client.js';
 import { MAIN, maskKey, pretty, runChain } from './chain.js';
 import { renderPage } from './ui.js';
 import { shelfInfo } from '../shelfLink.js';
+import { labAllowedHosts, sameOriginGuard } from '../originGuard.js';
 
 /** The token counts a model call reported, for the trace. Absent when the provider sent none. */
 function tokenCounts(message: Anthropic.Message): { input: number; output: number } | undefined {
@@ -38,6 +39,8 @@ const DELEGATE_TOOL: Anthropic.Tool = {
 };
 
 const app = express();
+// First: Host check and same-origin writes for the browser-facing API (LAB_ALLOWED_HOSTS = the lab-proxy's name; loopback always).
+app.use(sameOriginGuard(labAllowedHosts(process.env.LAB_ALLOWED_HOSTS), config.port));
 app.use(express.json({ limit: '64kb' }));
 app.get('/', (_req: Request, res: Response) => res.type('html').send(renderPage()));
 app.get('/api/health', (_req: Request, res: Response) => {
