@@ -110,6 +110,21 @@ export function anthropicClient(agent: AgentName): Anthropic {
   return new Anthropic({ apiKey });
 }
 
+/**
+ * The agent's model client, or — when no provider credentials are set — a stand-in
+ * whose calls fail with the setup message. The process still boots offline
+ * (heuristics mode and health work); only a model call reports "not configured".
+ */
+export function modelClientOrNotConfigured(agent: AgentName): Anthropic {
+  try {
+    return anthropicClient(agent);
+  } catch (error) {
+    const message = `Model not configured for ${agent}: ${error instanceof Error ? error.message : String(error)}`;
+    const fail = (): never => { throw new Error(message); };
+    return { messages: { create: fail, stream: fail } } as unknown as Anthropic;
+  }
+}
+
 export function agentAccessKey(agent: AgentName): string {
   return value(`${agent}_KEY`);
 }
@@ -140,7 +155,7 @@ export function mainAgentConfig(): MainAgentConfig {
     host: value('MAIN_AGENT_HOST', '127.0.0.1'),
     port: numberValue('MAIN_AGENT_PORT', 6881),
     model: modelFor('MAIN_AGENT'),
-    anthropic: anthropicClient('MAIN_AGENT'),
+    anthropic: modelClientOrNotConfigured('MAIN_AGENT'),
     bearer: agentAccessKey('MAIN_AGENT'),
     bffSharedSecret: value('A2A_BFF_SHARED_SECRET'),
     workerA2aUrl: value('WORKER_A2A_URL', `http://127.0.0.1:${workerPort}/a2a`),
@@ -167,7 +182,7 @@ export function workerAgentConfig(): WorkerAgentConfig {
     port: numberValue('WORKER_AGENT_PORT', 6882),
     publicUrl: value('WORKER_PUBLIC_URL', `http://127.0.0.1:${numberValue('WORKER_AGENT_PORT', 6882)}/a2a/jsonrpc`),
     model: modelFor('WORKER_AGENT'),
-    anthropic: anthropicClient('WORKER_AGENT'),
+    anthropic: modelClientOrNotConfigured('WORKER_AGENT'),
     bearer: agentAccessKey('WORKER_AGENT'),
     mcpUrl: value('MCP_URL', `http://127.0.0.1:${numberValue('MCP_SERVER_PORT', 6883)}/mcp`),
     requireBearer: booleanValue('WORKER_REQUIRE_BEARER', false),

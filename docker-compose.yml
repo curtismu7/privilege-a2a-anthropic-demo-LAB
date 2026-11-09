@@ -1,26 +1,38 @@
 # Local standalone compose: one image, three processes (main agent, worker agent, MCP server),
 # like k8s/deployment.yaml. Published loopback-only; the shared lab-proxy resolves
 # privilege-a2a-anthropic-demo-lab-main-1 at request time.
-# The .env file (provider keys) must exist beside this file — see config.example.
+# The .env file (provider keys) is optional — see config.example. Without it the stack
+# starts offline: heuristics mode works, model mode reports "not configured".
+# `required: false` needs Docker Compose 2.24 or later.
 services:
   mcp:
     build: .
     image: privilege-a2a-lab:local
     container_name: privilege-a2a-anthropic-demo-lab-mcp-1
     command: ["node", "dist/mcp-server/index.js"]
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
       MCP_SERVER_HOST: 0.0.0.0
     ports:
       - "127.0.0.1:6883:6883"
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:6883/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   worker:
     image: privilege-a2a-lab:local
     container_name: privilege-a2a-anthropic-demo-lab-worker-1
     command: ["node", "dist/worker-agent/index.js"]
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
       WORKER_AGENT_HOST: 0.0.0.0
       MCP_URL: http://privilege-a2a-anthropic-demo-lab-mcp-1:6883/mcp
@@ -30,12 +42,20 @@ services:
     depends_on: [mcp]
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:6882/.well-known/agent-card.json').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   main:
     image: privilege-a2a-lab:local
     container_name: privilege-a2a-anthropic-demo-lab-main-1
     command: ["node", "dist/main-agent/index.js"]
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
       MAIN_AGENT_HOST: 0.0.0.0
       SHELF_URL: ${SHELF_URL:-http://127.0.0.1:4400}
@@ -46,3 +66,9 @@ services:
     depends_on: [worker]
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:6881/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
