@@ -12,7 +12,7 @@
     "worker": "tsx --env-file=.env src/worker-agent/index.ts",
     "mcp": "tsx --env-file=.env src/mcp-server/index.ts",
     "dev": "concurrently -n mcp,worker,main -c blue,magenta,green \"npm:mcp\" \"npm:worker\" \"npm:main\"",
-    "build": "tsc",
+    "build": "tsc && cp -R src/vendor dist/",
     "test": "tsx --test test/*.test.ts",
     "doctor": "node scripts/doctor.mjs"
   },
