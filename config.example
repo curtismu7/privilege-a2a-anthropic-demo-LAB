@@ -1,4 +1,6 @@
-# Node.js 26 or later. Copy this file to .env before starting the demo.
+# Node.js 26 or later. Optional: copy this file to .env to configure live mode.
+# With no .env the Docker stack still starts offline: heuristics mode works and
+# model mode reports "Model not configured" until a provider key is set.
 
 # Process ports. Worker and MCP bind to loopback. For native AI-DEMO2, the main
 # process also binds to loopback; use 0.0.0.0 only when its BFF runs in Docker.

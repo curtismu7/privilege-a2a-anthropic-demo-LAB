@@ -26,6 +26,12 @@ jobs:
           npm test
       # The vendored shared stylesheet must match the hash pinned when it was last re-vendored.
       - run: bash scripts/check-ui-standard.sh
+      # A fresh clone has no .env; Compose must still accept the file (env_file is optional).
+      - name: docker compose config with no .env
+        run: |
+          test ! -e .env
+          docker compose version
+          docker compose config -q
 
   gitleaks:
     runs-on: ubuntu-latest
