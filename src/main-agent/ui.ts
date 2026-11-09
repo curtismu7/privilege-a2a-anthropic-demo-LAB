@@ -11,7 +11,7 @@ var l=returnLinkFor('${RETURN_LINK_APP}');if(!l)return;
 function back(cls){var b=document.createElement('button');b.type='button';b.className=cls;b.textContent='\u2190 Back to '+l.label;b.title='Back to '+l.label+' (use case '+l.uc+')';b.addEventListener('click',function(){window.location.assign(l.href)});return b}
 var s=document.createElement('div');s.className='return-link return-link--strip';s.setAttribute('role','note');s.setAttribute('aria-label','Opened from '+l.label);
 var x=document.createElement('span');x.textContent='Opened from '+l.label+' \u00b7 '+l.uc+(l.vertical?' \u00b7 '+l.vertical:'');s.appendChild(x);s.appendChild(back('return-link-back'));
-document.body.insertBefore(s,document.body.firstChild);document.querySelector('header').appendChild(back('return-link return-link--header'));})();`;
+var h=document.querySelector('header');h.parentNode.insertBefore(s,h.nextSibling);h.appendChild(back('return-link return-link--header'));})();`;
 
 export function renderPage(): string {
   return `<!doctype html>
