@@ -2,7 +2,7 @@ import { randomUUID, timingSafeEqual } from 'node:crypto';
 import express, { type Request, type Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 
-import { describeMode, mainAgentConfig, viaGateway } from '../config.js';
+import { describeMode, mainAgentConfig, modelClientOrNotConfigured, viaGateway } from '../config.js';
 import { healthDocument, infoDocument } from '../health.js';
 import { parseMode, parseProfile, parseUserName, withLabels, type Profile } from '../profile.js';
 import { systemPromptFor, toolChoiceFor } from './prompts.js';
@@ -67,7 +67,39 @@ app.get('/status', (_req: Request, res: Response) => {
   });
 });
 
-interface ChatRequestBody { message?: unknown; sessionId?: unknown; vertical?: unknown; agentName?: unknown; specialistName?: unknown; tools?: unknown; subtaskHint?: unknown }
+// Rule 19 (mode toggle): Mock = the model-free heuristics path (no model call, fully offline),
+// Real = the actual model call through the configured provider. This server has no runtime
+// provider switch (the client is built from env at boot), so Real is offered when a model
+// client is configured; switching stores the choice as the UI default and /chat honours it.
+// A /chat body that names a mode explicitly (API callers) always wins over the stored default.
+let uiMode: 'mock' | 'real' = 'real';
+const realModelConfigured = (): boolean => {
+  try { modelClientOrNotConfigured('MAIN_AGENT'); return true; } catch { return false; }
+};
+app.get('/api/info', (_req: Request, res: Response) => {
+  const realAvailable = realModelConfigured();
+  res.set('Cache-Control', 'no-store');
+  res.json({ mode: uiMode, source: uiMode === 'real' ? 'real' : 'mock', realAvailable });
+});
+app.post('/api/mode', (req: Request, res: Response) => {
+  const body = (req.body ?? {}) as { source?: unknown; mode?: unknown };
+  const wanted = body.source === 'real' || body.mode === 'real' ? 'real' : body.source === 'mock' || body.mode === 'mock' ? 'mock' : null;
+  if (!wanted) {
+    res.status(400).json({ error: 'the only accepted body is { "source": "mock" | "real" }' });
+    return;
+  }
+  if (wanted === 'real' && !realModelConfigured()) {
+    res.status(409).json({
+      error: 'real_not_available',
+      message: 'Real needs a model provider: set ANTHROPIC_API_KEY (or a Groq/llama.cpp config) and restart. Mock (heuristics) works offline.',
+    });
+    return;
+  }
+  uiMode = wanted;
+  res.json({ ok: true, mode: uiMode });
+});
+
+interface ChatRequestBody { message?: unknown; sessionId?: unknown; vertical?: unknown; agentName?: unknown; specialistName?: unknown; tools?: unknown; subtaskHint?: unknown; mode?: unknown }
 const conversations = new Map<string, Anthropic.MessageParam[]>();
 
 function sendSse(res: Response, event: string, payload: unknown): void {
@@ -198,8 +230,9 @@ app.post('/chat', async (req: Request, res: Response) => {
   const requestedSession = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
   const sessionId = requestedSession.length > 0 && requestedSession.length <= 128 ? requestedSession : randomUUID();
   const traceId = randomUUID();
-  // Model-free path: a vertical profile already names the specialist, so delegate the user's text without asking the model.
-  const heuristic = parseMode(body) === 'heuristics' && profile !== null;
+  // Model-free path: the header toggle (or the request body) picks it; a vertical profile is still required
+  // because heuristics delegates by vertical. Real = the actual model call.
+  const heuristic = (parseMode(body) === 'heuristics' || (uiMode === 'mock' && body.mode === undefined)) && profile !== null;
   // A vertical change must not reuse another vertical's history.
   const conversationKey = profile ? `${sessionId}:${profile.vertical}` : sessionId;
   const systemPrompt = systemPromptFor(profile, parseUserName(body));
