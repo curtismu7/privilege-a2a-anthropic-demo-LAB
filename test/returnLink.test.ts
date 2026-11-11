@@ -47,6 +47,20 @@ test('Back goes only to the fixed Customer Agent LAB target (proxy path or loopb
   for (const q of ['', '?from=elsewhere&uc=UC47', '?from=customer-agent&uc=%3Cb%3E', '?from=https://evil.example&uc=UC47']) assert.equal(returnLinkFor(RETURN_LINK_APP, at(q)), null, q);
 });
 
+test('?from=ai-demo-standalone: strip named for AI Demo Standalone, Back to its fixed proxy path', () => {
+  const at2 = (search: string, pathname = '/privilege-a2a/') => ({ hostname: '127.0.0.1', pathname, search });
+  const l = returnLinkFor(RETURN_LINK_APP, at2('?from=ai-demo-standalone&uc=UC12'));
+  assert.equal(l?.label, 'AI Demo Standalone');
+  assert.equal(l?.uc, 'UC12');
+  assert.equal(l?.href, '/ai-demo-standalone/?returned=privilege-a2a-anthropic-demo&uc=UC12');
+  const { body, header, assigned } = runPageScript('?from=ai-demo-standalone&uc=UC12');
+  const strip = body.children[1];
+  assert.equal(strip?.children[0]?.textContent, 'Opened from AI Demo Standalone \u00b7 UC12');
+  strip?.children[1]?.click?.();
+  header.children[0]?.click?.();
+  assert.deepEqual(assigned, ['/ai-demo-standalone/?returned=privilege-a2a-anthropic-demo&uc=UC12', '/ai-demo-standalone/?returned=privilege-a2a-anthropic-demo&uc=UC12']);
+});
+
 // Runs the page's return-link script against a tiny fake DOM: the strip goes right after the header (which holds the simulation banner),
 // the button into the header, and a click navigates the same tab to the fixed target.
 function runPageScript(search: string, pathname = '/privilege-a2a/') {
