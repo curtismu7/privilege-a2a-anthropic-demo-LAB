@@ -7,10 +7,13 @@ import type Anthropic from '@anthropic-ai/sdk';
  * Groq speaks the OpenAI chat-completions format at
  * `<baseUrl>/chat/completions` with the key as a Bearer token.
  *
- * Unlike Anthropic and Google, the Agent Privilege has no Groq provider (it answers
- * `/llm/groq` with a plain 403, like any unknown name), so these calls go DIRECT to Groq and
- * bypass the gateway: they do not appear in its records or follow its policy. The A2A and MCP
- * hops are unaffected.
+ * Two wire targets, chosen by GROQ_BASE_URL (see config.ts):
+ *  - `https://<gateway>/llm/custom/v1`: the Agent Privilege fronts Groq through an
+ *    "OpenAI-Compatible (Custom)" connection, so the call goes THROUGH the gateway and is
+ *    governed (records, policy, the key's model allow-list). The Bearer is the Privilege
+ *    virtual key bound to that Groq connection. There is no `/llm/groq` route.
+ *  - unset: DIRECT to Groq, bypassing the gateway: not in its records, not under its policy.
+ * The A2A and MCP hops are unaffected either way.
  */
 
 interface OpenAiToolCall { id?: string; type?: string; function?: { name?: string; arguments?: string } }

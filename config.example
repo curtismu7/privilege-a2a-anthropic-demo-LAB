@@ -29,12 +29,16 @@ ANTHROPIC_BASE_URL=
 # created with the Google provider.
 MAIN_AGENT_PROVIDER=anthropic
 WORKER_AGENT_PROVIDER=anthropic
-# Providers: anthropic (default), google or groq. Groq is called DIRECTLY (the Privilege
-# gateway has no Groq provider), so its model calls bypass the gateway. Needs a Groq key:
+# Providers: anthropic (default), google or groq. Groq through Privilege: set
+# GROQ_BASE_URL=https://<gateway>/llm/custom/v1 (the gateway's OpenAI-compatible
+# custom lane, which fronts Groq) and put the Privilege virtual key bound to the
+# Groq connection in the key below; the model must be on that key's allow-list
+# (else 403 "not allowed for this key"). Leave GROQ_BASE_URL blank to call Groq
+# DIRECTLY with a Groq API key; those model calls bypass the gateway.
 # GROQ_API_KEY=
 # MAIN_AGENT_GROQ_KEY=
 # WORKER_AGENT_GROQ_KEY=
-# GROQ_BASE_URL=https://api.groq.com/openai/v1
+# GROQ_BASE_URL=https://<gateway>/llm/custom/v1
 # GROQ_TIMEOUT_MS=30000
 # MAIN_AGENT_MODEL=openai/gpt-oss-120b
 

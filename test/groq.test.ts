@@ -132,3 +132,45 @@ test('the stream form delivers the text to listeners, as the agents use it', asy
 
   assert.deepEqual(heard, ['hello']);
 });
+
+test('through Privilege: the call goes to the gateway custom lane with the virtual key, and a refused model keeps the error shape', async () => {
+  const requests: { url: string; auth: string | null }[] = [];
+  const fetchImpl = (async (url: string | URL | Request, init?: RequestInit) => {
+    requests.push({ url: String(url), auth: new Headers(init?.headers).get('authorization') });
+    return requests.length === 1
+      ? okReply('via gateway')
+      : new Response('{"error":"model \\"qwen/not-on-key\\" not allowed for this key"}', { status: 403 });
+  }) as typeof fetch;
+  const virtualKey = 'test-virtual-key-not-real';
+  const client = groqClient({ apiKey: virtualKey, baseUrl: 'https://gateway.example/llm/custom/v1/', fetchImpl });
+
+  const reply = await client.messages.create({ ...ask, model: 'openai/gpt-oss-120b' });
+  assert.equal((reply.content[0] as Anthropic.TextBlock).text, 'via gateway');
+  assert.equal(requests[0]!.url, 'https://gateway.example/llm/custom/v1/chat/completions');
+  assert.equal(requests[0]!.auth, `Bearer ${virtualKey}`);
+
+  // A model not on the key's allow-list: one 403, not retried, same "Groq request returned" text.
+  await assert.rejects(client.messages.create({ ...ask, model: 'qwen/not-on-key' }), (error: Error) =>
+    /^Groq request returned 403: .*not allowed for this key/.test(error.message) && !error.message.includes(virtualKey));
+  assert.equal(requests.length, 2);
+});
+
+test('the key is never logged, on success or on a refusal', async () => {
+  const secret = 'test-groq-key-must-not-appear';
+  const logged: string[] = [];
+  const originals = { log: console.log, error: console.error, warn: console.warn, info: console.info };
+  for (const name of ['log', 'error', 'warn', 'info'] as const) console[name] = (...args: unknown[]) => { logged.push(args.map(String).join(' ')); };
+  try {
+    const statuses = [200, 403];
+    const fetchImpl = (async () => (statuses.shift() === 200 ? okReply() : new Response('{"error":"forbidden"}', { status: 403 }))) as typeof fetch;
+    for (const baseUrl of [undefined, 'https://gateway.example/llm/custom/v1']) {
+      statuses.splice(0, statuses.length, 200, 403);
+      const client = groqClient({ apiKey: secret, baseUrl, fetchImpl, retryDelayMs: 1 });
+      await client.messages.create(ask);
+      await assert.rejects(client.messages.create(ask), (error: Error) => !error.message.includes(secret));
+    }
+  } finally {
+    Object.assign(console, originals);
+  }
+  assert.equal(logged.some(line => line.includes(secret)), false);
+});
