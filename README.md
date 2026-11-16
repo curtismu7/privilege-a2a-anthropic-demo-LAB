@@ -262,17 +262,30 @@ key is sent as `x-goog-api-key`; leave it blank to call Google directly with
 set to `google` needs a key created with the Google provider. The Google path
 returns each reply whole rather than token by token.
 
-**Groq.** Set an agent to `groq` and put a Groq key in `GROQ_API_KEY` (or
-`MAIN_AGENT_GROQ_KEY` / `WORKER_AGENT_GROQ_KEY`). Groq is called **directly**
-(`https://api.groq.com/openai/v1`, OpenAI chat-completions format, override with
-`GROQ_BASE_URL`), because the Agent Privilege has no Groq provider: it answers
-`/llm/groq` with a plain `403`, like any unknown name. Those model calls therefore
-**bypass the gateway**: they are not in its records and do not follow its policy. The
-A2A and MCP hops still go through it, and the main agent's `/status` says so. The
-default model is `openai/gpt-oss-120b`. A Groq account only lists the models it can
-use, and a model it lacks answers `404 model_not_found`: check yours with
-`curl -H "Authorization: Bearer $GROQ_API_KEY" https://api.groq.com/openai/v1/models`
-(no tokens are spent), then set `MAIN_AGENT_MODEL` /
+**Groq.** Set an agent to `groq`. It runs one of two ways, chosen by `GROQ_BASE_URL`
+(the same rule as `LLAMACPP_BASE_URL` for llama.cpp):
+
+- **Through Privilege** (`GROQ_BASE_URL=https://<gateway>/llm/custom/v1`). The
+  gateway fronts Groq through an "OpenAI-Compatible (Custom)" connection, so calls
+  go to `https://<gateway>/llm/custom/v1/chat/completions` and are in its records
+  and under its policy; `/status` shows "via Privilege". Put the **Privilege virtual
+  key bound to the Groq connection** in `GROQ_API_KEY` (or `MAIN_AGENT_GROQ_KEY` /
+  `WORKER_AGENT_GROQ_KEY`). A virtual key is bound to one connection, so this is a
+  different key from a llama.cpp custom-lane key even though both use
+  `/llm/custom/v1`. The model must be on that key's allow-list (for example
+  `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.8-27b`); any other
+  model answers `403 model "<id>" not allowed for this key`. List the allowed
+  models with `GET https://<gateway>/llm/custom/v1/models` and the same Bearer.
+  There is no `/llm/groq` route.
+- **Direct** (`GROQ_BASE_URL` blank). Calls go to `https://api.groq.com/openai/v1`
+  with a Groq API key in the same env names, and **bypass the gateway**: they are
+  not in its records and do not follow its policy. The A2A and MCP hops still go
+  through it, and the main agent's `/status` says so. A Groq account only lists
+  the models it can use, and a model it lacks answers `404 model_not_found`: check
+  yours with `curl -H "Authorization: Bearer $GROQ_API_KEY" https://api.groq.com/openai/v1/models`
+  (no tokens are spent).
+
+The default model is `openai/gpt-oss-120b`; set `MAIN_AGENT_MODEL` /
 `WORKER_AGENT_MODEL` to change it. Every provider has the same 30 s per-attempt
 deadline with one retry (`GEMINI_TIMEOUT_MS` / `GROQ_TIMEOUT_MS`).
 

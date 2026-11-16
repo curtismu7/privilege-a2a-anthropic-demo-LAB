@@ -54,17 +54,65 @@ test('each provider has its own default model, and the _MODEL setting wins', () 
   assert.equal(mainAgentConfig().model, 'llama-3.1-8b-instant');
 });
 
-test('Groq is never "via Privilege", even if gateway URLs are set, and says plainly that it bypasses it', () => {
+test('Groq without GROQ_BASE_URL is direct, even if other gateway URLs are set, and says plainly that it bypasses it', () => {
   process.env.ANTHROPIC_BASE_URL = 'https://gateway.example/llm/anthropic';
   process.env.GEMINI_BASE_URL = 'https://gateway.example/llm/google';
+  process.env.LLAMACPP_BASE_URL = 'https://gateway.example/llm/custom/v1';
   process.env.MAIN_AGENT_PROVIDER = 'groq';
   assert.equal(viaGateway('MAIN_AGENT'), false);
   assert.match(describeMode('MAIN_AGENT'), /Groq.*bypass the Privilege gateway/);
+  // Groq's own URL as GROQ_BASE_URL is still direct.
+  process.env.GROQ_BASE_URL = 'https://api.groq.com/openai/v1/';
+  assert.equal(viaGateway('MAIN_AGENT'), false);
   // The other providers still read as via Privilege when their base URL is set.
   process.env.WORKER_AGENT_PROVIDER = 'google';
   assert.equal(viaGateway('WORKER_AGENT'), true);
   assert.match(describeMode('WORKER_AGENT'), /^Google via Privilege/);
 });
+
+test('Groq runs via Privilege when GROQ_BASE_URL points at the gateway custom lane, and says so', () => {
+  process.env.MAIN_AGENT_PROVIDER = 'groq';
+  process.env.GROQ_BASE_URL = 'https://gateway.example/llm/custom/v1';
+  assert.equal(viaGateway('MAIN_AGENT'), true);
+  assert.match(describeMode('MAIN_AGENT'), /^Groq via Privilege/);
+  assert.doesNotMatch(describeMode('MAIN_AGENT'), /bypass/);
+  // Missing key: the message names the virtual key, not a Groq account key.
+  assert.throws(() => anthropicClient('MAIN_AGENT'), /MAIN_AGENT_GROQ_KEY or GROQ_API_KEY to the Privilege virtual key bound to the Groq connection/);
+});
+
+for (const lane of [
+  { name: 'gateway', baseUrl: 'https://gateway.example/llm/custom/v1', url: 'https://gateway.example/llm/custom/v1/chat/completions' },
+  { name: 'direct', baseUrl: undefined, url: 'https://api.groq.com/openai/v1/chat/completions' },
+]) {
+  test(`the configured Groq client calls the ${lane.name} URL with the key as Bearer, and never logs or shows the key`, async () => {
+    const secret = `test-${lane.name}-groq-key-not-real`;
+    process.env.MAIN_AGENT_PROVIDER = 'groq';
+    process.env.MAIN_AGENT_GROQ_KEY = secret;
+    if (lane.baseUrl) process.env.GROQ_BASE_URL = lane.baseUrl;
+    const seen: { url: string; auth: string | null }[] = [];
+    const logged: string[] = [];
+    const realFetch = globalThis.fetch;
+    const originals = { log: console.log, error: console.error, warn: console.warn, info: console.info };
+    // A stub fetch: nothing leaves the process.
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      seen.push({ url: String(url), auth: new Headers(init?.headers).get('authorization') });
+      return new Response('{"error":"forbidden"}', { status: 403 });
+    }) as typeof fetch;
+    for (const name of ['log', 'error', 'warn', 'info'] as const) console[name] = (...args: unknown[]) => { logged.push(args.map(String).join(' ')); };
+    try {
+      const config = mainAgentConfig();
+      await assert.rejects(config.anthropic.messages.create({ model: config.model, max_tokens: 8, messages: [{ role: 'user', content: 'hi' }] }),
+        (error: Error) => /^Groq request returned 403/.test(error.message) && !error.message.includes(secret));
+      assert.equal(config.model, 'openai/gpt-oss-120b');
+      assert.ok(!describeMode('MAIN_AGENT').includes(secret));
+    } finally {
+      globalThis.fetch = realFetch;
+      Object.assign(console, originals);
+    }
+    assert.deepEqual(seen, [{ url: lane.url, auth: `Bearer ${secret}` }]);
+    assert.equal(logged.some(line => line.includes(secret)), false);
+  });
+}
 
 test('Groq needs a key and says where to put it; a per-agent key or the shared key both work', () => {
   process.env.MAIN_AGENT_PROVIDER = 'groq';
@@ -84,7 +132,7 @@ test('the Groq error text is never mistaken for an Anthropic or Google one in th
 // ── llama.cpp provider ────────────────────────────────────────────────────────
 // The default lane: llama.cpp THROUGH the Privilege gateway's custom route
 // (/llm/custom/v1 — OpenAI chat-completions wire, custom virtual key as the
-// Bearer). Unlike Groq, it stays inside the gateway's records and policy.
+// Bearer). Groq uses the same route when GROQ_BASE_URL is set, with its own virtual key.
 
 test('llama.cpp is the DEFAULT provider for both agents, with the gateway model', () => {
   // No provider env at all → llamacpp, model = the gateway custom lane's model.

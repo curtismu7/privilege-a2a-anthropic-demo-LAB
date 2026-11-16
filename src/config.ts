@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 import { geminiClient } from './gemini.js';
-import { groqClient } from './groq.js';
+import { GROQ_DIRECT_URL, groqClient } from './groq.js';
 import { llamacppClient } from './llamacpp.js';
 
 export type AgentName = 'MAIN_AGENT' | 'WORKER_AGENT';
@@ -36,9 +36,15 @@ export const providerOf = (agent: AgentName): Provider => {
 export const usesGoogle = (agent: AgentName): boolean => providerOf(agent) === 'google';
 export const usesGroq = (agent: AgentName): boolean => providerOf(agent) === 'groq';
 export const usesLlamacpp = (agent: AgentName): boolean => providerOf(agent) === 'llamacpp';
-// Groq is always direct: the Privilege gateway has no Groq provider.
+// Groq goes through Privilege when GROQ_BASE_URL points at the gateway's
+// OpenAI-compatible custom lane (https://<gateway>/llm/custom/v1), the same way
+// LLAMACPP_BASE_URL decides it for llama.cpp. Blank, or Groq's own URL, = direct.
+const groqGatewayUrl = (): string => {
+  const url = value('GROQ_BASE_URL').replace(/\/+$/, '');
+  return url === GROQ_DIRECT_URL ? '' : url;
+};
 const providerBaseUrl = (agent: AgentName): string => {
-  if (usesGroq(agent)) return '';
+  if (usesGroq(agent)) return groqGatewayUrl();
   if (usesGoogle(agent)) return geminiBaseUrl();
   if (usesLlamacpp(agent)) return value('LLAMACPP_BASE_URL');
   return anthropicBaseUrl();
@@ -59,8 +65,14 @@ const modelFor = (agent: AgentName): string => value(`${agent}_MODEL`, DEFAULT_M
  */
 export function anthropicClient(agent: AgentName): Anthropic {
   if (usesGroq(agent)) {
+    // Through the gateway the key is the Privilege virtual key bound to the Groq
+    // connection; direct, it is the Groq API key — the same env holds whichever.
     const apiKey = value(`${agent}_GROQ_KEY`) || value('GROQ_API_KEY');
-    if (!apiKey) throw new Error(`Set ${agent}_GROQ_KEY or GROQ_API_KEY to use Groq (it is called directly, not through Privilege)`);
+    if (!apiKey) {
+      throw new Error(viaGateway(agent)
+        ? `Set ${agent}_GROQ_KEY or GROQ_API_KEY to the Privilege virtual key bound to the Groq connection (GROQ_BASE_URL points at the gateway)`
+        : `Set ${agent}_GROQ_KEY or GROQ_API_KEY to use Groq (it is called directly, not through Privilege)`);
+    }
     const timeoutMs = Number(value('GROQ_TIMEOUT_MS'));
     return groqClient({ apiKey, baseUrl: value('GROQ_BASE_URL') || undefined, ...(timeoutMs > 0 ? { timeoutMs } : {}) });
   }
@@ -130,7 +142,7 @@ export function agentAccessKey(agent: AgentName): string {
 }
 
 export function describeMode(agent: AgentName): string {
-  if (usesGroq(agent)) return 'direct Groq (model calls bypass the Privilege gateway)';
+  if (usesGroq(agent)) return viaGateway(agent) ? 'Groq via Privilege (custom lane)' : 'direct Groq (model calls bypass the Privilege gateway)';
   if (usesLlamacpp(agent)) return viaGateway(agent) ? 'llama.cpp via Privilege (custom lane)' : 'llama.cpp direct (model calls bypass the Privilege gateway)';
   const provider = usesGoogle(agent) ? 'Google' : 'Anthropic';
   return viaGateway(agent) ? `${provider} via Privilege (${providerBaseUrl(agent)})` : `direct ${provider}`;
