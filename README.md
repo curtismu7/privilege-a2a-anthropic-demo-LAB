@@ -10,7 +10,7 @@ Anthropic or Google models. The main agent owns the browser conversation and del
 The worker owns the access-review tools and calls the separate MCP process.
 
 ```text
-AI Guard Client A2A tab ──SSE──▶ BFF :3001 ──▶ main agent :6881
+browser page (served by the main agent) ──SSE──▶ main agent :6881
                                                    ├──A2A JSON-RPC──▶ worker :6882
                                                    └──Anthropic Messages API──▶ Privilege
                                                           worker ├──Anthropic Messages API──▶ Privilege
@@ -121,9 +121,9 @@ server's log should show no `open_ticket` call.
 
 ## Requirements and local startup
 
-Use Node.js 26 or later. Copy `config.example` to `.env`, set the Privilege
-gateway URLs, Agent Access keys, model IDs, and shared BFF secret, then install
-dependencies and start all three backend processes:
+Use Node.js 26 or later. Copy `config.example` to `.env` (optional: with no `.env` the stack starts offline and
+heuristics mode works), set the Privilege gateway URLs, Agent Access keys and model IDs, then install dependencies
+and start all three processes:
 
 ```bash
 cp config.example .env
@@ -131,16 +131,18 @@ npm ci
 npm run dev
 ```
 
-The integrated client is at
-<https://localhost:4000/privilege-mcp-client>. Select **A2A** in
-Demo mode. The BFF must be running and configured as described below. To run
-the three backend processes separately, use three terminals:
+The lab's own page is at <http://127.0.0.1:6881>, served by the main agent; nothing else needs to run. To run the
+three processes separately, use three terminals:
 
 ```bash
 npm run mcp
 npm run worker
 npm run main
 ```
+
+Docker (OrbStack): `docker compose up --build -d` starts the same three processes from one image, each published on
+`127.0.0.1` only (6881, 6882, 6883). The optional `.env` beside `docker-compose.yml` is passed into all three
+containers. The lab needs no other project.
 
 ### Change the local ports
 
@@ -156,58 +158,18 @@ WORKER_TRACE_URL=http://127.0.0.1:6882/trace
 MCP_URL=http://127.0.0.1:6883/mcp
 ```
 
-Then run `npm run dev`. If the BFF is native, update its main-agent URL too:
-
-```dotenv
-# demo_api_server/.env
-PRIVILEGE_A2A_MAIN_URL=http://127.0.0.1:6881
-```
-
-If the BFF is in Docker, use the host gateway URL shown below. If you only move
-the main agent, update that URL in the BFF too.
+Then run `npm run dev`.
 
 Each process reads `.env`. Local listeners bind to loopback. The MCP server
 seeds fictional users, grants, and resources; `open_ticket` writes to an
-in-memory store that resets when the MCP process restarts. The optional native
-browser page at <http://127.0.0.1:6881> is for standalone use only; leave the
-BFF secret unset for its direct chat path. In the integrated setup, the A2A
-tab calls the main agent only through the BFF.
+in-memory store that resets when the MCP process restarts.
 
-### Connect the AI Guard Client BFF
+### Optional: a shared secret on the main agent's chat endpoints
 
-Set the same random secret in the A2A package's `.env` and the BFF's
-`demo_api_server/.env`. Keep both values server-side; the browser never receives
-this secret or either agent's key.
-
-```dotenv
-# standalone/privilege-a2a-anthropic-demo/.env
-A2A_BFF_SHARED_SECRET=<random-shared-secret>
-MAIN_AGENT_HOST=127.0.0.1
-MAIN_AGENT_PORT=6881
-
-# demo_api_server/.env when the BFF runs natively
-PRIVILEGE_A2A_MAIN_URL=http://127.0.0.1:6881
-PRIVILEGE_A2A_BFF_SECRET=<same-random-shared-secret>
-```
-
-Generate a value with `openssl rand -hex 32`, then put that value in both
-files. Restart the BFF after changing its environment. For a Docker BFF,
-replace the BFF URL and main listener host as follows; the root Compose stack
-already maps `host.docker.internal` to the host gateway:
-
-```dotenv
-# standalone/privilege-a2a-anthropic-demo/.env
-MAIN_AGENT_HOST=0.0.0.0
-
-# demo_api_server/.env used by the Docker BFF
-PRIVILEGE_A2A_MAIN_URL=http://host.docker.internal:6881
-PRIVILEGE_A2A_BFF_SECRET=<same-random-shared-secret>
-```
-
-Worker and MCP stay loopback-bound. The main process accepts chat only when
-the BFF sends the shared secret. No Compose service or root startup change is
-needed: start the three processes with `npm run dev` (or the three commands
-above) and restart the existing BFF so it loads its two A2A environment values.
+If a trusted server-side front end of your own calls the main agent's chat endpoints instead of the built-in page,
+set `A2A_BFF_SHARED_SECRET` (any random value, for example `openssl rand -hex 32`) in `.env`. The main agent then
+accepts chat only from callers that send it in the `X-A2A-BFF-Secret` header. Keep it server-side; never put it in
+a browser. **Leave it unset for the built-in page**, which sends no secret. The lab needs no other project to run.
 
 ## Gateway configuration
 
@@ -247,10 +209,6 @@ policy before a demo, avoid deliberate budget exhaustion, and don't change
 shared policy for a local run. A denied gateway request is reported in the
 chat trace; rate and budget status codes are produced by the configured
 Privilege policy.
-
-The integrated demo defaults to port `6881` for MainAgent so it does not occupy
-the AI-DEMO2 BFF's port `3001`. Keep the BFF-to-main URL and bind host paired as
-described above when switching between native and Docker BFF operation.
 
 **Google or Groq instead of Anthropic.** Each agent picks its provider with
 `MAIN_AGENT_PROVIDER` and `WORKER_AGENT_PROVIDER` (`anthropic` by default,
@@ -346,8 +304,8 @@ processes on loopback, no cluster needed.
 
 The same manifest also runs the main agent in the cluster (`mainagentdemo`),
 for a deployment whose app server cannot reach a laptop. It needs two more
-values in the Secret, `MAIN_AGENT_KEY` and `A2A_BFF_SHARED_SECRET`, and the app
-server needs its address in `PRIVILEGE_A2A_MAIN_URL`. The main agent is not
+values in the Secret, `MAIN_AGENT_KEY` and `A2A_BFF_SHARED_SECRET`, and whatever
+calls it needs its in-cluster address. The main agent is not
 registered in Privilege: it is a caller, not a remote agent.
 
 ### Run main agent on your laptop
@@ -389,11 +347,9 @@ Privilege. The demo sends only the Agent Access keys above to that route.
 | `WORKER_AGENT_ANTHROPIC_API_KEY` | Worker direct-provider key when the base URL is empty |
 | `ANTHROPIC_API_KEY` | Optional shared direct-provider key fallback |
 | `MAIN_AGENT_MODEL`, `WORKER_AGENT_MODEL` | Independent concrete Anthropic model IDs |
-| `MAIN_AGENT_HOST` | Main-agent bind host; `127.0.0.1` native, `0.0.0.0` when Docker BFF connects through the host gateway |
+| `MAIN_AGENT_HOST` | Main-agent bind host; `127.0.0.1` native (`0.0.0.0` inside a container, which Compose sets) |
 | `MAIN_AGENT_PORT`, `WORKER_AGENT_PORT`, `MCP_SERVER_PORT` | Process ports; defaults are `6881`, `6882`, and `6883` |
-| `A2A_BFF_SHARED_SECRET` | Main-agent inbound secret; required in integrated mode and must match the BFF value |
-| `PRIVILEGE_A2A_MAIN_URL` | BFF-only main-agent base URL; defaults to `http://127.0.0.1:6881` |
-| `PRIVILEGE_A2A_BFF_SECRET` | BFF-only shared secret; must match `A2A_BFF_SHARED_SECRET` |
+| `A2A_BFF_SHARED_SECRET` | Optional main-agent inbound secret for a server-side front end of your own (header `X-A2A-BFF-Secret`); leave unset for the built-in page |
 | `WORKER_A2A_URL` | Worker A2A base URL; client uses its `/jsonrpc` endpoint |
 | `WORKER_TRACE_URL` | Worker trace SSE endpoint |
 | `MCP_URL` | MCP Streamable HTTP endpoint |
@@ -493,10 +449,17 @@ server-side guard after repeated network drops). Note the times from
 
 ---
 
-## Real mode: through the PingOne Privilege gateway
+## Mock and Real
 
-**Privilege objects this lab uses:** the MCP hop behind the gateway and the A2A hop with PingOne bearer auth (`GATEWAY_RESOURCE_NAME`, provider keys in the shared file)
+Settings are the lab's own `.env` beside `docker-compose.yml` (copy `config.example`, mode 600, gitignored). Never a
+shared settings file in another folder, and nothing from another project.
 
-Settings keys: `A2A_GW_URL`, `A2A_GW_APPS`, at least one `A2A_GW_KEY_<NAME>`
-in the shared settings file (`~/Development/.env`, or the file `STANDALONE_ENV` names). The key
-is write-only: it is scrubbed from every message, error and log line.
+- **Mock** = the model-free heuristics path. No model call, no provider key, fully offline; the delegation, the A2A hop
+  and the MCP tool call still run on the lab's own three processes. This is the default without a provider setting.
+- **Real** = the actual model call. The header toggle enables it only when a model provider is configured:
+  `ANTHROPIC_API_KEY` (or the per-agent keys) for direct Anthropic, or a Privilege gateway through
+  `ANTHROPIC_BASE_URL` (or `GEMINI_BASE_URL`, `GROQ_BASE_URL`) with `MAIN_AGENT_KEY` and `WORKER_AGENT_KEY`, and
+  `WORKER_A2A_URL`, `WORKER_TRACE_URL`, `MCP_URL` pointing at your gateway routes (steps above). Unconfigured, the
+  Real button is disabled and `POST /api/mode {"source":"real"}` answers 409 with the how-to. Keys are write-only:
+  scrubbed from every message, error and log line.
+- **UNVERIFIED**: Real against a live Privilege gateway or provider is owner-run; the tests use a local provider stub.
