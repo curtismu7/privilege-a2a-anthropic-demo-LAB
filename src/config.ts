@@ -179,7 +179,7 @@ export function mainAgentConfig(): MainAgentConfig {
     workerA2aUrl: value('WORKER_A2A_URL', `http://127.0.0.1:${workerPort}/a2a`),
     workerTraceUrl: value('WORKER_TRACE_URL', `http://127.0.0.1:${workerPort}/trace`),
     chainA2aUrl: value('CHAIN_A2A_URL'),
-    awsAgentA2aUrl: value('AWS_AGENT_A2A_URL') || value('AWS_MOCK_URL', `http://127.0.0.1:${numberValue('AWS_MOCK_PORT', 6884)}/`),
+    awsAgentA2aUrl: value('AWS_AGENT_A2A_URL') || value('AWS_MOCK_URL', `http://127.0.0.1:${numberValue('AWS_MOCK_PORT', 6885)}/`),
     awsAgentSimulated: !value('AWS_AGENT_A2A_URL'),
     awsAgentCustodian: value('AWS_AGENT_CUSTODIAN', 'Sample custodian'),
   };
