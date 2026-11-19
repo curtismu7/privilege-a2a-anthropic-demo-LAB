@@ -27,10 +27,18 @@ test('the panel names the custodian and the subagent it calls, in a header block
 });
 
 test('on a narrow screen the trace stacks under the chat instead of disappearing', () => {
-  const m = page.match(/@media\(max-width:850px\)\{main\{([^}]*)\}/);
+  const m = page.match(/@media\(max-width:850px\)\{body\{[^}]*\}main\{([^}]*)\}/);
   assert.ok(m, 'the narrow rule exists');
   assert.match(m[1], /grid-template-columns:1fr/);
   assert.ok(!page.includes('#tracePane{display:none}'), 'the panel is no longer hidden');
+  assert.match(page, /@media\(max-width:850px\)\{body\{height:auto;min-height:100vh\}/, 'the whole page scrolls, so the trace is not stuck below the fold inside an inner scroller');
+  assert.match(page, /#messages\{min-height:11rem;max-height:60vh\}/, 'the chat reserves little height, so the trace follows it closely');
+});
+
+test('on a narrow screen the handoff scrolls the custodian and subagent block into view', () => {
+  assert.ok(page.includes('function showHandoff()'));
+  assert.ok(page.includes("renderWho();showHandoff()}"), 'called when a handoff starts');
+  assert.ok(page.includes("scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'"), 'respects reduced motion');
 });
 
 test('the page script still parses with the new code', () => {
