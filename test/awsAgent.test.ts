@@ -40,6 +40,17 @@ test('a run against the simulated AWS agent reads the card, sends the message an
   });
 });
 
+test('asked to introduce itself, the stand-in says what it is and that it is simulated', async () => {
+  await withMock({}, async (url) => {
+    const { emit } = collect();
+    const answer = await runAwsAgent({ url, bearer: KEY, message: 'Introduce yourself: which agent are you, and where do you run?', emit, simulated: true });
+    assert.match(answer, /SIMULATED reply from the AWS agent/);
+    assert.match(answer, /Cloud Access Agent/);
+    assert.match(answer, /Amazon Bedrock AgentCore/);
+    assert.ok(!/Cloud access review \(sample data\)/.test(answer), 'not the canned review');
+  });
+});
+
 test('the agent key is sent as a Bearer header but never appears unmasked in an event', async () => {
   let seen = '';
   const fetchImpl = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {

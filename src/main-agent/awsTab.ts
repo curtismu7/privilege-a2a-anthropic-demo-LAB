@@ -3,11 +3,27 @@
 // The panel sets its own surface and ink from the shared tokens, so it reads in both themes although the rest of the page is styled dark.
 // Everything the remote side sends is written with textContent, never as HTML.
 
-export const AWS_PROMPTS: readonly string[] = [
-  'Review cloud access for the data platform',
-  'Which service accounts hold roles they have not used?',
-  'Is any storage bucket publicly readable?',
+export interface AwsPrompt {
+  /** The question that is sent. */
+  q: string;
+  /** What running it shows; the button carries it as a caption. Optional. */
+  proves?: string;
+}
+
+export const AWS_PROMPTS: readonly AwsPrompt[] = [
+  {
+    q: 'Introduce yourself: which agent are you, and where do you run?',
+    proves: 'our agent, running on this machine, talks to the agent hosted in AWS (Bedrock AgentCore) through Privilege, and its reply comes back here. With no gateway route set, a local stand-in answers and says so.',
+  },
+  { q: 'Review cloud access for the data platform' },
+  { q: 'Which service accounts hold roles they have not used?' },
+  { q: 'Is any storage bucket publicly readable?' },
 ];
+
+const promptButton = ({ q, proves }: AwsPrompt): string =>
+  proves
+    ? `<button type="button" class="has-proves" data-q="${q}"><span class="p-q">${q}</span><span class="p-proves"><b>Proves:</b> ${proves}</span></button>`
+    : `<button type="button" data-q="${q}">${q}</button>`;
 
 export const AWS_TABS_HTML = `<div class="tabs" role="tablist" aria-label="Demo views">
 <button type="button" role="tab" id="tab-review" aria-selected="true" aria-controls="panel-review" data-testid="tab-review">Access review</button>
@@ -30,7 +46,7 @@ ${node('aws', 'AWS agent', 'Agent on AWS', "Runs in AWS (Bedrock AgentCore). It 
 <form id="aws-form" class="aws__form">
 <label for="aws-input" class="aws__label">Ask the AWS agent</label>
 <div class="aws__row"><input id="aws-input" autocomplete="off" maxlength="4000" placeholder="Ask about cloud access"><button id="aws-send" type="submit">Send</button></div>
-<div class="aws__prompts" role="group" aria-label="Suggested questions">${AWS_PROMPTS.map((p) => `<button type="button">${p}</button>`).join('')}</div>
+<div class="aws__prompts" role="group" aria-label="Suggested questions">${AWS_PROMPTS.map(promptButton).join('')}</div>
 </form>
 <div id="aws-answer" class="aws__answer" role="status" aria-live="polite"></div>
 <h3 class="aws__h3">What crossed each hop</h3>
@@ -97,6 +113,11 @@ export const AWS_TAB_CSS = `
 .aws__how ul{margin:.5rem 0 0;padding-left:1.1rem;line-height:1.5}
 .aws__row button:hover:not([disabled]){filter:brightness(1.08)}
 .aws__prompts button:hover{background:var(--surface);border-color:var(--text)}
+.aws__prompts button{text-align:left}
+.aws__prompts .has-proves{flex:1 1 100%;display:block;line-height:1.4}
+.aws__prompts .p-q{display:block;font-weight:700}
+.aws__prompts .p-proves{display:block;margin-top:.2rem;font-size:.75rem;font-weight:400;color:var(--text-body)}
+.aws__prompts .p-proves b{color:var(--text);font-weight:700}
 @media(max-width:850px){.aws__flow{flex-direction:column;gap:2rem}.aws__node:not(:last-child)::after{top:auto;right:auto;bottom:-1.6rem;left:50%;width:0;height:1.2rem;border-top:0;border-left:2px solid var(--muted)}.aws__node:not(:last-child)::before{top:auto;right:auto;bottom:-1.85rem;left:50%;margin:0 0 0 -5px;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid var(--muted);border-bottom:0}}
 `;
 
@@ -200,5 +221,5 @@ async function run(text){
   }finally{send.disabled=false;input.focus()}
 }
 form.addEventListener('submit',function(e){e.preventDefault();var t=input.value;input.value='';run(t)});
-document.querySelectorAll('.aws__prompts button').forEach(function(b){b.addEventListener('click',function(){run(b.textContent||'')})});
+document.querySelectorAll('.aws__prompts button').forEach(function(b){b.addEventListener('click',function(){run(b.getAttribute('data-q')||'')})});
 })();`;
