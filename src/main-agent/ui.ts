@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { WIRING_CSS, WIRING_HTML } from './wiringDiagram.js';
+import { AWS_PANEL_HTML, AWS_TAB_CSS, AWS_TAB_SCRIPT, AWS_TABS_HTML } from './awsTab.js';
 
 // The way back to Customer Agent LAB (?from=customer-agent&uc=&vertical=): the vendored shared return-link logic (src/vendor/return-link,
 // copied to dist by `npm run build`), inlined as a classic script with its `export` keywords removed. The target comes only from its fixed
@@ -314,21 +315,24 @@ shell-theme select{border:1px solid #4a5063;border-radius:.5rem;background:#171b
 @keyframes dancing-p{0%,100%{transform:translate(0,0) rotate(0deg) scale(1)}18%{transform:translate(-2px,-3px) rotate(-5deg) scale(1.02)}36%{transform:translate(2px,1px) rotate(4deg) scale(.98)}55%{transform:translate(-1px,-2px) rotate(0deg) scale(1.01)}74%{transform:translate(2px,0) rotate(4deg) scale(.99)}}
 @media (prefers-reduced-motion:reduce){.dancing-p{animation:none}}
 .return-link--strip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:0;padding:8px 12px;border:1px solid var(--border);border-left:4px solid var(--focus);background:var(--surface);color:var(--text);font-size:13px;overflow-wrap:anywhere}
-${WIRING_CSS}</style>
+${WIRING_CSS}
+${AWS_TAB_CSS}</style>
 <script>(function(){var t=localStorage.getItem('paad.theme');if(t&&t!=='auto')document.documentElement.dataset.theme=t;})();</script>
 <script>
-(function(){var STEP={S:"14px",M:"16px",L:"18px"},order=["S","M","L"];
+document.addEventListener("DOMContentLoaded",function(){var STEP={S:"14px",M:"16px",L:"18px"},order=["S","M","L"];
 function apply(step){document.documentElement.style.fontSize=STEP[step]||"16px";try{localStorage.setItem("pa2a.font",step)}catch(e){}var s=document.getElementById("font-select");if(s)s.value=step;}
 var sel=document.getElementById("font-select");
 sel.addEventListener("change",function(){apply(sel.value)});
 document.getElementById("font-minus").addEventListener("click",function(){apply(order[Math.max(0,order.indexOf(sel.value)-1)])});
 document.getElementById("font-plus").addEventListener("click",function(){apply(order[Math.min(2,order.indexOf(sel.value)+1)])});
-apply(localStorage.getItem("pa2a.font")||"M");})();
+apply(localStorage.getItem("pa2a.font")||"M");});
 </script></head>
 <body>
 <header><h1>Access Review</h1><span class="banner" role="note">SIMULATED: agents, A2A handoff and the MCP hop are a local simulation; nothing here is a real tenant.</span><span class="pill" id="mode">Connecting</span><span class="pill" id="model"></span><span class="pill" id="worker"></span><div class="mode-toggle" role="group" aria-label="Mode: Mock (heuristics) or Real (model call)"><button type="button" id="mode-mock" aria-pressed="true" data-testid="mode-mock">Mock</button><button type="button" id="mode-real" aria-pressed="false" data-testid="mode-real" title="Real sends every question to the configured model provider. Mock answers with the built-in heuristics: no model call.">Real</button></div><nav class="top-menu" data-testid="top-menu" aria-label="Top menu" style="display:inline-flex;flex-direction:column;align-items:flex-end;gap:.55rem;background:#16181f;color:var(--on-box,#fcfcfc);padding:.5rem .75rem;border-radius:10px;--ping-red:#d20e0f;--ping-red-deep:#aa0005;"><div class="top-menu__row" style="display:inline-flex;align-items:center;gap:.5rem;"></div><div class="top-menu__row" style="display:inline-flex;align-items:center;gap:.5rem;"><span style="font-size:.78rem;font-weight:600;opacity:.9">Theme</span> <select id="theme-select" style="height:32px;border-radius:8px;background:transparent;color:inherit;border:1px solid rgba(255,255,255,.35);padding:0 .4rem"><option value="auto">Auto</option><option value="light">Light</option><option value="dark">Dark</option></select><span style="font-size:.78rem;font-weight:600;opacity:.9">Text size</span><select id="font-select" aria-label="Font size" style="height:32px;border-radius:8px;background:transparent;color:inherit;border:1px solid rgba(255,255,255,.35);padding:0 .4rem"><option value="S">S</option><option value="M">M</option><option value="L">L</option></select><button type="button" id="font-minus" aria-label="Smaller text" style="height:32px;border-radius:8px;background:transparent;color:inherit;border:1px solid rgba(255,255,255,.35);padding:0 .6rem;cursor:pointer">A&minus;</button><button type="button" id="font-plus" aria-label="Larger text" style="height:32px;border-radius:8px;background:transparent;color:inherit;border:1px solid rgba(255,255,255,.35);padding:0 .6rem;cursor:pointer">A+</button></div></nav></header>
 ${WIRING_HTML}
-<main><section id="chat"><h2 class="step-h"><span class="step-num">1</span>Ask the main agent</h2><div id="messages"></div><div class="prompts"><button type="button">Review access on prod-db-primary</button><button type="button">List all entitlements for Carol Nguyen</button><button type="button">Who is offboarding and still has active access?</button></div><form id="form"><input id="input" autocomplete="off" placeholder="Ask who has access to what"><button id="send" type="submit">Send</button></form></section><aside id="tracePane"><h2 class="step-h"><span class="step-num">2</span>Request trace</h2><div id="who" aria-live="polite" aria-label="Custodian and subagent"></div><div id="trace"></div></aside></main>
+${AWS_TABS_HTML}
+<main id="panel-review" role="tabpanel" aria-labelledby="tab-review"><section id="chat"><h2 class="step-h"><span class="step-num">1</span>Ask the main agent</h2><div id="messages"></div><div class="prompts"><button type="button">Review access on prod-db-primary</button><button type="button">List all entitlements for Carol Nguyen</button><button type="button">Who is offboarding and still has active access?</button></div><form id="form"><input id="input" autocomplete="off" placeholder="Ask who has access to what"><button id="send" type="submit">Send</button></form></section><aside id="tracePane"><h2 class="step-h"><span class="step-num">2</span>Request trace</h2><div id="who" aria-live="polite" aria-label="Custodian and subagent"></div><div id="trace"></div></aside></main>
+${AWS_PANEL_HTML}
 <script>
 const messages=document.getElementById('messages');const trace=document.getElementById('trace');const form=document.getElementById('form');const input=document.getElementById('input');const send=document.getElementById('send');let sessionId='';
 function bubble(cls,text){const el=document.createElement('div');el.className='message '+cls;el.textContent=text;messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el}
@@ -356,6 +360,7 @@ async function submit(text){if(!text.trim())return;send.disabled=true;phase='';b
 form.addEventListener('submit',event=>{event.preventDefault();const text=input.value.trim();input.value='';void submit(text)});document.querySelectorAll('.prompts button').forEach(button=>button.addEventListener('click',()=>void submit(button.textContent||'')));
 var themeSel=document.getElementById('theme-select');themeSel.value=localStorage.getItem('paad.theme')||'auto';themeSel.addEventListener('change',function(){var v=themeSel.value;if(v==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=v;localStorage.setItem('paad.theme',v)});
 </script>
+<script>${AWS_TAB_SCRIPT}</script>
 <script>${RETURN_LINK_SCRIPT}</script>
 </body>
 </html>`;

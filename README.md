@@ -78,6 +78,36 @@ The three-deep chain (`POST /chain`) adds a middle agent: main agent → gateway
 LangChain agent → gateway → specialist. The middle agent calls with its own key,
 so its hop is checked on its own.
 
+## Custodian to AWS agent (tab)
+
+The second tab shows one agent reaching another that runs in AWS, and who is accountable along the way:
+
+```text
+custodian ──owns──▶ main agent ──A2A message/send (main key)──▶ Privilege gateway ──▶ AWS agent (Bedrock AgentCore)
+```
+
+This app never talks to AWS. It calls a Privilege gateway route (a Remote Agent app that fronts the runtime) with the main
+agent's own key, so the gateway checks the key, the `a2a` scope and the remote-agent grant (which follows the custodian), then
+forwards to the runtime with its own credential. The tab lights up each step from the run's trace and shows what was sent
+(key masked) and what came back. A refusal (HTTP 400, 401, 403, 429) is shown as refused at the gateway; this app sees only the
+status, so confirm the reason in the gateway log.
+
+- **Mock (default):** with `AWS_AGENT_A2A_URL` blank the AWS agent is a local stand-in (`npm run aws-mock`, port 6884, part of
+  `npm run dev` and of the compose stack). It follows AgentCore's documented A2A contract (JSON-RPC `message/send` at the root, the
+  reply in `result.artifacts[]`, the Agent Card, `GET /ping`, real HTTP statuses with a JSON-RPC error body): see
+  <https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-a2a-protocol-contract.html>. The tab says it is
+  simulated; no gateway and no AWS are involved.
+- **Live (owner-run):** register the AWS agent in Privilege as a Remote Agent app, select it under Remote Agents on the main
+  agent's key, and set `AWS_AGENT_A2A_URL=https://<gateway>/<aws-agent-app>/a2a` in your local `.env`. The call carries
+  `MAIN_AGENT_KEY`. `AWS_AGENT_CUSTODIAN` is the name the tab shows for the key's custodian; it is display only (this app cannot
+  read it from Privilege). The reply is the runtime's own, passed through: an A2A Task artifact, a Task status message or a plain
+  Message are all read. The Agent Card is read from `<route>/.well-known/agent-card.json` on a best-effort basis: UNVERIFIED
+  whether a given gateway route serves it there, and a missing card does not stop the run.
+- The Remote Agent auth modes on the gateway are None, Static Token, User Token and Pass Agent Token. A runtime that only accepts
+  AWS SigV4 cannot be reached through them; an OAuth (JWT) runtime can.
+
+The route is `POST /aws-agent` (same BFF secret rule as `/chat` and `/chain`; streams `trace`, `token`, `done`/`error`).
+
 ## Set up on Privilege, in order
 
 This is the order that worked end to end. Apps first, because an agent can only

@@ -11,7 +11,8 @@
     "main": "tsx --env-file=.env src/main-agent/index.ts",
     "worker": "tsx --env-file=.env src/worker-agent/index.ts",
     "mcp": "tsx --env-file=.env src/mcp-server/index.ts",
-    "dev": "concurrently -n mcp,worker,main -c blue,magenta,green \"npm:mcp\" \"npm:worker\" \"npm:main\"",
+    "aws-mock": "tsx --env-file=.env src/aws-agent-mock/index.ts",
+    "dev": "concurrently -n mcp,worker,aws,main -c blue,magenta,yellow,green \"npm:mcp\" \"npm:worker\" \"npm:aws-mock\" \"npm:main\"",
     "build": "tsc && cp -R src/vendor dist/",
     "test": "tsx --test test/*.test.ts",
     "doctor": "node scripts/doctor.mjs"
