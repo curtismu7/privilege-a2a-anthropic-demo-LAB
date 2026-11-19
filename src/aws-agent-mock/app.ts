@@ -16,6 +16,8 @@ export interface AwsMockOptions {
 }
 
 const MAX_QUESTION_ECHO = 200;
+// "Introduce yourself: which agent are you, and where do you run?" and its near neighbours.
+const INTRODUCTION = /\b(introduce yourself|who are you|which agent are you|where do you run)\b/i;
 
 export function createAwsAgentMockApp(options: AwsMockOptions = {}): Express {
   const app = express();
@@ -58,7 +60,12 @@ export function createAwsAgentMockApp(options: AwsMockOptions = {}): Express {
       return;
     }
     const echoed = question.length > MAX_QUESTION_ECHO ? `${question.slice(0, MAX_QUESTION_ECHO)}…` : question;
-    const answer = [
+    const answer = INTRODUCTION.test(question) ? [
+      'SIMULATED reply from the AWS agent. This is a local stand-in; no AWS account or runtime was called.',
+      '',
+      'I am the Cloud Access Agent. I review who and what holds access to cloud resources, and I speak A2A (JSON-RPC message/send).',
+      'In a live run I would be the agent hosted in AWS on Amazon Bedrock AgentCore, reached through your Privilege gateway; here I am running as a small local process so the demo works offline.',
+    ].join('\n') : [
       'SIMULATED reply from the AWS agent. This is a local stand-in; no AWS account or runtime was called.',
       '',
       `You asked: "${echoed}"`,
