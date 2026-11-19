@@ -49,6 +49,24 @@ services:
       retries: 5
       start_period: 10s
 
+  # The simulated AWS agent for the "Custodian to AWS agent" tab. Not used once AWS_AGENT_A2A_URL points at a gateway route.
+  aws-agent:
+    image: privilege-a2a-lab:local
+    container_name: privilege-a2a-anthropic-demo-lab-aws-agent-1
+    command: ["node", "dist/aws-agent-mock/index.js"]
+    environment:
+      AWS_MOCK_HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:6884:6884"
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:6884/ping').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   main:
     image: privilege-a2a-lab:local
     container_name: privilege-a2a-anthropic-demo-lab-main-1
@@ -63,9 +81,10 @@ services:
       SHELF_URL: ${SHELF_URL:-http://127.0.0.1:4400}
       WORKER_A2A_URL: ${WORKER_A2A_URL:-http://privilege-a2a-anthropic-demo-lab-worker-1:6882/a2a}
       WORKER_TRACE_URL: ${WORKER_TRACE_URL:-http://privilege-a2a-anthropic-demo-lab-worker-1:6882/trace}
+      AWS_MOCK_URL: http://privilege-a2a-anthropic-demo-lab-aws-agent-1:6884/
     ports:
       - "127.0.0.1:6881:6881"
-    depends_on: [worker]
+    depends_on: [worker, aws-agent]
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
     healthcheck:

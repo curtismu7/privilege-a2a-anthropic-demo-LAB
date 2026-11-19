@@ -159,6 +159,12 @@ export interface MainAgentConfig {
   workerTraceUrl: string;
   /** The middle agent's gateway A2A URL for the three-deep chain; blank = chain disabled. */
   chainA2aUrl: string;
+  /** The gateway route of the AWS agent's Remote Agent app; with none set, the local stand-in's address. */
+  awsAgentA2aUrl: string;
+  /** True while `awsAgentA2aUrl` is the local stand-in, so nothing in AWS is called. */
+  awsAgentSimulated: boolean;
+  /** Who the main agent's key is registered to in Privilege. Shown on the page; this process cannot verify it. */
+  awsAgentCustodian: string;
 }
 
 export function mainAgentConfig(): MainAgentConfig {
@@ -173,6 +179,9 @@ export function mainAgentConfig(): MainAgentConfig {
     workerA2aUrl: value('WORKER_A2A_URL', `http://127.0.0.1:${workerPort}/a2a`),
     workerTraceUrl: value('WORKER_TRACE_URL', `http://127.0.0.1:${workerPort}/trace`),
     chainA2aUrl: value('CHAIN_A2A_URL'),
+    awsAgentA2aUrl: value('AWS_AGENT_A2A_URL') || value('AWS_MOCK_URL', `http://127.0.0.1:${numberValue('AWS_MOCK_PORT', 6884)}/`),
+    awsAgentSimulated: !value('AWS_AGENT_A2A_URL'),
+    awsAgentCustodian: value('AWS_AGENT_CUSTODIAN', 'Sample custodian'),
   };
 }
 

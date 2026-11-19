@@ -9,6 +9,7 @@ import { systemPromptFor, toolChoiceFor } from './prompts.js';
 import { stripUnsourcedScope, textOfTurn } from './scopeFilter.js';
 import { buildWorkerClient } from './a2a-client.js';
 import { MAIN, maskKey, pretty, runChain } from './chain.js';
+import { runAwsAgent } from './awsAgent.js';
 import { renderPage } from './ui.js';
 import { shelfInfo } from '../shelfLink.js';
 import { labAllowedHosts, sameOriginGuard } from '../originGuard.js';
@@ -64,6 +65,8 @@ app.get('/status', (_req: Request, res: Response) => {
     worker: config.workerA2aUrl,
     bearerOnA2A: Boolean(config.bearer),
     chain: config.chainA2aUrl || null,
+    // The Custodian to AWS agent tab: whether the AWS agent is the local stand-in, and who the key is registered to (display only).
+    awsAgent: { simulated: config.awsAgentSimulated, custodian: config.awsAgentCustodian },
   });
 });
 
@@ -212,6 +215,48 @@ app.post('/chain', async (req: Request, res: Response) => {
     sendSse(res, 'done', {});
   } catch (error) {
     if (!abort.signal.aborted) sendSse(res, 'error', { error: error instanceof Error ? error.message : 'The chain failed.' });
+  } finally {
+    if (!res.writableEnded) res.end();
+  }
+});
+
+/**
+ * The Custodian to AWS agent run: main agent -> Privilege gateway -> an agent in AWS. No model is involved, so the route is the same
+ * every time. Streams one `trace` event per step, then the reply as `token`.
+ */
+const MAX_AWS_MESSAGE = 4000;
+app.post('/aws-agent', async (req: Request, res: Response) => {
+  if (!bffAuthorized(req, res)) return;
+  const raw = (req.body as { message?: unknown }).message;
+  const message = typeof raw === 'string' ? raw.trim() : '';
+  if (!message || message.length > MAX_AWS_MESSAGE) {
+    res.status(400).json({ error: `message is required (at most ${MAX_AWS_MESSAGE} characters)` });
+    return;
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+  });
+  const startedAt = Date.now();
+  const at = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
+  const abort = new AbortController();
+  res.on('close', () => { if (!res.writableEnded) abort.abort(); });
+
+  try {
+    const answer = await runAwsAgent({
+      url: config.awsAgentA2aUrl,
+      bearer: config.bearer,
+      message,
+      simulated: config.awsAgentSimulated,
+      signal: abort.signal,
+      emit: event => sendSse(res, 'trace', { ...event, at: at() }),
+    });
+    sendSse(res, 'token', { text: answer });
+    sendSse(res, 'done', {});
+  } catch (error) {
+    if (!abort.signal.aborted) sendSse(res, 'error', { error: error instanceof Error ? error.message : 'The AWS agent call failed.' });
   } finally {
     if (!res.writableEnded) res.end();
   }
