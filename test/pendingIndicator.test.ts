@@ -16,7 +16,8 @@ test('a pending answer shows the dancing P logo and a seconds counter, not a pla
 
 test('the animation stops under reduced motion and the timer stops when the run ends', () => {
   assert.match(page, /prefers-reduced-motion:reduce\)\{\.dancing-p\{animation:none\}/);
-  assert.match(page, /finally\{clearInterval\(wait\);send\.disabled=false/);
+  // The timer always stops; the controls come back only for the run that is still current (a Reset may have replaced it).
+  assert.match(page, /finally\{clearInterval\(wait\);if\(inflight===ctl\)\{inflight=null;lock\(false\)/);
 });
 
 test('the page script still parses', () => {

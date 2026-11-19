@@ -170,9 +170,9 @@ function onTrace(t){
   }
 }
 async function run(text){
-  text=text.trim();if(!text)return;
+  text=text.trim();if(!text||send.disabled)return;
   resetFlow();setState('custodian','ok','acting');setState('main','working');
-  answer.textContent='';answer.className='aws__answer';trace.textContent='';send.disabled=true;
+  answer.textContent='';answer.className='aws__answer';trace.textContent='';busy(true);
   try{
     var res=await fetch('/aws-agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
     if(!res.ok||!res.body)throw new Error('HTTP '+res.status);
@@ -197,8 +197,10 @@ async function run(text){
     if(!answer.textContent){answer.className='aws__answer is-error';answer.textContent='The run ended without an answer.'}
   }catch(err){
     answer.className='aws__answer is-error';answer.textContent='Request failed: '+err.message;setState('main','error','stopped');
-  }finally{send.disabled=false;input.focus()}
+  }finally{busy(false);input.focus()}
 }
-form.addEventListener('submit',function(e){e.preventDefault();var t=input.value;input.value='';run(t)});
+/* One request at a time: Send and the suggested questions are off while a run is in flight, and run() refuses on its own. */
+function busy(on){send.disabled=on;document.querySelectorAll('.aws__prompts button').forEach(function(b){b.disabled=on})}
+form.addEventListener('submit',function(e){e.preventDefault();if(send.disabled)return;var t=input.value;input.value='';run(t)});
 document.querySelectorAll('.aws__prompts button').forEach(function(b){b.addEventListener('click',function(){run(b.textContent||'')})});
 })();`;
