@@ -10,11 +10,14 @@ export interface AwsPrompt {
   proves?: string;
 }
 
+/** The question that shows our agent, on this machine, talking to the AWS agent. Also offered as the 4th example prompt on the Access Review tab. */
+export const AWS_INTRO: AwsPrompt = {
+  q: 'Introduce yourself: which agent are you, and where do you run?',
+  proves: 'our agent, running on this machine, talks to the agent hosted in AWS (Bedrock AgentCore) through Privilege, and its reply comes back here. With no gateway route set, a local stand-in answers and says so.',
+};
+
 export const AWS_PROMPTS: readonly AwsPrompt[] = [
-  {
-    q: 'Introduce yourself: which agent are you, and where do you run?',
-    proves: 'our agent, running on this machine, talks to the agent hosted in AWS (Bedrock AgentCore) through Privilege, and its reply comes back here. With no gateway route set, a local stand-in answers and says so.',
-  },
+  AWS_INTRO,
   { q: 'Review cloud access for the data platform' },
   { q: 'Which service accounts hold roles they have not used?' },
   { q: 'Is any storage bucket publicly readable?' },
@@ -224,4 +227,6 @@ async function run(text){
 function busy(on){send.disabled=on;document.querySelectorAll('.aws__prompts button').forEach(function(b){b.disabled=on})}
 form.addEventListener('submit',function(e){e.preventDefault();if(send.disabled)return;var t=input.value;input.value='';run(t)});
 document.querySelectorAll('.aws__prompts button').forEach(function(b){b.addEventListener('click',function(){run(b.getAttribute('data-q')||'')})});
+/* The Access Review tab's AWS prompt opens this tab and asks the AWS agent; run() still refuses while a run is in flight. */
+document.addEventListener('aws-ask',function(e){select('aws',true);run(String(e.detail||''))});
 })();`;
