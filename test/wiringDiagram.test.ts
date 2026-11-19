@@ -8,7 +8,7 @@ const page = renderPage();
 test('the page carries the wiring diagram between the header and the main area, collapsed', () => {
   const at = page.indexOf('data-testid="wiring-diagram"');
   assert.ok(at > page.indexOf('</header>'), 'diagram comes after the header');
-  assert.ok(at < page.indexOf('<main>'), 'diagram comes before main');
+  assert.ok(at < page.indexOf('<main '), 'diagram comes before main');
   assert.ok(!/<details class="wire"[^>]*\bopen\b/.test(page), 'collapsed by default so the chat keeps its room');
 });
 
