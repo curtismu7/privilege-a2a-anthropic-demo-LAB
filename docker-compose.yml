@@ -57,11 +57,11 @@ services:
     environment:
       AWS_MOCK_HOST: 0.0.0.0
     ports:
-      - "127.0.0.1:6884:6884"
+      - "127.0.0.1:6885:6885"
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:6884/ping').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:6885/ping').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -81,7 +81,7 @@ services:
       SHELF_URL: ${SHELF_URL:-http://127.0.0.1:4400}
       WORKER_A2A_URL: ${WORKER_A2A_URL:-http://privilege-a2a-anthropic-demo-lab-worker-1:6882/a2a}
       WORKER_TRACE_URL: ${WORKER_TRACE_URL:-http://privilege-a2a-anthropic-demo-lab-worker-1:6882/trace}
-      AWS_MOCK_URL: http://privilege-a2a-anthropic-demo-lab-aws-agent-1:6884/
+      AWS_MOCK_URL: http://privilege-a2a-anthropic-demo-lab-aws-agent-1:6885/
     ports:
       - "127.0.0.1:6881:6881"
     depends_on: [worker, aws-agent]

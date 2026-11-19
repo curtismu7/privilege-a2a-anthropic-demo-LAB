@@ -96,8 +96,8 @@ AWS_AGENT_A2A_URL=
 # cannot read it from Privilege.
 AWS_AGENT_CUSTODIAN=
 # The simulated AWS agent (blank AWS_AGENT_A2A_URL only).
-# AWS_MOCK_PORT=6884
-# AWS_MOCK_URL=http://127.0.0.1:6884/
+# AWS_MOCK_PORT=6885
+# AWS_MOCK_URL=http://127.0.0.1:6885/
 # AWS_MOCK_REQUIRE_BEARER=false
 
 # Optional local header-presence checks. These only verify that a Bearer header
