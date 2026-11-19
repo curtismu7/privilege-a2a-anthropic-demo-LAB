@@ -44,3 +44,17 @@ test('on a narrow screen the handoff scrolls the custodian and subagent block in
 test('the page script still parses with the new code', () => {
   for (const code of [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1])) assert.doesNotThrow(() => new Function(code));
 });
+
+test('each example prompt says what it proves, and clicking it still sends only the question', () => {
+  const buttons = [...page.matchAll(/<button type="button" data-q="([^"]+)"><span class="p-q">([^<]+)<\/span><span class="p-proves"><b>Proves:<\/b> ([^<]+)<\/span><\/button>/g)];
+  assert.equal(buttons.length, 3);
+  for (const [, q, shown, proves] of buttons) {
+    assert.equal(q, shown, 'the question sent is the question shown');
+    assert.ok(proves.length > 60, `"${q}" explains itself`);
+  }
+  assert.ok(page.includes("submit(button.dataset.q||'')"), 'the proves text is never sent to the model');
+  assert.ok(!page.includes("submit(button.textContent"), 'no longer sends the whole button text');
+  assert.match(buttons[0][3], /A2A handoff/);
+  assert.match(buttons[1][3], /redacted/);
+  assert.match(buttons[2][3], /analyst, not the concierge/);
+});
