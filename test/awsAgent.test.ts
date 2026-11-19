@@ -158,5 +158,5 @@ test('a callee that never answers ends at the deadline, and a cancel stops the r
 
 test('the Agent Card is read next to the route, with or without a trailing slash', () => {
   assert.equal(cardUrlFor('https://gateway.example/aws-agent/a2a'), 'https://gateway.example/aws-agent/a2a/.well-known/agent-card.json');
-  assert.equal(cardUrlFor('http://127.0.0.1:6884/'), 'http://127.0.0.1:6884/.well-known/agent-card.json');
+  assert.equal(cardUrlFor('http://127.0.0.1:6885/'), 'http://127.0.0.1:6885/.well-known/agent-card.json');
 });

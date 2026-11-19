@@ -38,7 +38,7 @@ export function createAwsAgentMockApp(options: AwsMockOptions = {}): Express {
       name: 'Cloud Access Agent (simulated)',
       description: 'A local stand-in for an agent hosted on AWS. It reviews sample cloud entitlements; nothing in AWS is called.',
       version: '1.0.0',
-      url: options.publicUrl ?? 'http://127.0.0.1:6884/',
+      url: options.publicUrl ?? 'http://127.0.0.1:6885/',
       protocolVersion: '0.3.0',
       preferredTransport: 'JSONRPC',
       capabilities: { streaming: false },

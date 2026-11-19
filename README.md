@@ -92,7 +92,7 @@ forwards to the runtime with its own credential. The tab lights up each step fro
 (key masked) and what came back. A refusal (HTTP 400, 401, 403, 429) is shown as refused at the gateway; this app sees only the
 status, so confirm the reason in the gateway log.
 
-- **Mock (default):** with `AWS_AGENT_A2A_URL` blank the AWS agent is a local stand-in (`npm run aws-mock`, port 6884, part of
+- **Mock (default):** with `AWS_AGENT_A2A_URL` blank the AWS agent is a local stand-in (`npm run aws-mock`, port 6885, part of
   `npm run dev` and of the compose stack). It follows AgentCore's documented A2A contract (JSON-RPC `message/send` at the root, the
   reply in `result.artifacts[]`, the Agent Card, `GET /ping`, real HTTP statuses with a JSON-RPC error body): see
   <https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-a2a-protocol-contract.html>. The tab says it is
