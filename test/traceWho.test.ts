@@ -26,6 +26,13 @@ test('the panel names the custodian and the subagent it calls, in a header block
   assert.ok(page.includes('The custodian and the subagent it calls appear here'), 'says what to expect before any handoff');
 });
 
+test('on a narrow screen the trace stacks under the chat instead of disappearing', () => {
+  const m = page.match(/@media\(max-width:850px\)\{main\{([^}]*)\}/);
+  assert.ok(m, 'the narrow rule exists');
+  assert.match(m[1], /grid-template-columns:1fr/);
+  assert.ok(!page.includes('#tracePane{display:none}'), 'the panel is no longer hidden');
+});
+
 test('the page script still parses with the new code', () => {
   for (const code of [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1])) assert.doesNotThrow(() => new Function(code));
 });
