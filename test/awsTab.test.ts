@@ -43,8 +43,26 @@ test('the text-size script waits for the page, so it does not look up its contro
 });
 
 test('the suggested questions are buttons and the markup has no inline style', () => {
-  for (const prompt of AWS_PROMPTS) assert.ok(AWS_PANEL_HTML.includes(`<button type="button">${prompt}</button>`));
+  for (const { q, proves } of AWS_PROMPTS) {
+    assert.ok(AWS_PANEL_HTML.includes(`data-q="${q}"`), q);
+    if (!proves) assert.ok(AWS_PANEL_HTML.includes(`<button type="button" data-q="${q}">${q}</button>`), q);
+  }
   assert.ok(!/style=/.test(AWS_PANEL_HTML));
+});
+
+test('the introduction prompt comes first, says what it proves, and is sent by its data-q, not by the caption text', () => {
+  const first = AWS_PROMPTS[0];
+  assert.equal(first?.q, 'Introduce yourself: which agent are you, and where do you run?');
+  assert.match(first?.proves ?? '', /talks to the agent hosted in AWS \(Bedrock AgentCore\) through Privilege/);
+  assert.match(first?.proves ?? '', /local stand-in answers and says so/, 'the caption is honest about the simulated case');
+  const buttons = [...AWS_PANEL_HTML.matchAll(/<button type="button"[^>]*data-q="([^"]+)"/g)].map((m) => m[1]);
+  assert.equal(buttons[0], first?.q, 'it is the first suggested question');
+  assert.equal(buttons.length, AWS_PROMPTS.length);
+  assert.equal(AWS_PROMPTS.filter((p) => p.proves).length, 1, 'only the new prompt carries a caption');
+  assert.ok(AWS_TAB_SCRIPT.includes("run(b.getAttribute('data-q')||'')"), 'the caption text is never sent as the question');
+  assert.ok(!AWS_TAB_SCRIPT.includes("run(b.textContent"));
+  // The Access Review tab styles .p-proves b white; on this tab's light panel that hides the label unless it is scoped here.
+  assert.ok(AWS_TAB_CSS.includes('.aws__prompts .p-proves b{color:var(--text)'), 'the Proves label keeps its own ink');
 });
 
 test('the tab text stays at 12px or more', () => {
