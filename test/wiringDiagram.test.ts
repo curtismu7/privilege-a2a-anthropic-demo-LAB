@@ -27,7 +27,7 @@ test('names both agents, the MCP server and the no-provider-keys point, and one 
 
 test('arrows are hidden from assistive tech and the markup has no inline style', () => {
   const links = [...WIRING_HTML.matchAll(/<span class="wire__link[^"]*"([^>]*)>/g)];
-  assert.ok(links.length >= 10);
+  assert.equal(links.length, 9, 'five along the top, four down to the models');
   for (const [, attrs] of links) assert.match(attrs, /aria-hidden="true"/);
   assert.ok(!/style=/.test(WIRING_HTML));
 });
