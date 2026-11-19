@@ -19,6 +19,15 @@
 #                           gateway's LLM route with its own key, as the Google/Anthropic setups did)
 #   A2A_BFF_SHARED_SECRET   the same value as the app server's PRIVILEGE_A2A_BFF_SECRET
 #
+# The "Custodian to AWS agent" tab: the main agent also calls an agent that runs
+# in AWS (Bedrock AgentCore), through the gateway. Nothing in this file deploys
+# that agent, and the local stand-in (`npm run aws-mock`) is not deployed here
+# either. In Privilege, register the AWS agent as a Remote Agent app and select
+# it under Remote Agents on the main agent's key (the key's custodian owns that
+# grant), then set AWS_AGENT_A2A_URL on `mainagentdemo` below to the app's
+# gateway route. Until it is set to a real route the tab reports the call as
+# unreachable. No new Secret value: the call carries MAIN_AGENT_KEY.
+#
 # BUILD FOR arm64 (the SE cluster nodes are Graviton):
 #   docker buildx build --platform linux/arm64 --provenance=false \
 #     -t __IMAGE__ --push .
@@ -238,6 +247,10 @@ spec:
           value: "https://mcp-gateway.example.invalid/worker-agent/trace"
         - name: CHAIN_A2A_URL
           value: "https://mcp-gateway.example.invalid/langchain-midagent/a2a/jsonrpc"
+        # The AWS agent's Remote Agent app, through the gateway (the "Custodian
+        # to AWS agent" tab). Replace the placeholder with the app's route.
+        - name: AWS_AGENT_A2A_URL
+          value: "https://mcp-gateway.example.invalid/aws-agent/a2a"
         - name: MAIN_AGENT_KEY
           valueFrom:
             secretKeyRef:
