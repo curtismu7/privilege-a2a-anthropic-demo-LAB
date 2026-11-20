@@ -13,7 +13,7 @@
     "mcp": "tsx --env-file=.env src/mcp-server/index.ts",
     "aws-mock": "tsx --env-file=.env src/aws-agent-mock/index.ts",
     "dev": "concurrently -n mcp,worker,aws,main -c blue,magenta,yellow,green \"npm:mcp\" \"npm:worker\" \"npm:aws-mock\" \"npm:main\"",
-    "build": "tsc && cp -R src/vendor dist/",
+    "build": "tsc && cp -R src/vendor dist/ && cp src/main-agent/jsonPaneSource.browser.js src/main-agent/jsonPaneCss.css dist/main-agent/",
     "test": "tsx --test test/*.test.ts",
     "doctor": "node scripts/doctor.mjs"
   },
