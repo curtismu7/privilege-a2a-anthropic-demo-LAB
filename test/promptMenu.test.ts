@@ -24,3 +24,7 @@ test('opening and closing: the toggle flips aria-expanded, Escape closes it, and
 test('an empty chat says where the prompts went', () => {
   assert.match(page, /#messages:empty::before\{content:"Open Example prompts below, or type your own question\."/);
 });
+
+test('the top menu may wrap, so a 360px phone does not scroll sideways', () => {
+  assert.match(page, /\.top-menu\{max-width:100%\}\.top-menu__row\{flex-wrap:wrap;justify-content:flex-end\}/);
+});
