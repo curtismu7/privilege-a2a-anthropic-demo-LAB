@@ -115,3 +115,8 @@ MCP_DEMO_INJECTION=false
 # main containers map it to the host, because a name that resolves to 127.0.0.1 would otherwise
 # mean the container itself. Leave unset when the gateway is remote.
 # LOCAL_GATEWAY_HOST=
+
+# Optional: path on this machine to the PEM of the CA that signed that gateway's certificate (for a local
+# mkcert certificate: "$(mkcert -CAROOT)/rootCA.pem"). Mounted into the worker and main containers and trusted
+# through NODE_EXTRA_CA_CERTS; certificate checking stays on. Needs LOCAL_GATEWAY_HOST. Leave unset otherwise.
+# LOCAL_GATEWAY_CA=
