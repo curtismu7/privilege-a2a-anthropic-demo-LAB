@@ -10,7 +10,7 @@
       "composeFile": "privilege-a2a-anthropic-demo-LAB/docker-compose.yml",
       "composeOverlays": [],
       "catalogId": null,
-      "notes": "No catalog row matches this app yet (closest row D118 'AI Gateway Suite' is a different repo on port 5750); catalogId null until the owner adds one. No docker-compose.yml ships yet (Dockerfile + k8s/deployment.yaml only); composeFile is a placeholder. Host-run: npm run dev (main agent on 6881). No docker compose verified for this lab."
+      "notes": "No catalog row matches this app yet (closest row D118 'AI Gateway Suite' is a different repo on port 5750); catalogId null until the owner adds one. Docker: docker compose up --build -d (three containers, published on 127.0.0.1 only). Host-run: npm run dev (main agent on 6881). Settings: the lab's own .env beside docker-compose.yml (copy config.example), optional; without it the lab runs on Mock."
     }
   ],
   "pingProducts": [

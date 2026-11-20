@@ -2,8 +2,8 @@
 # With no .env the Docker stack still starts offline: heuristics mode works and
 # model mode reports "Model not configured" until a provider key is set.
 
-# Process ports. Worker and MCP bind to loopback. For native AI-DEMO2, the main
-# process also binds to loopback; use 0.0.0.0 only when its BFF runs in Docker.
+# Process ports. All three bind to loopback natively; Docker Compose sets 0.0.0.0
+# inside the containers and publishes them on 127.0.0.1 only.
 MAIN_AGENT_HOST=127.0.0.1
 # Set these two to 0.0.0.0 only inside a container (see k8s/deployment.yaml).
 WORKER_AGENT_HOST=127.0.0.1
@@ -15,8 +15,9 @@ MAIN_AGENT_PORT=6881
 WORKER_AGENT_PORT=6882
 MCP_SERVER_PORT=6883
 
-# Required when using AI Guard Client. Set the same random value on the BFF as
-# PRIVILEGE_A2A_BFF_SECRET. Keep this server-side; never put it in the UI.
+# Optional. Set it only when a trusted server-side front end of your own calls the
+# main agent's chat endpoints (header X-A2A-BFF-Secret). Leave it blank for the
+# built-in page, which sends no secret. Keep it server-side; never put it in the UI.
 A2A_BFF_SHARED_SECRET=
 
 # Model traffic uses Anthropic's native Messages API. To route through Privilege,
