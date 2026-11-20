@@ -10,6 +10,7 @@ import { stripUnsourcedScope, textOfTurn } from './scopeFilter.js';
 import { buildWorkerClient } from './a2a-client.js';
 import { MAIN, maskKey, pretty, runChain } from './chain.js';
 import { runAwsAgent } from './awsAgent.js';
+import { createPfTokenProvider } from './pfToken.js';
 import { renderPage } from './ui.js';
 import { shelfInfo } from '../shelfLink.js';
 import { labAllowedHosts, sameOriginGuard } from '../originGuard.js';
@@ -21,6 +22,8 @@ function tokenCounts(message: Anthropic.Message): { input: number; output: numbe
 }
 
 const config = mainAgentConfig();
+/** The AWS call's own token (token-pass), minted per call from PingFederate; null = the call carries the main agent's key. */
+const awsAgentToken = config.awsAgentPf ? createPfTokenProvider(config.awsAgentPf) : null;
 const MAX_DELEGATION_ROUNDS = 4;
 const MAX_OUTPUT_TOKENS = 4096;
 const WORKER_DONE_CAP_MS = 1000;
@@ -247,7 +250,7 @@ app.post('/aws-agent', async (req: Request, res: Response) => {
   try {
     const answer = await runAwsAgent({
       url: config.awsAgentA2aUrl,
-      bearer: config.bearer,
+      bearer: awsAgentToken && !config.awsAgentSimulated ? await awsAgentToken() : config.bearer,
       message,
       simulated: config.awsAgentSimulated,
       signal: abort.signal,

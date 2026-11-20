@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { geminiClient } from './gemini.js';
 import { GROQ_DIRECT_URL, groqClient } from './groq.js';
 import { llamacppClient } from './llamacpp.js';
+import type { PfTokenSettings } from './main-agent/pfToken.js';
 
 export type AgentName = 'MAIN_AGENT' | 'WORKER_AGENT';
 
@@ -165,6 +166,20 @@ export interface MainAgentConfig {
   awsAgentSimulated: boolean;
   /** Who the main agent's key is registered to in Privilege. Shown on the page; this process cannot verify it. */
   awsAgentCustodian: string;
+  /**
+   * PingFederate client the AWS call mints its own token from (the Remote Agent app is on token-pass). Null = the call
+   * carries the main agent's key as before.
+   */
+  awsAgentPf: PfTokenSettings | null;
+}
+
+/** All three AWS_AGENT_PF_* settings or none: a half-set trio would silently fall back to the key and fail at the gateway. */
+function awsAgentPfSettings(): PfTokenSettings | null {
+  const settings = { tokenUrl: value('AWS_AGENT_PF_TOKEN_URL'), clientId: value('AWS_AGENT_PF_CLIENT_ID'), clientSecret: value('AWS_AGENT_PF_CLIENT_SECRET') };
+  const set = Object.values(settings).filter(Boolean).length;
+  if (set === 0) return null;
+  if (set < 3) throw new Error('Set all three of AWS_AGENT_PF_TOKEN_URL, AWS_AGENT_PF_CLIENT_ID and AWS_AGENT_PF_CLIENT_SECRET, or none of them.');
+  return settings;
 }
 
 export function mainAgentConfig(): MainAgentConfig {
@@ -182,6 +197,7 @@ export function mainAgentConfig(): MainAgentConfig {
     awsAgentA2aUrl: value('AWS_AGENT_A2A_URL') || value('AWS_MOCK_URL', `http://127.0.0.1:${numberValue('AWS_MOCK_PORT', 6885)}/`),
     awsAgentSimulated: !value('AWS_AGENT_A2A_URL'),
     awsAgentCustodian: value('AWS_AGENT_CUSTODIAN', 'Sample custodian'),
+    awsAgentPf: awsAgentPfSettings(),
   };
 }
 
