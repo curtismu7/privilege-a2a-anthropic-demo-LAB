@@ -227,6 +227,4 @@ async function run(text){
 function busy(on){send.disabled=on;document.querySelectorAll('.aws__prompts button').forEach(function(b){b.disabled=on})}
 form.addEventListener('submit',function(e){e.preventDefault();if(send.disabled)return;var t=input.value;input.value='';run(t)});
 document.querySelectorAll('.aws__prompts button').forEach(function(b){b.addEventListener('click',function(){run(b.getAttribute('data-q')||'')})});
-/* The Access Review tab's AWS prompt opens this tab and asks the AWS agent; run() still refuses while a run is in flight. */
-document.addEventListener('aws-ask',function(e){select('aws',true);run(String(e.detail||''))});
 })();`;

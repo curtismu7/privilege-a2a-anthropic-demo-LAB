@@ -25,13 +25,13 @@ test('each prompt gets a numbered divider on the left and a numbered trace card 
   assert.ok(start.includes('trace.appendChild(sec)'));
   assert.ok(page.includes('(runBody||trace).appendChild(el)'), 'trace lines go into the current prompt card');
   assert.ok(!page.includes('trace-separator'), 'the bare rule between runs is gone');
-  const submit = page.slice(page.indexOf('async function submit(text){'));
+  const submit = page.slice(page.indexOf('async function submit(text,endpoint){'));
   assert.ok(submit.indexOf('startRun(text)') < submit.indexOf("bubble('user',text)"), 'the divider comes before the prompt bubble');
   assert.match(page, /\.run-h\{position:sticky;top:0/, 'the prompt header stays visible while its trace scrolls');
 });
 
 test('while a run is in flight no second request starts: submit, the form and the example prompts all refuse', () => {
-  assert.ok(page.includes('async function submit(text){if(inflight||!text.trim())return;lock(true);'));
+  assert.ok(page.includes('async function submit(text,endpoint){if(inflight||!text.trim())return;lock(true);'));
   assert.ok(page.includes("if(inflight)return;const text=input.value.trim();"), 'Enter does not clear the typed text while busy');
   assert.ok(page.includes("function lock(on){send.disabled=on;document.querySelectorAll('.prompts button').forEach(function(b){b.disabled=on})}"));
   assert.ok(page.includes('signal:ctl.signal'), 'the request can be aborted');
