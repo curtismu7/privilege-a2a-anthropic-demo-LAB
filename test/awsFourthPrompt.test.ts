@@ -29,7 +29,8 @@ test('a 4th prompt, just for the AWS agent, follows the three', () => {
   assert.ok(fourth.includes(`data-q="${AWS_INTRO.q}"`), 'it asks the AWS introduction question');
   assert.ok(fourth.includes('<span class="p-tag">AWS agent</span>'), 'and says it is the AWS agent');
   assert.ok(fourth.includes(`<b>Proves:</b> ${AWS_INTRO.proves}`), 'with the same honest caption as the AWS tab');
-  assert.ok(fourth.includes('This opens the Custodian to AWS agent tab and sends the question there.'));
+  assert.ok(fourth.includes('It runs here; the Custodian to AWS agent tab shows the same path hop by hop.'));
+  assert.ok(!fourth.includes('This opens the Custodian to AWS agent tab'), 'it no longer says it jumps to another tab');
 });
 
 test('the prompt list scrolls instead of wrapping, so the 4th prompt is not pushed into an off-screen second column', () => {
@@ -38,9 +39,15 @@ test('the prompt list scrolls instead of wrapping, so the 4th prompt is not push
   assert.match(rule, /overflow:auto/);
 });
 
-test('the 4th prompt goes to the AWS tab, never to the main agent chat', () => {
-  assert.ok(page.includes("if(button.dataset.aws){document.dispatchEvent(new CustomEvent('aws-ask',{detail:button.dataset.q||''}));return}void submit(button.dataset.q||'')"));
-  assert.ok(AWS_TAB_SCRIPT.includes("document.addEventListener('aws-ask',function(e){select('aws',true);run(String(e.detail||''))})"));
+test('the 4th prompt runs in place against /aws-agent, never against the main agent chat, and does not switch tabs', () => {
+  assert.ok(page.includes("void submit(button.dataset.q||'',button.dataset.aws?'/aws-agent':'/chat')"));
+  assert.ok(page.includes("fetch(endpoint||'/chat'"));
+  assert.ok(!page.includes('aws-ask'), 'nothing asks the AWS tab to take over any more');
+  assert.ok(!AWS_TAB_SCRIPT.includes('aws-ask'));
+});
+
+test('the prompt cards keep their size and the list scrolls, so no card is clipped or overlapped', () => {
+  assert.match(page, /\.prompts button\{flex:none;/);
 });
 
 test('the AWS question is defined once, so the two tabs cannot drift apart', () => {

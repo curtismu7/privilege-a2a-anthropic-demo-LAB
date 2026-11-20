@@ -29,7 +29,7 @@ test('the panel names the custodian and the subagent it calls, in a header block
 test('on a narrow screen the trace stacks under the chat instead of disappearing', () => {
   const m = page.match(/@media\(max-width:850px\)\{body\{[^}]*\}main\{([^}]*)\}/);
   assert.ok(m, 'the narrow rule exists');
-  assert.match(m[1], /grid-template-columns:1fr/);
+  assert.match(m[1], /grid-template-columns:minmax\(0,1fr\)/, 'one column that can shrink, so a phone does not scroll sideways');
   assert.ok(!page.includes('#tracePane{display:none}'), 'the panel is no longer hidden');
   assert.match(page, /@media\(max-width:850px\)\{body\{height:auto;min-height:100vh\}/, 'the whole page scrolls, so the trace is not stuck below the fold inside an inner scroller');
   assert.match(page, /#messages\{min-height:11rem;max-height:60vh\}/, 'the chat reserves little height, so the trace follows it closely');
@@ -52,7 +52,7 @@ test('each example prompt says what it proves, and clicking it still sends only 
     assert.equal(q, shown, 'the question sent is the question shown');
     assert.ok(proves.length > 60, `"${q}" explains itself`);
   }
-  assert.ok(page.includes("submit(button.dataset.q||'')"), 'the proves text is never sent to the model');
+  assert.ok(page.includes("submit(button.dataset.q||'',button.dataset.aws?'/aws-agent':'/chat')"), 'the proves text is never sent to the model');
   assert.ok(!page.includes("submit(button.textContent"), 'no longer sends the whole button text');
   assert.match(buttons[0][3], /A2A handoff/);
   assert.match(buttons[1][3], /redacted/);
