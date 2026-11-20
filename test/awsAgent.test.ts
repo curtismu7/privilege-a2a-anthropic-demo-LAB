@@ -160,3 +160,11 @@ test('the Agent Card is read next to the route, with or without a trailing slash
   assert.equal(cardUrlFor('https://gateway.example/aws-agent/a2a'), 'https://gateway.example/aws-agent/a2a/.well-known/agent-card.json');
   assert.equal(cardUrlFor('http://127.0.0.1:6885/'), 'http://127.0.0.1:6885/.well-known/agent-card.json');
 });
+
+test('the Agent Card read keeps the route\'s query string (AgentCore needs ?accountId= on the card read too)', () => {
+  assert.equal(
+    cardUrlFor('https://gateway.example/aws-agent/runtimes/Rt-abc123/invocations/?accountId=111122223333'),
+    'https://gateway.example/aws-agent/runtimes/Rt-abc123/invocations/.well-known/agent-card.json?accountId=111122223333',
+  );
+  assert.equal(cardUrlFor('https://gateway.example/a/invocations?accountId=1'), 'https://gateway.example/a/invocations/.well-known/agent-card.json?accountId=1');
+});

@@ -50,8 +50,15 @@ function parseJson(raw: string): Record<string, unknown> | null {
   }
 }
 
-/** Where the Agent Card is read from: next to the route, as A2A publishes it. */
-export const cardUrlFor = (url: string): string => new URL('.well-known/agent-card.json', url.endsWith('/') ? url : `${url}/`).toString();
+/**
+ * Where the Agent Card is read from: next to the route, as A2A publishes it. The query string is kept: an AgentCore
+ * route names the runtime by ID and needs `?accountId=` on every call, the card read included.
+ */
+export const cardUrlFor = (url: string): string => {
+  const card = new URL(url);
+  card.pathname = `${card.pathname.replace(/\/?$/, '/')}.well-known/agent-card.json`;
+  return card.toString();
+};
 
 function summariseCard(body: Record<string, unknown>): CardSummary {
   const skills = Array.isArray(body.skills) ? body.skills.map(record) : [];
