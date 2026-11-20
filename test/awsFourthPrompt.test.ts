@@ -9,7 +9,7 @@ const promptsBlock = page.slice(page.indexOf('<div class="prompts"'), page.index
 
 // The three Access Review prompts exactly as they were before the AWS prompt was added: this test is the "leave them alone" check.
 const ORIGINAL_THREE = [
-  '<button type="button" data-q="Review access on prod-db-primary"><span class="p-q">Review access on prod-db-primary</span><span class="p-proves"><b>Proves:</b> the A2A handoff end to end. The concierge hands the question to the analyst agent, which reads the data over MCP. Privilege checks each hop on its own key and shows any refusal in the trace.</span></button>',
+  '<button type="button" data-q="Review access on prod-db-primary"><span class="p-q">Review access on prod-db-primary</span><span class="p-proves"><b>Proves:</b> the A2A handoff end to end. The concierge hands the question to the analyst agent, which reads the data over MCP. Privilege checks each hop on its own key and shows any refusal in the trace. Expect a refusal on the data call here: the injection demo plants a hostile instruction in a record, and Privilege\'s AI Guard blocks that tool response (the last card says how to change that).</span></button>',
   '<button type="button" data-q="List all entitlements for Carol Nguyen"><span class="p-q">List all entitlements for Carol Nguyen</span><span class="p-proves"><b>Proves:</b> Privilege protecting data on the MCP leg. In gateway mode her personal data (her email) comes back redacted, so watch for [REDACTED:pii] in the trace.</span></button>',
   '<button type="button" data-q="Who is offboarding and still has active access?"><span class="p-q">Who is offboarding and still has active access?</span><span class="p-proves"><b>Proves:</b> the analyst, not the concierge, does the data work. It looks across records, and the concierge reports only what the analyst returned. Expect Erin Walsh, who is offboarding but still holds a grant.</span></button>',
 ];
@@ -23,7 +23,7 @@ test('the three existing Access Review prompts are unchanged, in the same order,
 
 test('a 4th prompt, just for the AWS agent, follows the three', () => {
   const buttons = [...promptsBlock.matchAll(/<button type="button"[^>]*>/g)];
-  assert.equal(buttons.length, 4);
+  assert.equal(buttons.length, 5, 'three questions, the AWS question, and the how-to card');
   const fourth = promptsBlock.slice(buttons[3]?.index ?? 0);
   assert.match(fourth, /^<button type="button" class="p-aws" data-aws="1"/);
   assert.ok(fourth.includes(`data-q="${AWS_INTRO.q}"`), 'it asks the AWS introduction question');
