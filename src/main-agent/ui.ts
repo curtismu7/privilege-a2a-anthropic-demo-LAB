@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { WIRING_CSS, WIRING_HTML } from './wiringDiagram.js';
 import { AWS_INTRO, AWS_PANEL_HTML, AWS_TAB_CSS, AWS_TAB_SCRIPT, AWS_TABS_HTML } from './awsTab.js';
+import { JSON_PANE_CSS } from './jsonPaneCss.js';
+import { jsonPaneSource } from './jsonPaneSource.js';
 
 // The 4th example prompt, just for the AWS agent: it opens the Custodian to AWS agent tab and sends the introduction question
 // there (the other three go to the main agent's /chat). data-aws comes before data-q so it is not one of the three counted by the
@@ -21,6 +23,7 @@ var x=document.createElement('span');x.textContent='Opened from '+l.label+' \u00
 var h=document.querySelector('header');h.parentNode.insertBefore(s,h.nextSibling);h.appendChild(back('return-link return-link--header'));})();`;
 
 export function renderPage(): string {
+  const jsonPaneCss = JSON_PANE_CSS;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -327,6 +330,9 @@ shell-theme select{border:1px solid #4a5063;border-radius:.5rem;background:#171b
 .return-link--strip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:0;padding:8px 12px;border:1px solid var(--border);border-left:4px solid var(--focus);background:var(--surface);color:var(--text);font-size:13px;overflow-wrap:anywhere}
 ${WIRING_CSS}
 ${AWS_TAB_CSS}</style>
+<style id="jsonpane-css">
+${jsonPaneCss}
+</style>
 <script>(function(){var t=localStorage.getItem('paad.theme');if(t&&t!=='auto')document.documentElement.dataset.theme=t;})();</script>
 <script>
 document.addEventListener("DOMContentLoaded",function(){var STEP={S:"14px",M:"16px",L:"18px"},order=["S","M","L"];
@@ -344,6 +350,9 @@ ${AWS_TABS_HTML}
 <main id="panel-review" role="tabpanel" aria-labelledby="tab-review"><section id="chat"><h2 class="step-h"><span class="step-num">1</span>Ask the main agent</h2><div id="messages"></div><div class="prompts" role="group" aria-label="Example questions, each with what it proves"><button type="button" data-q="Review access on prod-db-primary"><span class="p-q">Review access on prod-db-primary</span><span class="p-proves"><b>Proves:</b> the A2A handoff end to end. The concierge hands the question to the analyst agent, which reads the data over MCP. Privilege checks each hop on its own key and shows any refusal in the trace.</span></button><button type="button" data-q="List all entitlements for Carol Nguyen"><span class="p-q">List all entitlements for Carol Nguyen</span><span class="p-proves"><b>Proves:</b> Privilege protecting data on the MCP leg. In gateway mode her personal data (her email) comes back redacted, so watch for [REDACTED:pii] in the trace.</span></button><button type="button" data-q="Who is offboarding and still has active access?"><span class="p-q">Who is offboarding and still has active access?</span><span class="p-proves"><b>Proves:</b> the analyst, not the concierge, does the data work. It looks across records, and the concierge reports only what the analyst returned. Expect Erin Walsh, who is offboarding but still holds a grant.</span></button>${AWS_BUTTON}</div><form id="form"><input id="input" autocomplete="off" placeholder="Ask who has access to what"><button id="send" type="submit">Send</button><button id="reset" type="button" title="Stop any run, clear the conversation and the trace, and start again" data-testid="reset">Reset</button></form></section><aside id="tracePane"><h2 class="step-h"><span class="step-num">2</span>Request trace</h2><div id="who" aria-live="polite" aria-label="Custodian and subagent"></div><div id="trace"></div></aside></main>
 ${AWS_PANEL_HTML}
 <script>
+${jsonPaneSource}
+</script>
+<script>
 const messages=document.getElementById('messages');const trace=document.getElementById('trace');const form=document.getElementById('form');const input=document.getElementById('input');const send=document.getElementById('send');let sessionId='';
 function bubble(cls,text){const el=document.createElement('div');el.className='message '+cls;el.textContent=text;messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el}
 var hops=[],models={},phase='',runs=0,runBody=null,inflight=null;
@@ -358,7 +367,7 @@ function renderWho(){var w=document.getElementById('who');w.textContent='';if(!h
 function noteHop(n){var h=hops.filter(function(x){return x.c===n.c&&x.s===n.s})[0];if(!h){h=n;hops.push(h)}h.state='calling';phase='Handed off to '+n.s+' over A2A';renderWho();showHandoff()}
 function showHandoff(){if(!window.matchMedia('(max-width:850px)').matches)return;var w=document.getElementById('who'),r=w.getBoundingClientRect();if(r.top<0||r.bottom>innerHeight)w.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth',block:'center'})}
 function hopDone(state){var h=hops[hops.length-1];if(h){h.state=state;phase=state==='returned'?h.s+' answered over A2A':h.s+' did not answer over A2A';renderWho()}}
-function traceLine(t){const el=document.createElement('div');el.className='trace '+(t.kind||'');const head=document.createElement('div');if(t.kind==='delegate'){const n=names(t);noteHop(n);el.className+=' handoff';head.appendChild(chip('a2a','A2A handoff'));const line=document.createElement('div');line.className='handoff-line';line.appendChild(chip('cust','Custodian'));line.appendChild(document.createTextNode(' '+n.c+' → '));line.appendChild(chip('sub','Subagent'));line.appendChild(document.createTextNode(' '+n.s));head.appendChild(line)}else{if(t.kind==='result'){hopDone('returned');head.appendChild(chip('reply','A2A reply'));head.appendChild(document.createTextNode(' '))}else if(t.kind==='error'&&/A2A|unreachable/.test(t.text||''))hopDone('failed');head.appendChild(document.createTextNode(t.text||''))}if(t.kind==='model'&&t.from){models[t.from]=(t.text||'').split(' · ')[1]||'';renderWho()}const at=document.createElement('span');at.className='trace-at';at.textContent=t.at||'';head.appendChild(at);el.appendChild(head);if(t.detail){const d=document.createElement('div');d.className='trace-detail';d.textContent=t.detail;el.appendChild(d)}(runBody||trace).appendChild(el);trace.scrollTop=trace.scrollHeight}
+function traceLine(t){const el=document.createElement('div');el.className='trace '+(t.kind||'');const head=document.createElement('div');if(t.kind==='delegate'){const n=names(t);noteHop(n);el.className+=' handoff';head.appendChild(chip('a2a','A2A handoff'));const line=document.createElement('div');line.className='handoff-line';line.appendChild(chip('cust','Custodian'));line.appendChild(document.createTextNode(' '+n.c+' → '));line.appendChild(chip('sub','Subagent'));line.appendChild(document.createTextNode(' '+n.s));head.appendChild(line)}else{if(t.kind==='result'){hopDone('returned');head.appendChild(chip('reply','A2A reply'));head.appendChild(document.createTextNode(' '))}else if(t.kind==='error'&&/A2A|unreachable/.test(t.text||''))hopDone('failed');head.appendChild(document.createTextNode(t.text||''))}if(t.kind==='model'&&t.from){models[t.from]=(t.text||'').split(' · ')[1]||'';renderWho()}const at=document.createElement('span');at.className='trace-at';at.textContent=t.at||'';head.appendChild(at);el.appendChild(head);if(t.detail){const d=document.createElement('div');d.className='trace-detail';d.textContent=t.detail;el.appendChild(d);jsonPaneIfJson(d)}(runBody||trace).appendChild(el);trace.scrollTop=trace.scrollHeight}
 renderWho();
 fetch('/api/shelf',{credentials:'omit',headers:{Accept:'application/json'}}).then(r=>r.ok?r.json():null).then(d=>{if(!d||!d.shelfUrl)return;const a=document.createElement('a');a.className='top-menu__shelf top-menu__shelf--accent';a.href=d.shelfUrl;a.target='_blank';a.rel='noreferrer';a.title='Open the demo shelf (launcher)';a.textContent='Shelf';a.style.cssText='height:32px;padding:0 .7rem;border-radius:8px;background:var(--ping-red);color:#fcfcfc;border:1px solid var(--ping-red-deep);font-weight:700;text-decoration:none;display:inline-flex;align-items:center';document.querySelector('.top-menu__row').appendChild(a)}).catch(()=>{});
 fetch('/status').then(r=>r.json()).then(s=>{const mode=document.getElementById('mode');mode.textContent=s.viaGateway?'via Privilege':s.mode;mode.className='pill '+(s.viaGateway?'gw':'direct');document.getElementById('model').textContent=s.mainModel;document.getElementById('worker').textContent='A2A '+(s.bearerOnA2A?'Bearer configured':'local')}).catch(()=>{});

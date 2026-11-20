@@ -1,0 +1,45 @@
+// The shared JsonPane.css subset this page uses (rule 24 tokens), as one exported string.
+// Colors map onto this page's dark palette; keep in step with shared/json/JsonPane.css.
+export const JSON_PANE_CSS = `
+.jsonbox { position: relative; min-width: 0; }
+.jsonbox__toggle { display: flex; justify-content: flex-end; gap: 0; margin: 0 0 4px; }
+.jsonbox__toggle button { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 0; min-height: 0; background: #171b25; color: #b8bfd0; border: 1px solid #4a5063; cursor: pointer; }
+.jsonbox__toggle button:first-child { border-radius: 6px 0 0 6px; }
+.jsonbox__toggle button:last-child { border-radius: 0 6px 6px 0; }
+.jsonbox__toggle button[aria-pressed="true"] { background: #6254ba; color: #fff; border-color: #6254ba; }
+.json { --j-key: #93c5fd; --j-string: #86efac; --j-number: #fbbf24; --j-bool: #fde68a; --j-null: #b8bfd0; --j-url: #67e8f9; --j-id: #a7f3d0; --j-time: #fde68a; --j-hot-bg: #2a2560; }
+.json--raw { color: #e8eaf0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, monospace; font-size: .9rem; margin: 0; }
+.json--form { white-space: normal; font-family: inherit; font-size: .9rem; padding: 4px 0; }
+.jform { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.jform__row { display: grid; grid-template-columns: fit-content(120px) minmax(0, 1fr); gap: 4px 10px; align-items: start; }
+.jform__k { margin: 0; padding-top: 3px; font-family: ui-monospace, monospace; font-size: .82rem; font-weight: 700; color: var(--j-key); overflow-wrap: anywhere; }
+.jform__d { margin: 0; min-width: 0; }
+.jform__v { display: block; padding: 2px 8px; border: 1px solid #4a5063; border-radius: 6px; background: #171b25; color: #e8eaf0; font-family: ui-monospace, monospace; font-size: .85rem; overflow-wrap: anywhere; }
+.jform__v--string { color: var(--j-string); }
+.jform__v--number { color: var(--j-number); }
+.jform__v--url { color: var(--j-url); }
+.jform__v--id { color: var(--j-id); }
+.jform__v--time { color: var(--j-time); }
+.jform__v--null { color: var(--j-null); font-style: italic; }
+.jform__sub { color: #b8bfd0; }
+.jform__chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.jform__chip { display: inline-block; max-width: 100%; overflow-wrap: anywhere; padding: 1px 8px; border-radius: 999px; border: 1px solid #4a5063; background: #171b25; font-family: ui-monospace, monospace; font-size: .85rem; color: var(--j-string); }
+.jform__chips[data-hot="true"] .jform__chip { border-color: #9888ff; background: var(--j-hot-bg); color: #fff; font-weight: 700; }
+.jform__row[data-hot="true"] { background: var(--j-hot-bg); border-left: 3px solid #9888ff; border-radius: 4px; padding: 2px 4px 2px 6px; }
+.jform__row[data-hot="true"] > .jform__k { color: #fff; }
+.jform__row[data-alert="true"] { border-left: 3px solid #e36a6a; border-radius: 4px; padding: 2px 4px 2px 6px; }
+.jform__row[data-alert="true"] > .jform__k, .jform__row[data-alert="true"] > .jform__d > .jform__v { color: #fca5a5; font-weight: 700; }
+/* Hybrid C+A sections */
+.jsec { min-width: 0; }
+.jsec__head { display: flex; align-items: baseline; gap: 6px; padding: 2px 6px; border: 1px solid #4a5063; border-radius: 6px; background: #171b25; cursor: pointer; list-style: none; }
+.jsec__head::-webkit-details-marker { display: none; }
+.jsec__head:hover { border-color: #9888ff; }
+.jsec__caret { color: #b8bfd0; flex: none; }
+.jsec__name { font-family: ui-monospace, monospace; font-size: .82rem; font-weight: 700; color: var(--j-key); overflow-wrap: anywhere; }
+.jsec__meta { margin-left: auto; color: #b8bfd0; font-size: .75rem; white-space: nowrap; }
+.jsec__preview { display: block; padding: 2px 6px 0; font-family: ui-monospace, monospace; font-size: .82rem; color: #d7dbe5; overflow-wrap: anywhere; }
+.jsec__preview .jform__v { display: inline; border: none; background: none; padding: 0; }
+.jsec[open] .jsec__preview { display: none; }
+.jsec__body { min-width: 0; }
+.jsec__body .jform--flat { padding-left: 10px; border-left: 2px solid #34394a; margin-top: 4px; }
+`;
