@@ -19,11 +19,11 @@ test('docs, settings template and compose name no AI-DEMO2 front end, port or sh
   }
 });
 
-test('docker-compose ships three loopback-only services, each reading the optional own .env', () => {
+test('docker-compose ships four loopback-only services (the AWS stand-in reads no .env), the rest reading the optional own .env', () => {
   const compose = read('docker-compose.yml');
-  for (const name of ['mcp', 'worker', 'main']) assert.match(compose, new RegExp(`^  ${name}:$`, 'm'));
+  for (const name of ['mcp', 'worker', 'aws-agent', 'main']) assert.match(compose, new RegExp(`^  ${name}:$`, 'm'));
   const ports = [...compose.matchAll(/^\s+- "([^"]+:\d+:\d+)"$/gm)].map((m) => m[1]);
-  assert.deepEqual(ports, ['127.0.0.1:6883:6883', '127.0.0.1:6882:6882', '127.0.0.1:6881:6881']);
+  assert.deepEqual(ports, ['127.0.0.1:6883:6883', '127.0.0.1:6882:6882', '127.0.0.1:6885:6885', '127.0.0.1:6881:6881']);
   assert.equal((compose.match(/env_file:\n\s+- path: \.env\n\s+required: false/g) ?? []).length, 3);
   assert.doesNotMatch(read('docs/shelf-entry.json'), /No docker-compose\.yml ships/);
 });
