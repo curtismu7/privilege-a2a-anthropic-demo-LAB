@@ -17,7 +17,7 @@ test('opening and closing: the toggle flips aria-expanded, Escape closes it, and
   assert.ok(page.includes("function setPrompts(open){promptList.hidden=!open;promptToggle.setAttribute('aria-expanded',String(open))}"));
   assert.ok(page.includes("promptToggle.addEventListener('click',()=>setPrompts(promptList.hidden))"));
   assert.ok(page.includes("if(event.key==='Escape'&&!promptList.hidden){setPrompts(false);promptToggle.focus()}"));
-  assert.ok(page.includes("button.addEventListener('click',()=>{setPrompts(false);void submit("));
+  assert.ok(page.includes("button.addEventListener('click',()=>{setPrompts(false);if(button.dataset.help){bubble('agent',injectionHelp);return}void submit("));
   for (const source of [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1] ?? '')) assert.doesNotThrow(() => new Function(source));
 });
 
