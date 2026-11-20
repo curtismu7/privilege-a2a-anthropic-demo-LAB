@@ -110,3 +110,8 @@ MCP_JSON_RESPONSE=false
 MCP_STATEFUL=true
 MCP_SESSION_TTL_MS=300000
 MCP_DEMO_INJECTION=false
+
+# Optional: hostname of a gateway that runs on this machine (not in a container). The worker and
+# main containers map it to the host, because a name that resolves to 127.0.0.1 would otherwise
+# mean the container itself. Leave unset when the gateway is remote.
+# LOCAL_GATEWAY_HOST=
