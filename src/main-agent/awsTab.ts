@@ -1,4 +1,4 @@
-// The "Custodian to AWS agent" tab: the path from the person accountable for the main agent's key, through the Privilege gateway,
+// The "Custodian to AWS agent" tab: the path from the custodian of the main agent's key, through the Privilege gateway,
 // to an agent running in AWS, lit up step by step from the run's trace. Static markup, CSS and a classic script, like wiringDiagram.ts.
 // The panel sets its own surface and ink from the shared tokens, so it reads in both themes although the rest of the page is styled dark.
 // Everything the remote side sends is written with textContent, never as HTML.
@@ -33,30 +33,33 @@ export const AWS_TABS_HTML = `<div class="tabs" role="tablist" aria-label="Demo 
 <button type="button" role="tab" id="tab-aws" aria-selected="false" aria-controls="panel-aws" tabindex="-1" data-testid="tab-aws">Custodian to AWS agent</button>
 </div>`;
 
-const node = (id: string, kicker: string, name: string, sub: string): string =>
-  `<li class="aws__node" id="aws-n-${id}" data-state="idle"><span class="aws__kicker">${kicker}</span><span class="aws__name" id="aws-name-${id}">${name}</span><span class="aws__sub" id="aws-sub-${id}">${sub}</span><span class="aws__state" id="aws-s-${id}">waiting</span></li>`;
+const node = (id: string, kicker: string, name: string, sub: string, extra = ''): string =>
+  `<li class="aws__node" id="aws-n-${id}" data-state="idle"><span class="aws__kicker">${kicker}</span><span class="aws__name" id="aws-name-${id}">${name}</span><span class="aws__sub" id="aws-sub-${id}">${sub}</span><span class="aws__state" id="aws-s-${id}">waiting</span>${extra}</li>`;
 
 export const AWS_PANEL_HTML = `<section id="panel-aws" class="aws" role="tabpanel" aria-labelledby="tab-aws" hidden data-testid="aws-panel">
 <h2 class="aws__h">Custodian to AWS agent, through Privilege</h2>
-<p class="aws__lede">A person is accountable for the main agent's key. The agent acts under that key, Privilege checks every call, and only then does it reach the agent running in AWS.</p>
+<p class="aws__lede">Every agent key has a custodian: the identity its actions are attributed to, a user or a federated identity. The agent acts under that key, Privilege checks every call, and only then does it reach the agent running in AWS.</p>
 <p class="aws__note" id="aws-mode" role="note">Checking the route…</p>
+<label class="aws__hubtoggle"><input type="checkbox" id="aws-hub" aria-controls="aws-hub-note" data-testid="aws-hub"> Explain: where a secrets hub fits (display only)</label>
+<p class="aws__note aws__hubnote" id="aws-hub-note" role="note" hidden data-testid="aws-hub-note"><b>Explainer, display only. This run does not use a hub.</b> A Privilege secrets hub (AWS Secrets Manager, Azure Key Vault, Delinea Secret Server or GCP Secrets Manager) holds credentials outside the agent, and Privilege describes the AI gateway as injecting the credential a resource needs at request time. Ping's docs cover hubs for checking out secrets by policy; how a hub secret reaches an agent request is not documented, so this explainer shows where a hub would sit, not how it works. Where the credential for this AWS agent comes from is set in Privilege, and this app cannot read it.</p>
 <ol class="aws__flow" aria-label="Path from the custodian to the AWS agent">
-${node('custodian', 'Custodian', 'Sample custodian', "Owns the main agent's key in the Agent Registry. The key's grants are the custodian's.")}
+${node('custodian', 'Custodian', 'Sample custodian', "Whose identity the agent key's actions are attributed to: a user or a federated identity. Set in the Agent Registry.")}
 ${node('main', 'Main agent', 'Main agent', 'Acts for the custodian. Sends the A2A message with its own key, never the custodian\'s sign-in.')}
-${node('gateway', 'Privilege gateway', 'AI gateway', 'Checks the key, the a2a scope and the Remote Agent grant, screens the message, then forwards it.')}
-${node('aws', 'AWS agent', 'Agent on AWS', "Runs in AWS (Bedrock AgentCore). It never sees the main agent's key: the gateway sends its own credential.")}
+${node('gateway', 'Privilege gateway', 'AI gateway', 'Checks the key, the a2a scope and the Remote Agent grant, screens the message, then forwards it.', '<span class="aws__hubchip" id="aws-hub-chip" hidden>Explainer: credential from a secrets hub</span>')}
+${node('aws', 'AWS agent', 'Agent on AWS', "Runs in AWS (Bedrock AgentCore). It never sees the main agent's key. What it receives is set on the gateway app: a credential the gateway injects, or the caller's own verified token.")}
 </ol>
 <form id="aws-form" class="aws__form">
 <label for="aws-input" class="aws__label">Ask the AWS agent</label>
 <div class="aws__row"><input id="aws-input" autocomplete="off" maxlength="4000" placeholder="Ask about cloud access"><button id="aws-send" type="submit">Send</button></div>
 <div class="aws__prompts" role="group" aria-label="Suggested questions">${AWS_PROMPTS.map(promptButton).join('')}</div>
 </form>
+<div class="aws__refuse"><button type="button" id="aws-refuse" data-testid="aws-refuse">Try a refused call</button> <span class="aws__refuse-note" id="aws-refuse-note">Sends the first suggested question with a deliberately invalid credential, so you can see the gateway refuse it before it reaches AWS.</span></div>
 <div id="aws-answer" class="aws__answer" role="status" aria-live="polite"></div>
 <h3 class="aws__h3">What crossed each hop</h3>
 <ol id="aws-trace" class="aws__trace"><li class="aws__empty">Send a question. Each step appears here, with what was sent and what came back.</li></ol>
 <details class="aws__how"><summary>How to read this</summary>
 <ul>
-<li><b>Custodian.</b> The person accountable for the agent key. In Privilege, Remote Agent grants follow the custodian. The name is set with AWS_AGENT_CUSTODIAN; this app cannot read it from Privilege.</li>
+<li><b>Custodian.</b> The identity the agent key is registered to in the Agent Registry, a user or a federated identity. Privilege attributes the agent's actions to it. The name is set with AWS_AGENT_CUSTODIAN; this app cannot read it from Privilege.</li>
 <li><b>Privilege gateway.</b> In a live run, a refusal (HTTP 400, 401, 403 or 429) is shown as refused at the gateway. This app sees only the status, so confirm the reason in the gateway log.</li>
 <li><b>AWS agent.</b> Any other HTTP error, or a reply with no text, is shown as stopped at the AWS agent.</li>
 <li><b>Simulated runs.</b> With no gateway route set, the AWS agent is a local stand-in and the gateway step is marked simulated: nothing in Privilege or AWS is called.</li>
@@ -73,6 +76,15 @@ export const AWS_TAB_CSS = `
 .aws__h{margin:0 0 .35rem;font-size:1rem;color:var(--text)}
 .aws__h3{margin:1.25rem 0 .5rem;font-size:.85rem;color:var(--text)}
 .aws__lede{margin:0 0 .6rem;font-size:.85rem;line-height:1.5;max-width:60rem}
+.aws__card{display:grid;grid-template-columns:max-content 1fr;gap:.2rem .9rem;margin:.5rem 0;padding:.5rem .7rem;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);font-size:.8rem}
+.aws__card dt{font-weight:700}
+.aws__card dd{margin:0;word-break:break-word}
+.aws__refuse{margin:.2rem 0 .8rem;font-size:.8rem;color:var(--text-body)}
+.aws__refuse-note{margin-left:.5rem}
+.aws__hubtoggle{display:block;margin:-.4rem 0 .8rem;font-size:.8rem;color:var(--text-body);cursor:pointer}
+.aws .aws__hubtoggle input[type=checkbox]{display:inline-block;width:1rem;height:1rem;min-height:0;padding:0;margin:0 .4rem 0 0;vertical-align:middle}
+.aws__hubchip{display:inline-block;margin-top:.4rem;padding:.1rem .5rem;border:1px dashed var(--muted);border-radius:999px;font-size:.75rem;color:var(--text-body)}
+.aws__hubnote{margin-top:-.4rem}
 .aws__note{margin:0 0 1rem;padding:.45rem .7rem;border:1px solid var(--border);border-left:4px solid var(--status-info);border-radius:6px;font-size:.8rem;background:var(--surface-2);color:var(--text-body);max-width:60rem}
 .aws__flow{display:flex;gap:2.25rem;margin:0 0 1.25rem;padding:0;list-style:none}
 .aws__node{position:relative;flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:3px;padding:12px 14px;border:2px solid var(--border);border-radius:6px;background:var(--surface-2)}
@@ -145,6 +157,8 @@ aws.addEventListener('click',function(){select('aws')});
 })});
 if(location.hash==='#aws')select('aws');
 
+var hub=document.getElementById('aws-hub'),hubNote=document.getElementById('aws-hub-note'),hubChip=document.getElementById('aws-hub-chip');
+hub.addEventListener('change',function(){hubNote.hidden=!hub.checked;hubChip.hidden=!hub.checked});
 var WORDS={idle:'waiting',working:'working…',ok:'done',refused:'refused',error:'stopped'};
 var IDS=['custodian','main','gateway','aws'];
 var simulated=false;
@@ -159,6 +173,7 @@ fetch('/status').then(function(r){return r.json()}).then(function(s){
   document.getElementById('aws-mode').textContent=simulated
     ?'SIMULATED: no Privilege gateway and no AWS in this run. The AWS agent is a local stand-in. Set AWS_AGENT_A2A_URL to your gateway route to go live.'
     :'LIVE route: the call goes to your Privilege gateway, which forwards it to the AWS agent. The answer is the AWS agent\'s own.';
+  if(simulated)document.getElementById('aws-refuse-note').textContent='Sends the first suggested question with a deliberately invalid credential. In this simulated run the local stand-in refuses it, not a gateway.';
   if(simulated)document.getElementById('aws-sub-gateway').textContent='Not in the path in this run: the stand-in is called directly. A live run goes through the gateway.';
 }).catch(function(){document.getElementById('aws-mode').textContent='Could not read the route settings from the main agent.'});
 
@@ -166,6 +181,19 @@ var trace=document.getElementById('aws-trace'),answer=document.getElementById('a
 function wireBlock(label,body){
   var d=document.createElement('details');d.className='aws__wire';var s=document.createElement('summary');s.textContent=label;d.appendChild(s);
   var p=document.createElement('pre');p.textContent=body;d.appendChild(p);return d;
+}
+function cardBlock(c){
+  var dl=document.createElement('dl');dl.className='aws__card';dl.setAttribute('aria-label','Agent Card fields');
+  function row(k,v){
+    if(Array.isArray(v))v=v.join(', ');
+    var dt=document.createElement('dt');dt.textContent=k;var dd=document.createElement('dd');dd.textContent=v||'not declared';
+    dl.appendChild(dt);dl.appendChild(dd);
+  }
+  row('name',c.name);row('description',c.description);row('protocolVersion',c.protocolVersion);row('preferredTransport',c.preferredTransport);
+  row('url',c.url);row('skills',c.skills);row('capabilities',c.capabilities);
+  var ins=(c.inputModes||[]).join(', '),outs=(c.outputModes||[]).join(', ');
+  row('input / output modes',[ins&&'in: '+ins,outs&&'out: '+outs].filter(Boolean).join(' · '));row('securitySchemes',c.security);
+  return dl;
 }
 function addStep(t){
   var empty=trace.querySelector('.aws__empty');if(empty)empty.remove();
@@ -176,6 +204,7 @@ function addStep(t){
   var at=document.createElement('span');at.className='aws__at';at.textContent=t.at||'';head.appendChild(at);
   li.appendChild(head);
   if(t.detail){var d=document.createElement('p');d.className='aws__detail';d.textContent=t.detail;li.appendChild(d)}
+  if(t.card)li.appendChild(cardBlock(t.card));
   if(t.wire&&t.wire.status&&String(t.detail||'').indexOf('HTTP '+t.wire.status)<0){var w=document.createElement('p');w.className='aws__detail';w.textContent='HTTP '+t.wire.status+(t.wire.errorCode!==undefined?' · JSON-RPC '+t.wire.errorCode:'');li.appendChild(w)}
   if(t.request)li.appendChild(wireBlock('What was sent (key masked)',t.request));
   if(t.response)li.appendChild(wireBlock('What came back',t.response));
@@ -193,12 +222,12 @@ function onTrace(t){
     else{setState('gateway','ok',simulated?'simulated':'passed');setState('aws','error','stopped (HTTP '+status+')')}
   }
 }
-async function run(text){
+async function run(text,refusal){
   text=text.trim();if(!text||send.disabled)return;
   resetFlow();setState('custodian','ok','acting');setState('main','working');
   answer.textContent='';answer.className='aws__answer';trace.textContent='';busy(true);
   try{
-    var res=await fetch('/aws-agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
+    var res=await fetch('/aws-agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(refusal?{message:text,refusal:true}:{message:text})});
     if(!res.ok||!res.body)throw new Error('HTTP '+res.status);
     var reader=res.body.getReader(),dec=new TextDecoder(),buf='';
     while(true){
@@ -224,7 +253,9 @@ async function run(text){
   }finally{busy(false);input.focus()}
 }
 /* One request at a time: Send and the suggested questions are off while a run is in flight, and run() refuses on its own. */
-function busy(on){send.disabled=on;document.querySelectorAll('.aws__prompts button').forEach(function(b){b.disabled=on})}
+function busy(on){send.disabled=on;document.querySelectorAll('.aws__prompts button').forEach(function(b){b.disabled=on});refuse.disabled=on}
+var refuse=document.getElementById('aws-refuse');
+refuse.addEventListener('click',function(){var first=document.querySelector('.aws__prompts button');run(first?first.getAttribute('data-q')||'':'',true)});
 form.addEventListener('submit',function(e){e.preventDefault();if(send.disabled)return;var t=input.value;input.value='';run(t)});
 document.querySelectorAll('.aws__prompts button').forEach(function(b){b.addEventListener('click',function(){run(b.getAttribute('data-q')||'')})});
 })();`;

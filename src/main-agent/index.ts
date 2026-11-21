@@ -10,6 +10,7 @@ import { stripUnsourcedScope, textOfTurn } from './scopeFilter.js';
 import { buildWorkerClient } from './a2a-client.js';
 import { MAIN, maskKey, pretty, runChain } from './chain.js';
 import { runAwsAgent } from './awsAgent.js';
+import { REFUSAL_DEMO_CREDENTIAL } from '../aws-refusal.js';
 import { createPfTokenProvider } from './pfToken.js';
 import { renderPage } from './ui.js';
 import { shelfInfo } from '../shelfLink.js';
@@ -232,6 +233,7 @@ app.post('/aws-agent', async (req: Request, res: Response) => {
   if (!bffAuthorized(req, res)) return;
   const raw = (req.body as { message?: unknown }).message;
   const message = typeof raw === 'string' ? raw.trim() : '';
+  const refusalDemo = (req.body as { refusal?: unknown }).refusal === true;
   if (!message || message.length > MAX_AWS_MESSAGE) {
     res.status(400).json({ error: `message is required (at most ${MAX_AWS_MESSAGE} characters)` });
     return;
@@ -250,9 +252,10 @@ app.post('/aws-agent', async (req: Request, res: Response) => {
   try {
     const answer = await runAwsAgent({
       url: config.awsAgentA2aUrl,
-      bearer: awsAgentToken && !config.awsAgentSimulated ? await awsAgentToken() : config.bearer,
+      bearer: refusalDemo ? REFUSAL_DEMO_CREDENTIAL : awsAgentToken && !config.awsAgentSimulated ? await awsAgentToken() : config.bearer,
       message,
       simulated: config.awsAgentSimulated,
+      refusalDemo,
       signal: abort.signal,
       emit: event => sendSse(res, 'trace', { ...event, at: at() }),
     });

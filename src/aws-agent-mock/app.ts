@@ -1,4 +1,5 @@
 import express, { type Express, type Request, type Response } from 'express';
+import { REFUSAL_DEMO_CREDENTIAL } from '../aws-refusal.js';
 
 /**
  * A local stand-in for an AWS agent (an Amazon Bedrock AgentCore runtime serving A2A), so the Custodian to AWS agent tab works
@@ -27,6 +28,10 @@ export function createAwsAgentMockApp(options: AwsMockOptions = {}): Express {
   app.get('/ping', (_req: Request, res: Response) => res.json({ status: 'Healthy' }));
 
   const requireAuth = (req: Request, res: Response): boolean => {
+    if ((req.header('authorization') ?? '') === `Bearer ${REFUSAL_DEMO_CREDENTIAL}`) {
+      res.status(401).set('WWW-Authenticate', 'Bearer error="invalid_token"').json({ error: 'unauthorized', error_description: 'The credential was not accepted (simulated refusal)' });
+      return false;
+    }
     if (!options.requireBearer || /^Bearer\s+\S+/i.test(req.header('authorization') ?? '')) return true;
     res.status(401).set('WWW-Authenticate', 'Bearer').json({ error: 'Bearer authentication required' });
     return false;

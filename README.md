@@ -108,6 +108,14 @@ status, so confirm the reason in the gateway log.
 
 The route is `POST /aws-agent` (same BFF secret rule as `/chat` and `/chain`; streams `trace`, `token`, `done`/`error`).
 
+On the AWS tab:
+
+- **Agent Card panel.** The card step shows the card as a readable list (name, `protocolVersion`, transport, skills, capabilities, `securitySchemes`), beside the raw JSON.
+- **Try a refused call.** Sends the first suggested question with a deliberately invalid credential (`REFUSAL_DEMO_CREDENTIAL`, a fixed string no gateway accepts; `POST /aws-agent` with `{"refusal": true}`). Against a live gateway the flow shows the refusal at the gateway and the AWS agent as not reached, and the trace shows the response's `WWW-Authenticate` challenge. In a simulated run the local stand-in refuses it.
+- **Secrets-hub explainer.** An off-by-default checkbox that shows where a Privilege secrets hub would sit. Display only: this app does not use a hub and cannot read how the gateway gets its credential.
+- **Account ids are masked.** Any 12-digit AWS account id (`?accountId=`, inside an ARN, URL-encoded or not) is replaced in the request, response and error text the page shows. The call itself still uses the real URL.
+- **Header banner.** It says SIMULATED until `/status` shows the run goes through a gateway, then says LIVE.
+
 ## Set up on Privilege, in order
 
 This is the order that worked end to end. Apps first, because an agent can only

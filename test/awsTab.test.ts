@@ -75,3 +75,26 @@ test('the page says what is simulated and what the tab cannot verify', () => {
   assert.match(AWS_PANEL_HTML, /cannot read it from Privilege/);
   assert.match(AWS_PANEL_HTML, /Simulated runs/);
 });
+
+test('the secrets-hub explainer is an off-by-default toggle, labelled display only, that shows a note and a chip', () => {
+  assert.match(AWS_PANEL_HTML, /<input type="checkbox" id="aws-hub"(?![^>]*checked)/);
+  assert.match(AWS_PANEL_HTML, /id="aws-hub-note"[^>]*hidden/);
+  assert.match(AWS_PANEL_HTML, /id="aws-hub-chip" hidden/);
+  assert.match(AWS_PANEL_HTML, /This run does not use a hub/);
+  assert.ok(AWS_TAB_SCRIPT.includes("getElementById('aws-hub')"));
+});
+
+test('the refused-call button sends refusal:true, and the header banner only says SIMULATED until the status says the run is live', () => {
+  assert.match(AWS_PANEL_HTML, /id="aws-refuse"/);
+  assert.ok(AWS_TAB_SCRIPT.includes('refusal:true'));
+  assert.match(page, /<span class="banner" role="note">SIMULATED:/, 'the static default stays honest for an offline run');
+  assert.match(page, /if\(s\.viaGateway\)\{const b=document\.querySelector\('header \.banner'\)/);
+  assert.match(page, /LIVE: model calls go through your Privilege gateway/);
+});
+
+test('the card step renders a readable Agent Card panel from the card summary, with text nodes only', () => {
+  assert.ok(AWS_TAB_SCRIPT.includes('function cardBlock(c)'));
+  assert.ok(AWS_TAB_SCRIPT.includes("row('securitySchemes',c.security)"));
+  assert.ok(AWS_TAB_SCRIPT.includes("'not declared'"));
+  assert.ok(AWS_TAB_CSS.includes('.aws__card'));
+});
