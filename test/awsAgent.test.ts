@@ -200,11 +200,18 @@ test('a normal run never says its credential is invalid', async () => {
 });
 
 test('masking happens before truncation, so a cut inside an account id cannot leave a partial id on screen', async () => {
-  const filler = 'x'.repeat(3990);
-  const body = JSON.stringify({ jsonrpc: '2.0', id: 'x', error: { code: -32052, message: `${filler} accountId=111122223333 tail` } });
+  const wrap = (filler: string): string => JSON.stringify({ jsonrpc: '2.0', id: 'x', error: { code: -32052, message: `${filler}accountId=111122223333 tail` } });
+  // Choose the filler so the 4000-character cut lands in the middle of the 12 digits.
+  const filler = 'x'.repeat(3995 - wrap('').indexOf('111122223333'));
+  const body = wrap(filler);
+  const cutAt = body.indexOf('111122223333');
+  assert.ok(cutAt < 4000 && cutAt + 12 > 4000, 'the test setup must straddle the cut');
   const fetchImpl = async (input: string | URL | Request): Promise<Response> =>
     String(input).endsWith('agent-card.json') ? new Response('', { status: 404 }) : new Response(body, { status: 400, headers: { 'Content-Type': 'application/json' } });
   const { events, emit } = collect();
   await assert.rejects(runAwsAgent({ url: 'https://gw.example/a/', bearer: KEY, message: 'hi', emit, fetchImpl: fetchImpl as typeof fetch }));
-  assert.ok(!/\d{6,}/.test(JSON.stringify(events)), 'no run of six or more digits may reach an event');
+  const shown = events[events.length - 1]?.response ?? '';
+  assert.ok(shown.length > 3900, 'the response was cut');
+  assert.ok(!/\d{6,}/.test(shown), 'no run of six or more digits may remain in the response shown');
+  assert.ok(!shown.includes('11112'), 'no leading digits of the id may remain');
 });
