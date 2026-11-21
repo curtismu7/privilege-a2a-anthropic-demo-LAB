@@ -3,8 +3,9 @@ import type { AddressInfo } from 'node:net';
 import { test } from 'node:test';
 
 import { createAwsAgentMockApp } from '../src/aws-agent-mock/app.js';
-import { AWS_AGENT, answerFrom, cardUrlFor, runAwsAgent } from '../src/main-agent/awsAgent.js';
+import { AWS_AGENT, answerFrom, cardUrlFor, maskAccountIds, runAwsAgent } from '../src/main-agent/awsAgent.js';
 import type { ChainEvent } from '../src/main-agent/chain.js';
+import { REFUSAL_DEMO_CREDENTIAL } from '../src/aws-refusal.js';
 
 const KEY = 'agent-key-0123456789-SECRET-TAIL';
 
@@ -167,4 +168,43 @@ test('the Agent Card read keeps the route\'s query string (AgentCore needs ?acco
     'https://gateway.example/aws-agent/runtimes/Rt-abc123/invocations/.well-known/agent-card.json?accountId=111122223333',
   );
   assert.equal(cardUrlFor('https://gateway.example/a/invocations?accountId=1'), 'https://gateway.example/a/invocations/.well-known/agent-card.json?accountId=1');
+});
+
+test('the trace never shows the AWS account id: a query string or an ARN has it masked', () => {
+  assert.equal(maskAccountIds('https://gw.example/aws-agent/runtimes/Rt-abc/invocations/?accountId=111122223333'), 'https://gw.example/aws-agent/runtimes/Rt-abc/invocations/?accountId=xxxxxxxxxxxx');
+  assert.equal(maskAccountIds('arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/Rt-abc'), 'arn:aws:bedrock-agentcore:us-east-1:xxxxxxxxxxxx:runtime/Rt-abc');
+  assert.equal(maskAccountIds('https://x/runtimes/arn%3Aaws%3Abedrock-agentcore%3Aus-east-1%3A111122223333%3Aruntime%2FRt-abc/'), 'https://x/runtimes/arn%3Aaws%3Abedrock-agentcore%3Aus-east-1%3Axxxxxxxxxxxx%3Aruntime%2FRt-abc/');
+  assert.equal(maskAccountIds('arn%253Aaws%253Abedrock-agentcore%253Aus-east-1%253A111122223333%253Aruntime'), 'arn%253Aaws%253Abedrock-agentcore%253Aus-east-1%253Axxxxxxxxxxxx%253Aruntime');
+  assert.equal(maskAccountIds('https://gw.example/a?x=1234'), 'https://gw.example/a?x=1234');
+});
+
+test('the refused-call demo: an invalid credential is refused with a 401, the challenge header is shown, and the trace says so', async () => {
+  await withMock({}, async (url) => {
+    const { events, emit } = collect();
+    await assert.rejects(runAwsAgent({ url, bearer: REFUSAL_DEMO_CREDENTIAL, message: 'hi', emit, refusalDemo: true }), /HTTP 401/);
+    const delegate = events.find((event) => event.kind === 'delegate');
+    assert.match(delegate?.text ?? '', /deliberately invalid credential/);
+    const last = events[events.length - 1];
+    assert.equal(last?.kind, 'error');
+    assert.equal(last?.wire?.status, 401);
+    assert.match(last?.response ?? '', /WWW-Authenticate: Bearer error="invalid_token"/);
+  });
+});
+
+test('a normal run never says its credential is invalid', async () => {
+  await withMock({}, async (url) => {
+    const { events, emit } = collect();
+    await runAwsAgent({ url, bearer: KEY, message: 'hi', emit });
+    assert.ok(!events.some((event) => /invalid credential/.test(event.text ?? '')));
+  });
+});
+
+test('masking happens before truncation, so a cut inside an account id cannot leave a partial id on screen', async () => {
+  const filler = 'x'.repeat(3990);
+  const body = JSON.stringify({ jsonrpc: '2.0', id: 'x', error: { code: -32052, message: `${filler} accountId=111122223333 tail` } });
+  const fetchImpl = async (input: string | URL | Request): Promise<Response> =>
+    String(input).endsWith('agent-card.json') ? new Response('', { status: 404 }) : new Response(body, { status: 400, headers: { 'Content-Type': 'application/json' } });
+  const { events, emit } = collect();
+  await assert.rejects(runAwsAgent({ url: 'https://gw.example/a/', bearer: KEY, message: 'hi', emit, fetchImpl: fetchImpl as typeof fetch }));
+  assert.ok(!/\d{6,}/.test(JSON.stringify(events)), 'no run of six or more digits may reach an event');
 });

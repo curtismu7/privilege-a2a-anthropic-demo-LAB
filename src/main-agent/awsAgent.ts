@@ -33,13 +33,29 @@ export interface AwsAgentOptions {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
   signal?: AbortSignal;
+  /** The refused-call demo: `bearer` is a deliberately invalid credential, and the trace says so. */
+  refusalDemo?: boolean;
 }
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
 const strings = (value: unknown): string[] => (Array.isArray(value) ? value.map(text).filter(Boolean) : []);
 const record = (value: unknown): Record<string, unknown> =>
   (value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {});
-const clip = (raw: string): string => (raw.length > MAX_WIRE_TEXT ? `${raw.slice(0, MAX_WIRE_TEXT)}\n… (cut at ${MAX_WIRE_TEXT} characters)` : raw);
+/**
+ * What the page and trace show for a route: the AWS account id (12 digits, in `?accountId=` or inside a runtime ARN) is
+ * replaced, so a screenshot or a recording of the tab never carries it. The call itself still sends the real URL.
+ */
+export const maskAccountIds = (value: string): string =>
+  value
+    .replace(/(accountId=)\d{12}(?!\d)/gi, '$1xxxxxxxxxxxx')
+    .replace(/(:)\d{12}(:)/g, '$1xxxxxxxxxxxx$2')
+    // The same id inside a URL-encoded ARN (`%3A`), or encoded twice by a gateway (`%253A`), as AWS's own Agent Card writes it.
+    .replace(/(%(?:25)?3A)\d{12}(?=%(?:25)?3A)/gi, '$1xxxxxxxxxxxx');
+/** Every wire body the page shows goes through here: cut to a readable length and with the AWS account id masked. */
+const clip = (raw: string): string => {
+  const masked = maskAccountIds(raw); // mask before cutting: a cut inside an id would leave digits that no longer match
+  return masked.length > MAX_WIRE_TEXT ? `${masked.slice(0, MAX_WIRE_TEXT)}\n… (cut at ${MAX_WIRE_TEXT} characters)` : masked;
+};
 
 function parseJson(raw: string): Record<string, unknown> | null {
   try {
@@ -66,7 +82,7 @@ function summariseCard(body: Record<string, unknown>): CardSummary {
     name: text(body.name),
     description: text(body.description),
     protocolVersion: text(body.protocolVersion),
-    url: text(body.url),
+    url: maskAccountIds(text(body.url)),
     preferredTransport: text(body.preferredTransport),
     skills: skills.map((skill) => text(skill.name) || text(skill.id)).filter(Boolean),
     version: text(body.version),
@@ -119,7 +135,8 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
   const auth: Record<string, string> = bearer ? { Authorization: `Bearer ${bearer}` } : {};
   const shownAuth = credential ? `\nAuthorization: Bearer ${credential}` : '';
 
-  const fail = (detail: string, wire?: WireFacts, response?: string): never => {
+  const fail = (rawDetail: string, wire?: WireFacts, response?: string): never => {
+    const detail = maskAccountIds(rawDetail);
     emit({ ...route, kind: 'error', text: 'The AWS agent call did not complete', detail, ...(wire ? { wire } : {}), ...(response ? { response: clip(response) } : {}) });
     throw new Error(detail);
   };
@@ -127,26 +144,28 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
 
   // The Agent Card. Best effort: a gateway route may not publish one, and a missing card must not stop the demo, but it is said.
   const cardTarget = cardUrlFor(url);
+  const shownCard = maskAccountIds(cardTarget);
+  const shownUrl = maskAccountIds(url);
   const cardStarted = Date.now();
   try {
     const response = await doFetch(cardTarget, { headers: { Accept: 'application/json', ...auth }, signal });
     const raw = await response.text();
     const body = response.ok ? parseJson(raw) : null;
-    const request = `GET ${cardTarget}${shownAuth}`;
+    const request = `GET ${shownCard}${shownAuth}`;
     if (body && text(body.name)) {
       emit({
-        ...route, kind: 'card', text: `main reads ${text(body.name)}'s Agent Card`, detail: text(body.description),
+        ...route, kind: 'card', text: `main reads ${text(body.name)}'s Agent Card`, detail: maskAccountIds(text(body.description)),
         elapsedMs: Date.now() - cardStarted, request, response: clip(pretty(raw)), card: summariseCard(body), wire: { status: response.status },
       });
     } else {
       emit({
         ...route, kind: 'card', text: 'No readable Agent Card; sending the message anyway',
-        detail: `HTTP ${response.status} from ${cardTarget}`, elapsedMs: Date.now() - cardStarted, request, response: clip(raw), wire: { status: response.status },
+        detail: `HTTP ${response.status} from ${shownCard}`, elapsedMs: Date.now() - cardStarted, request, response: clip(raw), wire: { status: response.status },
       });
     }
   } catch (error) {
     if (signal.aborted) stopped();
-    emit({ ...route, kind: 'card', text: 'No readable Agent Card; sending the message anyway', detail: reachMessage(error), request: `GET ${cardTarget}${shownAuth}` });
+    emit({ ...route, kind: 'card', text: 'No readable Agent Card; sending the message anyway', detail: maskAccountIds(reachMessage(error)), request: `GET ${shownCard}${shownAuth}` });
   }
 
   const rpcId = randomUUID();
@@ -159,20 +178,22 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
   };
   const sent = JSON.stringify(payload);
   emit({
-    ...route, kind: 'delegate', text: `main → ${AWS_AGENT} through Privilege`, detail: message,
-    request: `POST ${url}\nContent-Type: application/json${shownAuth}\n\n${JSON.stringify(payload, null, 2)}`, wire: { rpcId, messageId },
+    ...route, kind: 'delegate', text: `main → ${AWS_AGENT} through Privilege${options.refusalDemo ? ' (deliberately invalid credential)' : ''}`, detail: message,
+    request: `POST ${shownUrl}\nContent-Type: application/json${shownAuth}\n\n${JSON.stringify(payload, null, 2)}`, wire: { rpcId, messageId },
   });
 
   const started = Date.now();
   let status = 0;
   let raw = '';
+  let challenge = '';
   try {
     const response = await doFetch(url, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...auth }, body: sent, signal });
     status = response.status;
+    challenge = response.headers.get('www-authenticate') ?? '';
     raw = await response.text();
   } catch (error) {
     if (signal.aborted) stopped();
-    fail(reachMessage(error));
+    fail(maskAccountIds(reachMessage(error)));
   }
 
   const body = parseJson(raw);
@@ -180,7 +201,9 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
   if (status < 200 || status >= 300 || body?.error !== undefined) {
     const code = typeof rpcError.code === 'number' ? rpcError.code : undefined;
     const reason = text(rpcError.message) || clip(raw.trim()).slice(0, 300) || 'no body';
-    fail(`HTTP ${status}${code !== undefined ? ` · JSON-RPC ${code}` : ''}: ${reason}`, { status, rpcId, ...(code !== undefined ? { errorCode: code } : {}) }, raw);
+    fail(`HTTP ${status}${code !== undefined ? ` · JSON-RPC ${code}` : ''}: ${reason}`, { status, rpcId, ...(code !== undefined ? { errorCode: code } : {}) },
+      // A 401 carries its challenge in a header (RFC 9110 section 15.5.2); show it, because that is where the client is told how to sign in.
+      challenge ? `HTTP ${status}\nWWW-Authenticate: ${maskAccountIds(challenge)}\n\n${raw}` : raw);
   }
   if (!body) fail(`HTTP ${status}: the reply was not JSON`, { status, rpcId }, raw);
 
