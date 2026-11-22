@@ -134,7 +134,7 @@ OVERLAY = r"""
   .reel-dialog{width:min(${Math.round(880 * S)}px,100%) !important}`;
   const root = () => document.documentElement;
   const ensure = () => { if (!root() || document.getElementById('cm-style')) return; const st = document.createElement('style'); st.id = 'cm-style'; st.textContent = css; root().appendChild(st);
-    const pill = document.createElement('div'); pill.className = 'cm-pill'; pill.textContent = window.__pillText || 'LIVE RUN'; root().appendChild(pill); };
+    const pill = document.createElement('div'); pill.className = 'cm-pill'; pill.textContent = window.__pillText || ''; if (!window.__pillText) pill.style.display = 'none'; root().appendChild(pill); };
   document.addEventListener('DOMContentLoaded', ensure); ensure();
   const els = []; const clear = () => { while (els.length) els.pop().remove(); };
   setInterval(() => { document.querySelectorAll('.aws__card dt').forEach((dt) => { if (dt.textContent === 'protocolVersion') { dt.style.display = 'none'; if (dt.nextElementSibling) dt.nextElementSibling.style.display = 'none'; } }); }, 250);
@@ -201,7 +201,7 @@ OVERLAY = r"""
   } };
 })();
 """
-TOTAL = 25 if SAMPLE else 28   # numbered caption bubbles; the take counts them and logs a mismatch (conditional scenes change the count)
+TOTAL = 25 if SAMPLE else 27   # numbered caption bubbles; the take counts them and logs a mismatch (conditional scenes change the count)
 P1_Q1 = "What can Bob Reyes reach?"                      # a clean A2A handoff, MCP data with the email redacted
 P1_Q2 = "Review access on prod-db-primary"               # the data call the gateway blocks (AI Guard), by design of the injection demo
 P2_Q1 = "Use add_numbers to add 987654321 and 123456789. Show the exact tool call you made and the value it returned."
@@ -434,7 +434,8 @@ def main():
             bubble("main_agent", "#aws-n-main", prefer="below")
             bubble("gateway", "#aws-n-gateway", prefer="below")
             bubble("aws_agent", "#aws-n-aws", prefer="below")
-            bubble("live_banner", "#aws-mode", prefer="below", lines=[first_sentence(mode)], sample_key="sample_live_banner")
+            if SAMPLE:   # the live takes say "this is a real run" once, on the opening slide; only the sample needs to say it is simulated
+                bubble("live_banner", "#aws-mode", prefer="below", lines=[first_sentence(mode)], sample_key="sample_live_banner")
             page.evaluate("() => window.__cm.clear()")
             show_slide(SLIDES["config_app"], extra=2.0, name="slide-config-app", cap=34.0)
             show_slide(SLIDES["config_agent"], extra=2.0, name="slide-config-agent", cap=40.0)
