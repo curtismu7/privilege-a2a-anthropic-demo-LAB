@@ -1,0 +1,26 @@
+/*
+  shell.css: the lab's own CSS for the standard shell bar (STANDALONE-UI-PATTERNS.md section 1) that carries the shared TopMenu.
+  Colours come only from the standalone-ui.css tokens, which the page already inlines. The TopMenu's own styles are the vendored
+  top-menu.css; nothing here restyles its controls.
+*/
+
+/* Text size (TopMenu's applyFontSize sets --fs on the root; this is what makes it take effect). */
+html { font-size: var(--fs, 16px); }
+
+/* Core Dark bar in both themes with the Ping Red gradient rule, full-bleed (the -16px cancels the body gutter), wraps at 600px.
+   position: relative anchors the TopMenu sign-in slot (this lab has no sign-in, but the slot's CSS expects it). */
+.shell-bar { position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 20px; margin: 0 -16px; padding: 10px 20px;
+  background: var(--box-dark); color: var(--on-box); border-bottom: 3px solid transparent; border-image: var(--accent-gradient) 1; }
+.shell-bar h1 { margin: 0; color: var(--on-box); font-size: 1.15rem; }
+/* Brand and nav sit on the bar's top line (shared/top-menu-mock.html): min-height matches the TopMenu's first row. */
+.shell-brand { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; min-height: 40px; font-weight: 700; letter-spacing: 0.02em; }
+.shell-logo { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 4px; border-radius: 6px;
+  background: var(--accent-gradient); color: var(--on-accent); font: 800 0.75rem var(--font-mono); }
+/* The mount point adds no box of its own, so the TopMenu is the bar's flex item and sits at the right. */
+#top-menu-root { display: contents; }
+/* TopMenu renders .top-menu.shell-right; its own layout stays. order: 2 keeps it last when the page script appends a Back button to the bar. */
+.shell-bar .shell-right { margin-left: auto; order: 2; }
+.shell-bar .top-menu { max-width: 100%; }
+/* Why a mode switch did not happen, next to the Mode select. */
+.shell-note { max-width: 26rem; font-size: 0.78rem; font-weight: 600; line-height: 1.35; color: var(--on-box); overflow-wrap: anywhere; }
+@media (max-width: 600px) { .shell-bar { gap: 10px; padding: 10px 16px; } }

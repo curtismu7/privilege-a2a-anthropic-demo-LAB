@@ -2,9 +2,13 @@
 # container picks its process with `command` (see k8s/deployment.yaml).
 FROM node:26-alpine AS build
 WORKDIR /app
+# web/ is a workspace (the React island that renders the shell bar): its package.json must be here before `npm ci`.
 COPY package.json package-lock.json tsconfig.json ./
+COPY web/package.json web/
 RUN npm ci
 COPY src ./src
+COPY web ./web
+# `npm run build` compiles the server (tsc) and builds the island into dist/web, which the main agent serves at /web/assets/.
 RUN npm run build && npm prune --omit=dev
 
 FROM node:26-alpine

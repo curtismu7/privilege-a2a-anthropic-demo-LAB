@@ -3,7 +3,7 @@
 Follows the demo family's video standards: `VIDEO-BEST-PRACTICES.md` (copy of the canonical file in `privilege-cimd-test/video`).
 Order of work: `SCRIPT.md` (sources first) -> `captions.md` (wording) -> **sample** -> review -> live take.
 
-- Part 1 (Access review tab): two questions to the concierge, which hands them to the analyst over A2A; the analyst reads data over MCP. One succeeds (email redacted), one is blocked by the gateway.
+- Part 1 (A2A with remote agents tab): two questions to the concierge, which hands them to the analyst over A2A; the analyst reads data over MCP. One succeeds (email redacted), one is blocked by the gateway.
 - Part 2 (Custodian to AWS agent tab): two questions that the AWS agent answers, then a deliberately invalid credential that is refused with a 401.
 - The API call reel is opened at the key frames (the decoded token, the message, the challenge).
 

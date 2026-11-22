@@ -6,9 +6,10 @@ import { AWS_TAB_SCRIPT } from '../src/main-agent/awsTab.js';
 
 const page = renderPage();
 
-test('the form has a Reset button next to Send, wired to resetAll', () => {
-  assert.match(page, /<button id="send" type="submit">Send<\/button><button id="reset" type="button"[^>]*data-testid="reset">Reset<\/button><\/form>/);
-  assert.ok(page.includes("document.getElementById('reset').addEventListener('click',resetAll)"));
+test('Reset is the shared top menu button: the form has only Send, and the page script runs resetAll on the paad:reset event', () => {
+  assert.match(page, /<button id="send" type="submit">Send<\/button><\/form>/);
+  assert.ok(!page.includes('id="reset"'), 'one Reset, in the top menu (web/src/Shell.jsx sends paad:reset)');
+  assert.ok(page.includes("window.addEventListener('paad:reset',resetAll)"));
 });
 
 test('Reset stops a run in flight and clears the conversation, trace, handoff panel and session', () => {

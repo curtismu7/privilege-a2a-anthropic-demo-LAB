@@ -5,8 +5,8 @@ Tier: Demo
 Repo: https://github.com/curtismu7/privilege-a2a-anthropic-demo-LAB
 
 
-Three Node processes demonstrate an access review through A2A and MCP, on
-Anthropic or Google models. The main agent owns the browser conversation and delegates to the worker.
+Three Node processes demonstrate A2A with remote agents (an access review is the worked example) through A2A and MCP, on
+Anthropic or Google models. The page is titled "A2A with remote agents". The main agent owns the browser conversation and delegates to the worker.
 The worker owns the access-review tools and calls the separate MCP process.
 
 ```text
@@ -114,7 +114,25 @@ On the AWS tab:
 - **Try a refused call.** Sends the first suggested question with a deliberately invalid credential (`REFUSAL_DEMO_CREDENTIAL`, a fixed string no gateway accepts; `POST /aws-agent` with `{"refusal": true}`). Against a live gateway the flow shows the refusal at the gateway and the AWS agent as not reached, and the trace shows the response's `WWW-Authenticate` challenge. In a simulated run the local stand-in refuses it.
 - **Secrets-hub explainer.** An off-by-default checkbox that shows where a Privilege secrets hub would sit. Display only: this app does not use a hub and cannot read how the gateway gets its credential.
 - **Account ids are masked.** Any 12-digit AWS account id (`?accountId=`, inside an ARN, URL-encoded or not) is replaced in the request, response and error text the page shows. The call itself still uses the real URL.
-- **Header banner.** It says SIMULATED until `/status` shows the run goes through a gateway, then says LIVE.
+- **Banner under the shell bar.** It says SIMULATED until `/status` shows the run goes through a gateway, then says LIVE.
+
+## The shell bar (shared top menu)
+
+The page is one server-rendered document (`src/main-agent/ui.ts`) with a small React + Vite island for the shell bar only: the brand
+on the left, and the family's shared `TopMenu` on the right (Mode Mock/Real dropdown, Shelf, Reset, Theme, Text size).
+
+- `web/src/top-menu/` is the whole `shared/top-menu/` directory of AI-DEMO-Standalone (rule 22), vendored byte for byte and pinned by
+  `top-menu.sha256` (`TopMenu.jsx`, `top-menu.css`). Never edit it here: change the canonical copy, then re-copy every file and
+  regenerate the pin (`cd web/src/top-menu && shasum -a 256 TopMenu.jsx top-menu.css > top-menu.sha256`). `test/topMenuPin.test.ts`
+  fails on an edited copy.
+- `web/src/Shell.jsx` wires it: the mode comes from `GET /api/info` (`source`) and switches with `POST /api/mode`; a 409 (Real not
+  configured) keeps the old value and shows the reason. Theme keeps `paad.theme` and `data-theme`, text size keeps `pa2a.font` and sets
+  `--fs` (`html { font-size: var(--fs, 16px) }`). Shelf comes from `GET /api/shelf`. This lab has no `docs/VERSION` or docs site, so no Help
+  or Version control is shown.
+- The island talks to the page script with two window events: `paad:mode` (`detail.mode`) and `paad:reset`. The chat code still reads the
+  mode through `window.__uiMode()`, and Reset runs the page's `resetAll`.
+- `npm run build:web` builds `web/` into `dist/web`; the main agent serves it at `/web/assets/`. `npm run main` and `npm run dev`
+  build it first. The Dockerfile and CI build it as part of `npm run build`.
 
 ## Set up on Privilege, in order
 
@@ -416,7 +434,8 @@ and an MCP entitlement lookup, checks each agent uses its own Anthropic Bearer
 key, requires Bearer headers on the local A2A and MCP hops, and runs two chats
 concurrently to verify each receives only its own worker trace events.
 
-`npm run build` checks the TypeScript source separately.
+`npm test` builds the shell bar island first (`npm run build:web`), runs the server tests, then the island's own
+vitest tests (`web/`). `npm run build` compiles the TypeScript source and builds the island too.
 
 ## Direct Anthropic mode
 
@@ -494,10 +513,10 @@ shared settings file in another folder, and nothing from another project.
 
 - **Mock** = the model-free heuristics path. No model call, no provider key, fully offline; the delegation, the A2A hop
   and the MCP tool call still run on the lab's own three processes. This is the default without a provider setting.
-- **Real** = the actual model call. The header toggle enables it only when a model provider is configured:
+- **Real** = the actual model call. The Mode dropdown in the top menu enables it only when a model provider is configured:
   `ANTHROPIC_API_KEY` (or the per-agent keys) for direct Anthropic, or a Privilege gateway through
   `ANTHROPIC_BASE_URL` (or `GEMINI_BASE_URL`, `GROQ_BASE_URL`) with `MAIN_AGENT_KEY` and `WORKER_AGENT_KEY`, and
   `WORKER_A2A_URL`, `WORKER_TRACE_URL`, `MCP_URL` pointing at your gateway routes (steps above). Unconfigured, the
-  Real button is disabled and `POST /api/mode {"source":"real"}` answers 409 with the how-to. Keys are write-only:
+  Real option is disabled and `POST /api/mode {"source":"real"}` answers 409 with the how-to. Keys are write-only:
   scrubbed from every message, error and log line.
 - **UNVERIFIED**: Real against a live Privilege gateway or provider is owner-run; the tests use a local provider stub.

@@ -24,6 +24,12 @@ jobs:
         run: |
           npm ci
           npm test
+      # The same build the Dockerfile runs: tsc for the server, then the shell bar island (web/) into dist/web.
+      - name: Build (server and the web island)
+        run: |
+          npm run build
+          test -s dist/web/assets/topmenu.js
+          test -s dist/web/assets/topmenu.css
       # The vendored shared stylesheet must match the hash pinned when it was last re-vendored.
       - run: bash scripts/check-ui-standard.sh
       # A fresh clone has no .env; Compose must still accept the file (env_file is optional).

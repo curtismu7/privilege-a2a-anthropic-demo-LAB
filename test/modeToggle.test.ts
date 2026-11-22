@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer, type AddressInfo } from 'node:net';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
@@ -12,21 +13,37 @@ import { renderPage } from '../src/main-agent/ui.js';
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url));
 const page = renderPage();
 
-// Rule 19: the Mock / Real toggle is a Mode control in TopMenu row 1, its pressed state is the CURRENT mode (GET /api/info `source`),
-// and switching goes through POST /api/mode. A toggle that only shows the launch mode does not meet it.
+// Rule 19: the Mock / Real control is the Mode dropdown of the shared TopMenu (vendored into web/src/top-menu, rendered by the React island in
+// web/src/Shell.jsx). Its value is the CURRENT mode (GET /api/info `source`), and switching goes through POST /api/mode. The island's own tests
+// (web/src/Shell.test.jsx) drive the dropdown, the 409 and the hint; these tests pin the page side and the server side.
 
-test('the Mock / Real toggle sits in TopMenu row 1, both sides unpressed until the page has read the mode', () => {
-  const nav = page.slice(page.indexOf('<nav class="top-menu"'), page.indexOf('</nav>'));
-  const firstRow = nav.slice(0, nav.indexOf('</div></div>') + 12);
-  assert.match(firstRow, /class="top-menu__row"[^>]*>\s*<span[^>]*>Mode<\/span>\s*<div class="mode-toggle" role="group"/);
-  assert.match(nav, /id="mode-mock" aria-pressed="false"/);
-  assert.match(nav, /id="mode-real" aria-pressed="false"/);
-  assert.ok(!/<div class="mode-toggle"[^>]*>[\s\S]*?<\/div><nav class="top-menu"/.test(page), 'the toggle is no longer a loose element before the menu');
+test('the page carries a shell bar with a mount point for the top menu, and no hand-written Mock / Real buttons or old top-menu markup', () => {
+  assert.match(page, /<header class="shell-bar"><span class="shell-brand">[\s\S]*?<h1>A2A with remote agents<\/h1><\/span><div id="top-menu-root"><\/div><\/header>/);
+  assert.ok(page.includes('<link rel="stylesheet" href="/web/assets/topmenu.css">'));
+  assert.ok(page.includes('<script type="module" src="/web/assets/topmenu.js"></script>'));
+  for (const gone of ['id="mode-mock"', 'id="mode-real"', 'class="mode-toggle"', '<nav class="top-menu"', '.mode-toggle']) assert.ok(!page.includes(gone), gone);
+  assert.equal(page.split('id="top-menu-root"').length - 1, 1);
 });
 
-test('the page paints the pressed side from /api/info source, and from the answer of POST /api/mode', () => {
-  assert.match(page, /fetch\('\/api\/info'\)[^;]*paint\(i\.source\|\|i\.mode\)/);
-  assert.match(page, /paint\(res\.d\.mode\|\|w\)/);
+test('the page script reads the mode from the paad:mode event the dropdown sends, and the chat still sends window.__uiMode()', () => {
+  assert.ok(page.includes("window.addEventListener('paad:mode',function(e){uiMode=e.detail&&e.detail.mode==='real'?'real':'mock'})"));
+  assert.ok(page.includes('window.__uiMode=function(){return uiMode}'));
+  assert.ok(page.includes('mode:window.__uiMode?window.__uiMode():undefined'));
+});
+
+test('the island sends exactly { source } to POST /api/mode and paints the dropdown from GET /api/info source', () => {
+  const shell = readFileSync(join(packageDirectory, 'web/src/Shell.jsx'), 'utf8');
+  assert.match(shell, /fetch\("\/api\/info"/);
+  assert.match(shell, /\(info\.source \|\| info\.mode\) === "real"/);
+  assert.match(shell, /fetch\("\/api\/mode", \{ method: "POST"[^)]*JSON\.stringify\(\{ source: next \}\)/);
+  assert.match(shell, /res\.status === 409/);
+});
+
+test('the page is named A2A with remote agents: title, heading and first tab; not Access Review', () => {
+  assert.match(page, /<title>A2A with remote agents — Privilege A2A<\/title>/);
+  assert.match(page, /id="tab-review"[^>]*>A2A with remote agents<\/button>/);
+  assert.match(page, /id="tab-aws"[^>]*>Custodian to AWS agent<\/button>/);
+  assert.ok(!/Access review/i.test(page.replace(/Review access on prod-db-primary|cloud access review/gi, '')), 'no Access review wording left');
 });
 
 async function freePort(): Promise<number> {
@@ -85,5 +102,21 @@ test('with no model provider the lab starts in Mock, reports realAvailable false
     const refused = await postMode(base, { source: 'real' });
     assert.equal(refused.status, 409);
     assert.equal((await getInfo(base)).source, 'mock');
+  });
+});
+
+test('the main agent serves the built island at /web/assets/ (script and stylesheet), and the page links exactly those', async () => {
+  await withMainAgent(false, async (base) => {
+    const html = await (await fetch(`${base}/`)).text();
+    for (const [path, type] of [['/web/assets/topmenu.js', /javascript/], ['/web/assets/topmenu.css', /css/]] as const) {
+      assert.ok(html.includes(path), path);
+      const res = await fetch(`${base}${path}`);
+      assert.equal(res.status, 200, `${path}: run npm run build:web first (npm test does)`);
+      assert.match(res.headers.get('content-type') ?? '', type);
+      assert.equal(res.headers.get('cache-control'), 'no-cache');
+    }
+    const css = await (await fetch(`${base}/web/assets/topmenu.css`)).text();
+    assert.ok(css.includes('.top-menu') && css.includes('.shell-bar'), 'the stylesheet carries the vendored top-menu.css and the shell bar css');
+    assert.equal((await fetch(`${base}/web/assets/nope.js`)).status, 404);
   });
 });

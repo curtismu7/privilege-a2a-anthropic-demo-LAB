@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 
 import { shelfInfo } from '../src/shelfLink.js';
 import { renderPage } from '../src/main-agent/ui.js';
@@ -27,10 +28,13 @@ test('shelfInfo trims the trailing slash and is null when nothing is configured'
   assert.deepEqual(shelfInfo({ HOME: '/nonexistent' }), { shelfUrl: null });
 });
 
-test('the page header builds the Shelf button from /api/shelf', () => {
+test('the Shelf button is the shared top menu link, built by the island from /api/shelf', () => {
   const html = renderPage();
-  assert.match(html, /fetch\('\/api\/shelf'/);
-  assert.match(html, /a\.className='top-menu__shelf top-menu__shelf--accent'/);
+  assert.ok(!html.includes("fetch('/api/shelf'"), 'no hand-written shelf button in the page');
+  assert.match(html, /<div id="top-menu-root"><\/div>/);
+  const shell = readFileSync(new URL('../web/src/Shell.jsx', import.meta.url), 'utf8');
+  assert.match(shell, /fetch\("\/api\/shelf"/);
+  assert.match(shell, /shelfUrl=\{shelfUrl \|\| undefined\}/);
 });
 
 // Regression: the header "Shelf" button reads GET /api/shelf on the running main agent (the real process, no web build).

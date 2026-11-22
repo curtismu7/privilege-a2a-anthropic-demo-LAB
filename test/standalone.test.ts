@@ -32,7 +32,7 @@ test('the README documents the lab own page and Mock/Real from its own .env', ()
   const readme = read('README.md');
   assert.match(readme, /own page is at <http:\/\/127\.0\.0\.1:6881>/);
   assert.match(readme, /^## Mock and Real$/m);
-  assert.match(readme, /Unconfigured, the\s+Real button is disabled and `POST \/api\/mode \{"source":"real"\}` answers 409/);
+  assert.match(readme, /Unconfigured, the\s+Real option is disabled and `POST \/api\/mode \{"source":"real"\}` answers 409/);
   assert.match(readme, /UNVERIFIED/);
 });
 

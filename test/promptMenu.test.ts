@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { renderPage } from '../src/main-agent/ui.js';
@@ -25,6 +26,10 @@ test('an empty chat says where the prompts went', () => {
   assert.match(page, /#messages:empty::before\{content:"Open Example prompts below, or type your own question\."/);
 });
 
-test('the top menu may wrap, so a 360px phone does not scroll sideways', () => {
-  assert.match(page, /\.top-menu\{max-width:100%\}\.top-menu__row\{flex-wrap:wrap;justify-content:flex-end\}/);
+test('the shell bar wraps at 600px and the top menu may shrink to the screen, so a 360px phone does not scroll sideways', () => {
+  const css = readFileSync(new URL('../web/src/shell.css', import.meta.url), 'utf8');
+  assert.match(css, /\.shell-bar \{[^}]*flex-wrap: wrap/);
+  assert.match(css, /\.shell-bar \.top-menu \{ max-width: 100%; \}/);
+  assert.match(css, /@media \(max-width: 600px\)/);
+  assert.match(readFileSync(new URL('../web/src/top-menu/top-menu.css', import.meta.url), 'utf8'), /\.top-menu__row \{[^}]*flex-wrap: wrap/);
 });

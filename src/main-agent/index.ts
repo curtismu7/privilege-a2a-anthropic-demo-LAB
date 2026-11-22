@@ -1,4 +1,5 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import express, { type Request, type Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -50,6 +51,9 @@ const app = express();
 app.use(sameOriginGuard(labAllowedHosts(process.env.LAB_ALLOWED_HOSTS), config.port));
 app.use(express.json({ limit: '64kb' }));
 app.get('/', (_req: Request, res: Response) => res.type('html').send(renderPage()));
+// The shell bar's React island (web/, built by `npm run build` to dist/web: one script and one stylesheet under /web/assets/).
+// The same relative path works from src/main-agent (tsx) and dist/main-agent (compiled). A missing build is a 404, never a crash.
+app.use('/web', express.static(fileURLToPath(new URL('../../dist/web/', import.meta.url)), { index: false, setHeaders: res => { res.set('Cache-Control', 'no-cache'); } }));
 app.get('/api/health', (_req: Request, res: Response) => {
   res.set('Cache-Control', 'no-store');
   res.json(healthDocument('MAIN_AGENT'));
