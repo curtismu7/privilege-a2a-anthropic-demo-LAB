@@ -64,21 +64,23 @@ var D=window.REEL_DATA||{refs:{},claims:{},header:{},challenge:{},kinds:{}};
 function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined&&text!==null)e.textContent=String(text);return e}
 function clip(s,n){s=String(s||'').replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n-1)+'…':s}
 function minutes(sec){if(sec===undefined||sec===null||isNaN(sec))return '';var a=Math.abs(sec);return a>=120?Math.round(a/60)+' min':Math.round(a)+' s'}
-function refIds(t){var ids=(t.refs&&t.refs.length)?t.refs:(D.kinds[t.kind]||[]);return ids.filter(function(id){return D.refs[id]})}
+function refIds(t){var ids=(t.refs&&t.refs.length)?t.refs:(t.kind==='error'&&t.from==='mcp'?['mcp-call']:null)||D.kinds[t.kind]||[];return ids.filter(function(id){return D.refs[id]})}
 var TITLES={token:'Get a token',card:'Read the Agent Card',delegate:'Send the message',result:'Answer',metadata:'Read the sign-in metadata','mcp-call':'Call the tool','mcp-result':'Tool result'};
 var WHAT={token:'token endpoint',card:'Agent Card',delegate:'A2A message',metadata:'sign-in metadata','mcp-call':'MCP tool call','mcp-result':'MCP tool reply',result:'reply',error:'A2A message'};
 function code(t){return t.wire&&t.wire.status}
 function isRefusal(t){var s=code(t);return Boolean(t.challenge)||s===400||s===401||s===403||s===429}
+function blocked(t){return t.kind==='error'&&t.from==='mcp'&&/blocked|security policy|denied|forbidden/i.test(t.detail||'')}
 function title(t){
   if(t.kind==='error'){
+    if(blocked(t))return 'Tool reply blocked';
     if(isRefusal(t))return 'Refused';
-    return (t.wire||/A2A|unreachable|AWS agent/.test(t.text||''))?'Stopped':'';
+    return (t.wire||t.from==='mcp'||/A2A|unreachable|AWS agent/.test(t.text||''))?'Stopped':'';
   }
   return TITLES[t.kind]||'';
 }
 function status(t){
   var s=code(t);
-  if(t.kind==='error')return isRefusal(t)?'refused':'error';
+  if(t.kind==='error')return (isRefusal(t)||blocked(t))?'refused':'error';
   if(t.kind==='metadata')return (s&&s<400)?'ok':'note';
   if(t.kind==='card')return (s&&s>=400)||!s&&/No readable/.test(t.text||'')?'note':'ok';
   return 'ok';
@@ -87,7 +89,7 @@ var SYMBOL={ok:'✓',note:'!',refused:'✕',error:'!'};
 var WORD={ok:'OK',note:'Note',refused:'Refused',error:'Stopped'};
 function line(t){
   var first=String(t.request||'').split('\n')[0],m=/^(GET|POST|PUT|DELETE)\s/.exec(first),s=code(t);
-  return (m?m[1]+' ':'')+(WHAT[t.kind]||t.kind)+(s?' → '+s:'');
+  return (m?m[1]+' ':'')+(t.kind==='error'&&t.from==='mcp'?'MCP tool reply':(WHAT[t.kind]||t.kind))+(s?' → '+s:'');
 }
 function fact(t){
   var tk=t.token;
@@ -110,6 +112,7 @@ function refTag(id){var r=D.refs[id];return r?el('span','reel__tag',r.label):nul
 function valueText(k,v){
   if(v!==null&&typeof v==='object')return JSON.stringify(v,null,2);
   if((k==='exp'||k==='iat'||k==='nbf')&&typeof v==='number'){var d=new Date(v*1000);return isNaN(d.getTime())?String(v):String(v)+'  ('+d.toISOString()+')'}
+  if(v==='')return '(empty)';
   return String(v);
 }
 function rowFor(name,value,info){
@@ -180,7 +183,7 @@ function open(t,n,opener0){
   bodyEl.appendChild(call);
   var back=section('What came back');
   if(t.response)back.appendChild(pre(t.response));
-  else back.appendChild(el('p','reel__p',t.detail||(code(t)?'HTTP '+code(t):'Nothing was returned for this step.')));
+  else back.appendChild(el('p','reel__p',t.kind==='delegate'?'The reply is not part of this call: it arrives as a later frame.':(t.detail||(code(t)?'HTTP '+code(t):'Nothing was returned for this step.'))));
   bodyEl.appendChild(back);
   if(t.token)bodyEl.appendChild(tokenSection(t.token));
   if(t.challenge)bodyEl.appendChild(challengeSection(t.challenge));
@@ -197,18 +200,20 @@ function attach(ol){
   ol.classList.add('reel');ol.hidden=true;
   var hint=el('p','reel__hint','API calls in this run. Select a call for the request, the reply, the decoded token and the specs behind it.');hint.hidden=true;
   ol.parentNode.insertBefore(hint,ol);
-  var sent=null;
+  var sent=null,sentMcp=null;
   return {
     add:function(t){
       // A refusal has no request of its own: it is the answer to the message that was just sent, so show that message as its call.
       if(t.kind==='delegate')sent=t;
+      else if(t.kind==='mcp-call')sentMcp=t;
+      else if(t.kind==='error'&&!t.request&&t.from==='mcp'&&sentMcp){var m={};Object.keys(t).forEach(function(k){m[k]=t[k]});m.request=(sentMcp.text||'MCP tool call')+'\n'+(sentMcp.detail||'');t=m}
       else if(t.kind==='error'&&!t.request&&sent){var c={};Object.keys(t).forEach(function(k){c[k]=t[k]});c.request=sent.request;if(!c.token&&sent.token)c.token=sent.token;t=c}
       var ttl=title(t);if(!ttl)return;
       var n=ol.children.length+1,st=status(t);
       var li=el('li','reel__item'),b=el('button','reel__frame');b.type='button';b.dataset.status=st;
       b.setAttribute('aria-haspopup','dialog');
       var top=el('span','reel__top');top.appendChild(el('span','reel__num',n));
-      top.appendChild(el('span','reel__status',SYMBOL[st]+' '+(code(t)&&st==='ok'?code(t):WORD[st])));
+      top.appendChild(el('span','reel__status',SYMBOL[st]+' '+(code(t)&&st==='ok'?code(t):(st==='refused'&&blocked(t)?'Blocked':WORD[st]))));
       b.appendChild(top);b.appendChild(el('span','reel__title',ttl));b.appendChild(el('span','reel__line',line(t)));
       var f=fact(t);if(f)b.appendChild(el('span','reel__fact',f));
       var ids=refIds(t);
@@ -222,7 +227,7 @@ function attach(ol){
       li.appendChild(b);ol.appendChild(li);ol.hidden=false;hint.hidden=false;
       try{li.scrollIntoView({block:'nearest',inline:'nearest'})}catch(e){}
     },
-    clear:function(){ol.textContent='';ol.hidden=true;hint.hidden=true;sent=null}
+    clear:function(){ol.textContent='';ol.hidden=true;hint.hidden=true;sent=null;sentMcp=null}
   };
 }
 window.Reel={attach:attach,close:close};

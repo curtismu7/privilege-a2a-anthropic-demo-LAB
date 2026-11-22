@@ -234,3 +234,9 @@ test('an AWS account id in the Agent Card name, skills or event text is masked',
   await runAwsAgent({ url: 'https://gw.example.invalid/route', bearer: 'opaque-key', message: 'hi', emit: (event) => events.push(event), fetchImpl });
   assert.ok(!JSON.stringify(events).includes('111122223333'));
 });
+
+test('a blocked MCP reply is a frame of its own, a delegate pop-out says the reply comes later, and an empty claim reads (empty)', () => {
+  assert.ok(REEL_SCRIPT.includes("return 'Tool reply blocked'") && REEL_SCRIPT.includes("t.from==='mcp'"));
+  assert.ok(REEL_SCRIPT.includes('(empty)'));
+  assert.ok(REEL_SCRIPT.includes('it arrives as a later frame'));
+});
