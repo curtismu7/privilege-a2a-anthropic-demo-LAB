@@ -19,6 +19,8 @@ Order of work: `SCRIPT.md` (sources first) -> `captions.md` (wording) -> **sampl
     HEADLESS_REAL=1 PROFILE=monitor python3 video/take.py <dir>   # 1920x1080, app text L, large slides
     HEADLESS_REAL=1 PROFILE=laptop  python3 video/take.py <dir>   # 2400x1558 (retina), app text S, normal slides
     # screen capture instead (leave the Mac alone, check every frame): PROFILE=monitor python3 video/take.py <dir>
+    # guarded: same take, but if the lab disappears mid-take it stops that take, restarts the lab, moves the partial run to <dir>-aborted-N and tries again (video/guarded_take.py; test: python3 video/test_guarded_take.py)
+    HEADLESS_REAL=1 PROFILE=monitor SEGMENT=main python3 video/guarded_take.py <dir>
 
 Needs node (with the repo's `node_modules`), python3 with playwright and pillow, ffmpeg. `out/` and `assets/` are gitignored: `assets/` holds two console screenshots (internal hostnames), so re-capture them from the console rather than committing them: `console-app-worker-crop.jpg` (the app) and `console-agent-caller-crop.jpg` (the agent), referenced in `captions.md`. Capture them read-only, with the page zoomed to about 1.5 so the text is large, and crop out the runtime id.
 The live take refuses to run unless the lab is in Real mode and the AWS tab says LIVE route, and refuses to claim success (`result.json`) unless Part 1 showed its frames, the data was redacted and then blocked, the AWS agent answered both questions correctly, and the refused call was refused at the gateway. The Agent Card panel's `protocolVersion` row is hidden during the recording (the video names no version below 1.0.0); the take never opens the Agent Card frame's pop-out.
