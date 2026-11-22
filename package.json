@@ -4,17 +4,23 @@
   "private": true,
   "description": "Three-process A2A and MCP demo using Anthropic through PingOne Privilege",
   "type": "module",
+  "workspaces": [
+    "web"
+  ],
   "engines": {
     "node": ">=26"
   },
   "scripts": {
+    "premain": "npm run build:web",
     "main": "tsx --env-file=.env src/main-agent/index.ts",
     "worker": "tsx --env-file=.env src/worker-agent/index.ts",
     "mcp": "tsx --env-file=.env src/mcp-server/index.ts",
     "aws-mock": "tsx --env-file=.env src/aws-agent-mock/index.ts",
+    "predev": "npm run build:web",
     "dev": "concurrently -n mcp,worker,aws,main -c blue,magenta,yellow,green \"npm:mcp\" \"npm:worker\" \"npm:aws-mock\" \"npm:main\"",
-    "build": "tsc && cp -R src/vendor dist/ && cp src/main-agent/jsonPaneSource.browser.js src/main-agent/jsonPaneCss.css dist/main-agent/",
-    "test": "tsx --test test/*.test.ts",
+    "build": "tsc && cp -R src/vendor dist/ && cp src/main-agent/jsonPaneSource.browser.js src/main-agent/jsonPaneCss.css dist/main-agent/ && npm run build:web",
+    "build:web": "npm run build -w web",
+    "test": "npm run build:web && tsx --test test/*.test.ts && npm test -w web",
     "doctor": "node scripts/doctor.mjs"
   },
   "dependencies": {

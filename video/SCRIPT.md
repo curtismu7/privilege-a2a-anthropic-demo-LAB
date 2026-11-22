@@ -3,7 +3,7 @@
 Written first, before any recording (video standard: every video has a script, built from the specs and docs actually read, not from memory). `captions.md` carries the on-screen wording and must say what this script says. If a source changes, change the script, then the captions, then retake. Revised 2026-11-22 for the two-part cut (the first cut was reviewed 2026-11-21 by an independent reader; its corrections are folded in, and the new reel pop-outs were reviewed the same way on 2026-11-22).
 
 - **Format:** silent screen capture with numbered captions and full-screen slides, light theme, about 10 minutes. **No slide is held longer than 10 seconds** (owner, 2026-11-22), so slide text is a skim of at most about 75 words, not a read. Opens and closes with a slide.
-- **Part 1, normal A2A (Access Review tab):** our two agents. The concierge hands a question to the analyst agent over A2A; the analyst reads data over MCP. One question that succeeds (with personal data redacted on the MCP leg) and one that Privilege stops.
+- **Part 1, normal A2A (A2A with remote agents tab):** our two agents. The concierge hands a question to the analyst agent over A2A; the analyst reads data over MCP. One question that succeeds (with personal data redacted on the MCP leg) and one that Privilege stops.
 - **Part 2, A2A with an agent in AWS (Custodian to AWS agent tab):** the same idea across clouds. Two questions that succeed, then a refusal.
 - **Audience:** a colleague who knows what an AI agent is but has not seen A2A or Privilege.
 - **One idea:** agent to agent works with a policy point in the middle: the agent proves who it is, the gateway decides, and a bad credential never reaches the other agent.
@@ -19,7 +19,7 @@ Written first, before any recording (video standard: every video has a script, b
 | **RFC** | RFC 9110 §15.5.2; RFC 6750 §2.1, §3, §3.1; RFC 9728 §2, §3, §5.1; RFC 7519 §4.1; RFC 7515 §4.1; RFC 9068 §2; RFC 6749 §4.4, §5.1; RFC 8693 §4.1 (fetched from rfc-editor.org and re-checked by an independent reader on 2026-11-22; the wording the pop-outs show is `src/main-agent/reelRefs.ts`) | A 401 MUST carry `WWW-Authenticate` (RFC 9110; RFC 7235 is obsoleted by it); a Bearer token travels in `Authorization` (RFC 6750); `invalid_token` is usually 401; the `resource_metadata` parameter points at the resource's metadata (RFC 9728 §5.1); JWT claims `iss`, `sub`, `aud`, `exp`, `iat`, `jti` (RFC 7519); a JWT access token carries `client_id` (RFC 9068 §2.2); the client-credentials grant (RFC 6749 §4.4); the `act` actor claim (RFC 8693 §4.1) |
 | **PRIV** | Ping Identity docs for PingOne Privilege, agent privilege: <https://docs.pingidentity.com/privilege/> | Custodian: the Agent Registry field saying whose identity the agent's actions are attributed to, a User or a Federated Identity (**no glossary sentence from Ping; do not quote one**); key scopes Models (LLM), Tools (MCP), Agents (A2A); API key or workload identity; identity validated on every call; the credential ends at the gateway, which injects what the target needs; Remote Agent auth modes Static Token, User Token, Pass Agent Token, None; policy per app by operation, user or group and time window; AI Guard allows, alerts, sanitizes or blocks on MCP, A2A and LLM traffic; every call auditable in Activity Logs; secrets hubs. **Not documented:** status codes of a denied agent request (the live run supplies them), how a hub secret reaches an agent request |
 | **CONSOLE** | The Privilege console, read-only, 2026-11-22 (screens and text read, nothing changed) | App `aws-agent-worker`: Remote Agent, backend the AgentCore regional host, Auth Mode **Pass Agent Token**. Agent `aws-agent-caller`: principal `aws-agent-caller-identity` (a federated identity), scope `a2a`, "Policy enforced as: principal identity", authentication by OIDC (issuer, audience = this app's gateway route, subject `*`, JWKS URL, max token lifetime default 3600 s on the gateway), required claims `act.sub` and `client_id`, no API key |
-| **LAB** | This repo's README and code | The Access Review tab: concierge to analyst over A2A (through the gateway in gateway mode), analyst to data over MCP; the AWS tab calls a gateway route and mints a PingFederate client-credentials token for each live call; the reel shows each call with the token decoded (signature never shown) |
+| **LAB** | This repo's README and code | The A2A with remote agents tab: concierge to analyst over A2A (through the gateway in gateway mode), analyst to data over MCP; the AWS tab calls a gateway route and mints a PingFederate client-credentials token for each live call; the reel shows each call with the token decoded (signature never shown) |
 | **LIVE** | The prompt tests of 2026-11-21 and the rehearsal before the take | The questions below were run against the live lab twice each; the AWS agent has one tool (`add_numbers`) and does not know where it runs, so no "where do you run" question is used |
 
 **Wire-format note:** AgentCore documents the send method as `message/send`; the 1.0.0 spec calls it `SendMessage`. The video says that once, on the A2A spec slide, and shows the method as it is on the wire.
@@ -29,7 +29,7 @@ Written first, before any recording (video standard: every video has a script, b
 **Checks before recording (a script is only true if the run is):**
 
 1. Mock/Real switch is on Real and the AWS tab says LIVE route; the take refuses to run otherwise.
-2. The Access Review run goes through the gateway (the page's mode line says so) and the analyst answers.
+2. The A2A with remote agents run goes through the gateway (the page's mode line says so) and the analyst answers.
 3. Both AWS answers are correct (987654321 + 123456789 = 1,111,111,110) and the refusal is a 401 at the gateway.
 4. The reel shows a decoded token on the live Agent Card, message and token frames (a live token, not the opaque key).
 5. The console values on the two configuration slides were read on 2026-11-22; re-read if Privilege changed.
@@ -42,7 +42,7 @@ Slides are full screen and unnumbered; caption bubbles are numbered.
 |---|---|---|---|
 | Open | Slide | Two ways to connect agents: each holds the other's credentials, or each presents its own identity to a gateway that checks it first. Two demos: ours to ours, then ours to AWS. | AWS-AUTH; A2A §7.3 |
 | **Part 1** | | | |
-| 1 | Access Review tab | Two agents of ours: the concierge you talk to, the analyst that reads data. | LAB |
+| 1 | A2A with remote agents tab | Two agents of ours: the concierge you talk to, the analyst that reads data. | LAB |
 | 2 | Typing "What can Bob Reyes reach?" | A plain question. The concierge does not hold the data. | LIVE |
 | 3 | Who block, A2A arrow | The concierge hands it to the analyst over A2A. The custodian is whose identity this runs as. | PRIV; A2A |
 | 4 | Reel frame 1 pop-out | The A2A message, as JSON-RPC; the credential is masked; the specs say what each part is. | A2A §5.3, §9.4.1, §7.3; RFC 6750 §2.1 |

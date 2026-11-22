@@ -1,0 +1,21 @@
+{
+  "name": "privilege-a2a-anthropic-demo-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "React + Vite island for the lab page: the shared shell bar (TopMenu). Built to ../dist/web and served by the main agent.",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^26.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^6.4.4",
+    "vitest": "^3.2.7"
+  }
+}

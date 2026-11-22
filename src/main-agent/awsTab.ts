@@ -10,7 +10,7 @@ export interface AwsPrompt {
   proves?: string;
 }
 
-/** The question that shows our agent, on this machine, talking to the AWS agent. Also offered as the 4th example prompt on the Access Review tab. */
+/** The question that shows our agent, on this machine, talking to the AWS agent. Also offered as the 4th example prompt on the A2A with remote agents tab. */
 export const AWS_INTRO: AwsPrompt = {
   q: 'Introduce yourself: which agent are you, and where do you run?',
   proves: 'our agent, running on this machine, talks to the agent hosted in AWS (Bedrock AgentCore) through Privilege, and its reply comes back here. With no gateway route set, a local stand-in answers and says so.',
@@ -29,7 +29,7 @@ const promptButton = ({ q, proves }: AwsPrompt): string =>
     : `<button type="button" data-q="${q}">${q}</button>`;
 
 export const AWS_TABS_HTML = `<div class="tabs" role="tablist" aria-label="Demo views">
-<button type="button" role="tab" id="tab-review" aria-selected="true" aria-controls="panel-review" data-testid="tab-review">Access review</button>
+<button type="button" role="tab" id="tab-review" aria-selected="true" aria-controls="panel-review" data-testid="tab-review">A2A with remote agents</button>
 <button type="button" role="tab" id="tab-aws" aria-selected="false" aria-controls="panel-aws" tabindex="-1" data-testid="tab-aws">Custodian to AWS agent</button>
 </div>`;
 

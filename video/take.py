@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The two-part A2A take: opens its own visible 'Google Chrome for Testing' window on the lab, screen-records only that window's page area.
-Part 1 runs two questions on the Access review tab (our two agents over A2A, with MCP behind them); part 2 runs two questions and a refusal on
+Part 1 runs two questions on the A2A with remote agents tab (our two agents over A2A, with MCP behind them); part 2 runs two questions and a refusal on
 the Custodian to AWS agent tab (agent -> Privilege gateway -> AWS agent), with numbered captions and the API call reel opened at the key frames. No sign-in is involved:
 the lab calls with its own key. Adapted from the CIMD take (privilege-cimd-test/video).
 
@@ -245,7 +245,7 @@ def main():
         ctx.add_init_script(OVERLAY)
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         page.goto(APP + "/"); page.wait_for_selector("#tab-aws")
-        page.select_option("#theme-select", THEME)
+        page.select_option("[data-testid=theme-select]", THEME)
         if not HEADLESS:
             subprocess.run(["osascript", "-e", 'tell application "System Events" to set frontmost of (first process whose name is "Google Chrome for Testing") to true'], capture_output=True)
         page.bring_to_front(); page.wait_for_timeout(1500)
@@ -350,7 +350,7 @@ def main():
                 show_slide(SLIDES["sample_note"], extra=2.0, name="sample_note", cap=22.0)
             show_slide(OPENING_SLIDE, extra=4.0, name="opening", cap=36.0)
 
-            # ===================== Part 1: our two agents (Access review tab) =====================
+            # ===================== Part 1: our two agents (A2A with remote agents tab) =====================
             if SAMPLE:
                 # The mock lab has no model, so the sample replays two recorded live runs of the chat route (kept in assets/, local only:
                 # they carry internal hostnames). The tabs, the reel and the trace are still drawn by the lab from those events.
@@ -361,7 +361,7 @@ def main():
                     route.fulfill(status=200, headers={"Content-Type": "text/event-stream"}, body=fixtures["blocked" if "prod-db" in body.get("message", "") else "bob"])
                 page.route("**/chat", replay)
             page.goto(APP + "/"); page.wait_for_selector("#tab-aws")
-            page.select_option("#theme-select", THEME); page.select_option("#font-select", "L")
+            page.select_option("[data-testid=theme-select]", THEME); page.select_option("[data-testid=font-select]", "L")
             app_mode = page.evaluate("fetch('/api/info').then(r => r.json()).then(j => j.source)")   # the lab's Mock/Real switch
             status = page.evaluate("fetch('/status').then(r => r.json())")
             log("app mode (Mock/Real switch):", app_mode, "| status:", json.dumps({k: status.get(k) for k in ("mode", "viaGateway", "bearerOnA2A")}))

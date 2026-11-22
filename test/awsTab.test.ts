@@ -6,7 +6,7 @@ import { AWS_PANEL_HTML, AWS_PROMPTS, AWS_TAB_CSS, AWS_TAB_SCRIPT } from '../src
 
 const page = renderPage();
 
-test('the page has two tabs, the access review selected and the AWS panel hidden', () => {
+test('the page has two tabs, A2A with remote agents selected and the AWS panel hidden', () => {
   assert.match(page, /role="tab" id="tab-review" aria-selected="true"/);
   assert.match(page, /role="tab" id="tab-aws" aria-selected="false"/);
   assert.match(page, /<main id="panel-review" role="tabpanel" aria-labelledby="tab-review">/);
@@ -34,12 +34,12 @@ test('the tab script keeps its newline escapes literal and builds no HTML from r
   assert.ok(!AWS_TAB_SCRIPT.includes('${'), 'no template placeholder inside the script');
 });
 
-test('the text-size script waits for the page, so it does not look up its controls from the head before they exist', () => {
+test('the text size and the theme are applied from the head before first paint, and the controls come from the shared top menu island', () => {
   const head = page.slice(0, page.indexOf('</head>'));
-  const script = head.slice(head.lastIndexOf('<script>', head.indexOf('font-select')));
-  assert.match(script, /^<script>\s*document\.addEventListener\("DOMContentLoaded",function\(\)\{var STEP=/);
-  assert.ok(head.indexOf('font-select') < head.length, 'the script is in the head');
-  assert.ok(page.indexOf('id="font-select"') > head.length, 'and the control is in the body');
+  assert.match(head, /localStorage\.getItem\('paad\.theme'\)[^<]*dataset\.theme=t/);
+  assert.match(head, /\{S:'14px',M:'16px',L:'18px'\}\[localStorage\.getItem\('pa2a\.font'\)\][^<]*setProperty\('--fs',f\)/);
+  assert.ok(!page.includes('id="font-select"') && !page.includes('id="theme-select"'), 'the old hand-written selects are gone; the vendored TopMenu renders them');
+  assert.ok(head.includes('<script type="module" src="/web/assets/topmenu.js"></script>'));
 });
 
 test('the suggested questions are buttons and the markup has no inline style', () => {
@@ -61,7 +61,7 @@ test('the introduction prompt comes first, says what it proves, and is sent by i
   assert.equal(AWS_PROMPTS.filter((p) => p.proves).length, 1, 'only the new prompt carries a caption');
   assert.ok(AWS_TAB_SCRIPT.includes("run(b.getAttribute('data-q')||'')"), 'the caption text is never sent as the question');
   assert.ok(!AWS_TAB_SCRIPT.includes("run(b.textContent"));
-  // The Access Review tab styles .p-proves b white; on this tab's light panel that hides the label unless it is scoped here.
+  // The A2A with remote agents tab styles .p-proves b white; on this tab's light panel that hides the label unless it is scoped here.
   assert.ok(AWS_TAB_CSS.includes('.aws__prompts .p-proves b{color:var(--text)'), 'the Proves label keeps its own ink');
 });
 
@@ -84,11 +84,11 @@ test('the secrets-hub explainer is an off-by-default toggle, labelled display on
   assert.ok(AWS_TAB_SCRIPT.includes("getElementById('aws-hub')"));
 });
 
-test('the refused-call button sends refusal:true, and the header banner only says SIMULATED until the status says the run is live', () => {
+test('the refused-call button sends refusal:true, and the banner under the shell bar only says SIMULATED until the status says the run is live', () => {
   assert.match(AWS_PANEL_HTML, /id="aws-refuse"/);
   assert.ok(AWS_TAB_SCRIPT.includes('refusal:true'));
   assert.match(page, /<span class="banner" role="note">SIMULATED:/, 'the static default stays honest for an offline run');
-  assert.match(page, /if\(s\.viaGateway\)\{const b=document\.querySelector\('header \.banner'\)/);
+  assert.match(page, /if\(s\.viaGateway\)\{const b=document\.querySelector\('\.status-strip \.banner'\)/);
   assert.match(page, /LIVE: model calls go through your Privilege gateway/);
 });
 

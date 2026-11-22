@@ -242,7 +242,7 @@ Specs: A2A 1.0.0; AgentCore A2A contract; RFC 6749, 6750, 7519, 8693, 9068, 9110
 Part 1: our two agents
 
 ## Text
-The Access review tab. The concierge is the agent you talk to. The analyst is a second agent that reads the access data. Privilege sits between them.
+The A2A with remote agents tab. The concierge is the agent you talk to. The analyst is a second agent that reads the access data. Privilege sits between them.
 
 ---
 

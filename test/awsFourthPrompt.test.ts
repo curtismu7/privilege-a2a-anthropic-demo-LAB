@@ -7,14 +7,14 @@ import { AWS_INTRO, AWS_TAB_SCRIPT } from '../src/main-agent/awsTab.js';
 const page = renderPage();
 const promptsBlock = page.slice(page.indexOf('<div class="prompts"'), page.indexOf('<form id="form">'));
 
-// The three Access Review prompts exactly as they were before the AWS prompt was added: this test is the "leave them alone" check.
+// The three A2A with remote agents prompts exactly as they were before the AWS prompt was added: this test is the "leave them alone" check.
 const ORIGINAL_THREE = [
   '<button type="button" data-q="Review access on prod-db-primary"><span class="p-q">Review access on prod-db-primary</span><span class="p-proves"><b>Proves:</b> the A2A handoff end to end. The concierge hands the question to the analyst agent, which reads the data over MCP. Privilege checks each hop on its own key and shows any refusal in the trace. Expect a refusal on the data call here: the injection demo plants a hostile instruction in a record, and Privilege\'s AI Guard blocks that tool response (the last card says how to change that).</span></button>',
   '<button type="button" data-q="List all entitlements for Carol Nguyen"><span class="p-q">List all entitlements for Carol Nguyen</span><span class="p-proves"><b>Proves:</b> Privilege protecting data on the MCP leg. In gateway mode her personal data (her email) comes back redacted, so watch for [REDACTED:pii] in the trace.</span></button>',
   '<button type="button" data-q="Is Erin Walsh offboarding, and what access does she still hold?"><span class="p-q">Is Erin Walsh offboarding, and what access does she still hold?</span><span class="p-proves"><b>Proves:</b> the analyst, not the concierge, does the data work: it looks up Erin Walsh\'s entitlements over MCP, and the concierge reports only what the analyst returned. Expect her to be flagged as offboarding but still holding a standing grant on s3-customer-exports.</span></button>',
 ];
 
-test('the three existing Access Review prompts are unchanged, in the same order, and come first', () => {
+test('the three existing A2A with remote agents prompts are unchanged, in the same order, and come first', () => {
   const at = ORIGINAL_THREE.map((markup) => promptsBlock.indexOf(markup));
   assert.ok(at.every((i) => i >= 0), 'each original button is present byte for byte');
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'in the original order');
@@ -51,7 +51,7 @@ test('the prompt cards keep their size and the list scrolls, so no card is clipp
 });
 
 test('the AWS question is defined once, so the two tabs cannot drift apart', () => {
-  assert.equal(page.split(AWS_INTRO.q).length - 1 >= 2, true, 'it appears on the Access Review button and on the AWS tab');
+  assert.equal(page.split(AWS_INTRO.q).length - 1 >= 2, true, 'it appears on the A2A with remote agents button and on the AWS tab');
   assert.doesNotThrow(() => new Function(AWS_TAB_SCRIPT));
   for (const source of [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1] ?? '')) assert.doesNotThrow(() => new Function(source));
 });
