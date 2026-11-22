@@ -23,6 +23,7 @@ export const AWS_AGENT = 'aws-agent';
 const DEFAULT_TIMEOUT_MS = 60_000;
 const MAX_WIRE_TEXT = 4000;
 const METADATA_TIMEOUT_MS = 10_000;
+const MAX_METADATA_BYTES = 64 * 1024;
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]']);
 
 export interface AwsAgentOptions {
@@ -56,6 +57,21 @@ export const maskAccountIds = (value: string): string =>
     .replace(/(:)\d{12}(:)/g, '$1xxxxxxxxxxxx$2')
     // The same id inside a URL-encoded ARN (`%3A`), or encoded twice by a gateway (`%253A`), as AWS's own Agent Card writes it.
     .replace(/(%(?:25)?3A)\d{12}(?=%(?:25)?3A)/gi, '$1xxxxxxxxxxxx');
+/** The body as text, read up to `max` bytes: a larger one is cut (and the rest never buffered). */
+async function readCapped(response: Response, max: number): Promise<string> {
+  if (!response.body) return '';
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (total < max) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    total += value.byteLength;
+  }
+  await reader.cancel().catch(() => undefined);
+  return Buffer.concat(chunks).subarray(0, max).toString('utf8');
+}
 /** A decoded token for display, with any AWS account id inside a claim masked like the rest of the page. */
 export const maskTokenView = (view: TokenView): TokenView => JSON.parse(maskAccountIds(JSON.stringify(view))) as TokenView;
 /** Every wire body the page shows goes through here: cut to a readable length and with the AWS account id masked. */
@@ -133,8 +149,16 @@ const reachMessage = (error: unknown): string => {
   return `Could not reach the AWS agent route${code ? ` (${code})` : ''}: ${base}`;
 };
 
+/** Replace the credential, and each segment of a JWT, wherever an upstream that echoes the Authorization header put it. */
+const scrubber = (bearer: string): ((value: string) => string) => {
+  const pieces = [...new Set([bearer, ...(bearer.split('.').length === 3 ? bearer.split('.') : [])])].filter((piece) => piece.length >= 12).sort((a, b) => b.length - a.length);
+  return (value) => pieces.reduce((out, piece) => out.split(piece).join('[credential]'), value);
+};
+
 export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
-  const { url, bearer, message, emit } = options;
+  const { url, bearer, message } = options;
+  const scrub = scrubber(bearer ?? '');
+  const emit = (event: ChainEvent): void => options.emit(JSON.parse(scrub(JSON.stringify(event))) as ChainEvent);
   const doFetch = options.fetchImpl ?? fetch;
   const signal = AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS)]);
   const credential = bearer ? maskKey(bearer) : '';
@@ -150,7 +174,7 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
   const shownAuth = credential ? `\nAuthorization: Bearer ${credential}` : '';
 
   const report = (rawDetail: string, wire?: WireFacts, response?: string, challenge?: Challenge | null): string => {
-    const detail = maskAccountIds(rawDetail);
+    const detail = scrub(maskAccountIds(rawDetail));
     emit({
       ...route, kind: 'error', text: 'The AWS agent call did not complete', detail, ...(wire ? { wire } : {}), ...(response ? { response: clip(response) } : {}),
       ...(challenge ? { challenge: maskChallenge(challenge) } : {}), refs: [...(challenge ? REFUSED_REFS : ERROR_REFS)],
@@ -172,10 +196,10 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
     const shownAddress = maskAccountIds(address);
     const skipped = (why: string): void => emit({ ...metaRoute, kind: 'metadata', text: 'Sign-in metadata not read', detail: why, request: `GET ${shownAddress}`, refs: [...METADATA_REFS] });
     let target: URL;
-    let routeHost: string;
+    let routeOrigin: string;
     try {
       target = new URL(address);
-      routeHost = new URL(url).hostname;
+      routeOrigin = new URL(url).origin;
     } catch {
       skipped('The metadata address in the challenge is not a valid URL, so it was not fetched.');
       return;
@@ -188,8 +212,8 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
       skipped('The metadata address carries a user name or password, so it was not fetched.');
       return;
     }
-    if (target.hostname !== routeHost) {
-      skipped('The metadata address is on a different host from the route, so it was not fetched.');
+    if (target.origin !== routeOrigin) {
+      skipped('The metadata address is on a different host, port or scheme from the route, so it was not fetched.');
       return;
     }
     const started = Date.now();
@@ -199,7 +223,7 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
         method: 'GET', headers: { Accept: 'application/json' }, redirect: 'error',
         signal: AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(METADATA_TIMEOUT_MS)]),
       });
-      const raw = await response.text();
+      const raw = await readCapped(response, MAX_METADATA_BYTES);
       const body = response.ok ? parseJson(raw) : null;
       const servers = body && Array.isArray(body.authorization_servers) ? strings(body.authorization_servers) : [];
       emit({
@@ -208,7 +232,8 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
         detail: response.ok && body
           ? (servers.length ? `Tokens for this service come from: ${maskAccountIds(servers.join(', '))}` : 'The service describes itself, but names no authorization server.')
           : `HTTP ${response.status} from ${shownAddress}`,
-        response: clip(`HTTP ${response.status}\n${pretty(raw)}`),
+        // Only a successful reply is shown: an error page from some other service on the host is not ours to display.
+        ...(response.ok ? { response: clip(`HTTP ${response.status}\n${pretty(raw)}`) } : {}),
       });
     } catch (error) {
       const why = error instanceof Error ? error.message : String(error);
@@ -229,8 +254,8 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
     const request = `GET ${shownCard}${shownAuth}`;
     if (body && text(body.name)) {
       emit({
-        ...route, kind: 'card', text: `main reads ${text(body.name)}'s Agent Card`, detail: maskAccountIds(text(body.description)),
-        elapsedMs: Date.now() - cardStarted, request, response: clip(pretty(raw)), card: summariseCard(body), wire: { status: response.status },
+        ...route, kind: 'card', text: maskAccountIds(`main reads ${text(body.name)}'s Agent Card`), detail: maskAccountIds(text(body.description)),
+        elapsedMs: Date.now() - cardStarted, request, response: clip(pretty(raw)), card: JSON.parse(maskAccountIds(JSON.stringify(summariseCard(body)))) as CardSummary, wire: { status: response.status },
         ...tokenView, refs: [...AWS_CARD_REFS],
       });
     } else {

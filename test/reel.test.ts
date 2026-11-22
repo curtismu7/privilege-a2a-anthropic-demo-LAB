@@ -189,3 +189,48 @@ test('an AWS account id inside a token claim is masked in the view', () => {
   assert.ok(!JSON.stringify(view).includes('123456789012'));
   assert.match(JSON.stringify(view), /xxxxxxxxxxxx/);
 });
+
+// --- found by the review: echoed credentials, other ports, big bodies, card text ---
+
+test('an upstream that echoes the credential back cannot put it into an event or the thrown message', async () => {
+  const jwt = makeJwt({ exp: Math.floor(Date.now() / 1000) + 600, iat: Math.floor(Date.now() / 1000), sub: 'caller' });
+  const events: ChainEvent[] = [];
+  const fetchImpl = (async (input: string | URL | Request) => String(input).endsWith('agent-card.json')
+    ? new Response('nope', { status: 404 })
+    : new Response(`{"error":{"message":"bad token Bearer ${jwt}"}}`, { status: 401, headers: { 'WWW-Authenticate': `Bearer error="invalid_token", error_description="Bearer ${jwt}"` } })) as typeof fetch;
+  let thrown = '';
+  await runAwsAgent({ url: 'https://gw.example.invalid/route', bearer: jwt, message: 'hi', emit: (event) => events.push(event), fetchImpl }).catch((error: Error) => { thrown = error.message; });
+  const everything = `${JSON.stringify(events)}\n${thrown}`;
+  for (const piece of jwt.split('.')) assert.ok(!everything.includes(piece), 'no piece of the token');
+  assert.match(everything, /\[credential\]/);
+});
+
+test('metadata on another port or scheme of the same host is not fetched, and an error page is not shown', async () => {
+  for (const meta of ['https://gw.example.invalid:8443/admin', 'http://gw.example.invalid/.well-known/oauth-protected-resource']) {
+    const { events, seen } = await refused('https://gw.example.invalid/route', meta, () => new Response('{}', { status: 200 }));
+    assert.match(events.find((event) => event.kind === 'metadata')?.detail ?? '', /different host, port or scheme|not https/);
+    assert.ok(!seen.some((line) => line.includes(meta)));
+  }
+  const ok = 'https://gw.example.invalid/.well-known/oauth-protected-resource';
+  const { events } = await refused('https://gw.example.invalid/route', ok, () => new Response('internal service page', { status: 500 }));
+  const metaEvent = events.find((event) => event.kind === 'metadata');
+  assert.equal(metaEvent?.response, undefined, 'an error body is not displayed');
+  assert.equal(metaEvent?.wire?.status, 500);
+});
+
+test('a very large metadata body is read only up to a cap', async () => {
+  const ok = 'https://gw.example.invalid/.well-known/oauth-protected-resource';
+  let pulled = 0;
+  const big = new ReadableStream<Uint8Array>({ pull(controller) { pulled += 1; controller.enqueue(new Uint8Array(16 * 1024).fill(65)); if (pulled > 2000) controller.close(); } });
+  const { events } = await refused('https://gw.example.invalid/route', ok, () => new Response(big, { status: 200 }));
+  assert.ok(pulled < 20, `read ${pulled} chunks of 16 KB`);
+  assert.ok(events.some((event) => event.kind === 'metadata'));
+});
+
+test('an AWS account id in the Agent Card name, skills or event text is masked', async () => {
+  const card = { name: 'Agent accountId=111122223333', description: 'd', skills: [{ id: 's', name: 'skill arn:aws:x:us-east-1:111122223333:r', tags: ['t'] }] };
+  const events: ChainEvent[] = [];
+  const fetchImpl = (async (input: string | URL | Request) => String(input).endsWith('agent-card.json') ? new Response(JSON.stringify(card), { status: 200 }) : new Response(JSON.stringify(RPC_OK), { status: 200 })) as typeof fetch;
+  await runAwsAgent({ url: 'https://gw.example.invalid/route', bearer: 'opaque-key', message: 'hi', emit: (event) => events.push(event), fetchImpl });
+  assert.ok(!JSON.stringify(events).includes('111122223333'));
+});

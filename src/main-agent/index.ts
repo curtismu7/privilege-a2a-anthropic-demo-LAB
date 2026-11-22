@@ -413,7 +413,7 @@ app.post('/chat', async (req: Request, res: Response) => {
             params: { message: { role: 'user', messageId: '<message id>', parts: [{ kind: 'text', text: question }] } },
           })),
         ].join('\n');
-        sendSse(res, 'trace', { ...withLabels({ from: MAIN, to: 'analyst' }, profile), kind: 'delegate', text: 'concierge → analyst_agent', detail: question, request, refs: [...(KIND_REFS.delegate ?? [])], ...(config.bearer ? { credential: maskKey(config.bearer), token: describeToken(config.bearer) } : {}), at: at() });
+        sendSse(res, 'trace', { ...withLabels({ from: MAIN, to: 'analyst' }, profile), kind: 'delegate', text: 'concierge → analyst_agent', detail: question, request, refs: [...(KIND_REFS.delegate ?? [])], ...(config.bearer ? { credential: maskKey(config.bearer), token: maskTokenView(describeToken(config.bearer)) } : {}), at: at() });
         const hopStartedAt = Date.now();
         try {
           const { text: answer, toolOutputs } = await worker.sendQuestion(question, traceId, profile ? { vertical: profile.vertical, tools: profile.tools, ...(heuristic ? { mode: 'heuristics', userName: parseUserName(body) } : {}) } : undefined);
