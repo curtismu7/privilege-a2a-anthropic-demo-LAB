@@ -216,8 +216,8 @@ def slide_hold_text(cfg):
     return " ".join([cfg["lead"], *cfg["col_a_lines"], *cfg["col_b_lines"], cfg["verdict"]])
 
 def hold_slide(cfg, extra=0.0, cap=30.0):
-    # A two-column slide is read, not narrated: about 4 words a second, floor 8 s, and a ceiling so no slide drags.
-    return min(cap, max(8.0, len(slide_hold_text(cfg).split()) * 0.25 + 3.0)) + extra
+    # Owner rule (2026-11-22): no slide is held longer than 10 seconds. The text in captions.md is trimmed to be skimmed in that time.
+    return min(10.0, max(6.0, len(slide_hold_text(cfg).split()) * 0.25 + 3.0))
 
 def first_sentence(s, limit=150):
     """A caption fact line: the text up to its first full stop, never cut mid-word."""
@@ -428,6 +428,7 @@ def main():
             show_slide(SLIDES["config_app"], extra=2.0, name="slide-config-app", cap=34.0)
             show_slide(SLIDES["config_agent"], extra=2.0, name="slide-config-agent", cap=40.0)
             show_slide(SLIDES["spec"], extra=2.0, name="slide-spec", cap=50.0)
+            show_slide(SLIDES["rfcs"], extra=2.0, name="slide-rfcs", cap=50.0)
 
             # ---- success 1: what tools do you have
             page.locator("#aws-input").scroll_into_view_if_needed()

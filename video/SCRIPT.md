@@ -2,7 +2,7 @@
 
 Written first, before any recording (video standard: every video has a script, built from the specs and docs actually read, not from memory). `captions.md` carries the on-screen wording and must say what this script says. If a source changes, change the script, then the captions, then retake. Revised 2026-11-22 for the two-part cut (the first cut was reviewed 2026-11-21 by an independent reader; its corrections are folded in, and the new reel pop-outs were reviewed the same way on 2026-11-22).
 
-- **Format:** silent screen capture with numbered captions and full-screen slides, light theme, about 11 minutes. Slides are held about 4 words a second. Opens and closes with a slide.
+- **Format:** silent screen capture with numbered captions and full-screen slides, light theme, about 10 minutes. **No slide is held longer than 10 seconds** (owner, 2026-11-22), so slide text is a skim of at most about 75 words, not a read. Opens and closes with a slide.
 - **Part 1, normal A2A (Access Review tab):** our two agents. The concierge hands a question to the analyst agent over A2A; the analyst reads data over MCP. One question that succeeds (with personal data redacted on the MCP leg) and one that Privilege stops.
 - **Part 2, A2A with an agent in AWS (Custodian to AWS agent tab):** the same idea across clouds. Two questions that succeed, then a refusal.
 - **Audience:** a colleague who knows what an AI agent is but has not seen A2A or Privilege.
@@ -56,6 +56,7 @@ Slides are full screen and unnumbered; caption bubbles are numbered.
 | 10 | AWS tab, boxes | Custodian, our agent, the gateway checkpoint, the agent in AWS. LIVE route. | LAB; PRIV; CONSOLE |
 | Slide x2 | Console screenshots | How Privilege is set up: the app `aws-agent-worker` and the agent `aws-agent-caller` with its federated identity. | CONSOLE; PRIV; RFC 8693 §4.1 |
 | Slide | Slide | Five things the A2A specification says, and where each shows up. | A2A |
+| Slide | Slide | The RFCs behind what you saw: 6749, 6750, 7519, 9068, 8693, 7515, 9110, 9728, one line each (the same wording as the pop-outs). | RFC |
 | 11 | Typing "What tools do you have, and what can you do with them?" | The AWS agent describes its one tool, so the answer can only come from AWS. | LIVE |
 | 12 | Reel frame 1: Get a token | Our agent asks PingFederate for a token: the client-credentials grant; the client secret is masked. | RFC 6749 §4.4, §5.1 |
 | 13 | Token pop-out | The decoded token: issuer, subject, audience, expiry, client_id, scope, and `act`. Signature never shown. | RFC 7519; RFC 9068 §2.2; RFC 8693 §4.1 |
