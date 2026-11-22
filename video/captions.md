@@ -20,7 +20,7 @@
 Agents calling agents, through a gateway
 
 ## Lead
-A2A is how one agent hands work to another. Part 1: our two agents. Part 2: an agent in AWS. This is a real run.
+A2A is how one agent hands work to another. Part 1: our two agents. Part 2: an agent in AWS.
 
 ## Column A: Obvious way
 - Each agent holds the other's credentials
@@ -33,7 +33,7 @@ A2A is how one agent hands work to another. Part 1: our two agents. Part 2: an a
 - One place to see and refuse every call
 
 ## Verdict
-A gateway in the middle checks every call.
+This is a real run, not a mock: live agents, a live gateway and a live AWS agent.
 
 ---
 
@@ -332,7 +332,7 @@ The tool response was blocked by a security policy, and no data reached the anal
 The AWS agent tab
 
 ## Text
-The Custodian to AWS agent tab: one of our agents reaching an agent in AWS, and who is accountable along the way. The banner says LIVE.
+The Custodian to AWS agent tab: one of our agents reaching an agent in AWS, and who is accountable along the way.
 
 ---
 
