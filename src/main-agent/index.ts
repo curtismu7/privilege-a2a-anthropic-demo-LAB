@@ -2,8 +2,8 @@ import { randomUUID, timingSafeEqual } from 'node:crypto';
 import express, { type Request, type Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 
-import { describeMode, mainAgentConfig, modelClientOrNotConfigured, viaGateway } from '../config.js';
-import { healthDocument, infoDocument } from '../health.js';
+import { describeMode, mainAgentConfig, viaGateway } from '../config.js';
+import { healthDocument, realAvailable } from '../health.js';
 import { parseMode, parseProfile, parseUserName, withLabels, type Profile } from '../profile.js';
 import { systemPromptFor, toolChoiceFor } from './prompts.js';
 import { stripUnsourcedScope, textOfTurn } from './scopeFilter.js';
@@ -52,10 +52,6 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.set('Cache-Control', 'no-store');
   res.json(healthDocument('MAIN_AGENT'));
 });
-app.get('/api/info', (_req: Request, res: Response) => {
-  res.set('Cache-Control', 'no-store');
-  res.json(infoDocument('MAIN_AGENT'));
-});
 // The header "Shelf" button reads this.
 app.get('/api/shelf', (_req: Request, res: Response) => {
   res.set('Cache-Control', 'no-store');
@@ -79,10 +75,10 @@ app.get('/status', (_req: Request, res: Response) => {
 // provider switch (the client is built from env at boot), so Real is offered when a model
 // client is configured; switching stores the choice as the UI default and /chat honours it.
 // A /chat body that names a mode explicitly (API callers) always wins over the stored default.
-let uiMode: 'mock' | 'real' = 'real';
-const realModelConfigured = (): boolean => {
-  try { modelClientOrNotConfigured('MAIN_AGENT'); return true; } catch { return false; }
-};
+// modelClientOrNotConfigured never throws (a missing provider only fails the first model call), so it cannot answer this; health.ts can.
+const realModelConfigured = (): boolean => realAvailable('MAIN_AGENT');
+// Default: Real if configured, else Mock (rule 19).
+let uiMode: 'mock' | 'real' = realModelConfigured() ? 'real' : 'mock';
 app.get('/api/info', (_req: Request, res: Response) => {
   const realAvailable = realModelConfigured();
   res.set('Cache-Control', 'no-store');
