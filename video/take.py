@@ -25,6 +25,9 @@ WORK = Path(sys.argv[1] if len(sys.argv) > 1 else "take-work").resolve()
 # Two videos, one per screen (owner, 2026-11-22): the window is full screen (Chrome --kiosk) so the video fills the display.
 #   PROFILE=monitor  the middle 1920x1080 monitor: large app font (L) and large slides and captions
 #   PROFILE=laptop   the built-in display (1800x1169 points): small app font (S) so busy screens fit; slides and captions at normal size
+# SEGMENT=all (default) records the whole video; SEGMENT=main stops before the end slides so the logs of THAT run can be captured; SEGMENT=end records only
+# the end slides (protect, observability, closing) from assets/observability.json. join.sh joins main and end into one video.
+SEGMENT = os.environ.get("SEGMENT", "all")
 PROFILE = os.environ.get("PROFILE", "monitor")
 PROFILES = {"monitor": dict(monitor="medium", display=(1920, 1080), font="L", scale=1.3, dsf=1, video=(1920, 1080)),
             "laptop":  dict(monitor="laptop", display=(1800, 1169), font="S", scale=1.0, dsf=2, video=(2400, 1558))}
@@ -237,6 +240,20 @@ def first_sentence(s, limit=150):
     s = s[:cut + 1] if cut > 0 else s
     return s if len(s) <= limit else s[:limit].rsplit(" ", 1)[0] + "..."
 
+def observability_slide():
+    """The slide right before the closing: what the recorded run left behind for observability. The captured evidence (assets/observability.json,
+    written after the main take from the logs of that run) fills it; without it a live take refuses to finish."""
+    cfg = dict(SLIDES["observability"])
+    ev = Path(__file__).parent / "assets" / "observability.json"
+    if ev.exists():
+        d = json.loads(ev.read_text())
+        for k in ("image", "lead", "col_a_heading", "col_a_lines", "col_b_heading", "col_b_lines", "verdict"):
+            if k in d: cfg[k] = d[k]
+        cfg["wide"] = True
+    elif not SAMPLE:
+        raise RuntimeError("assets/observability.json is missing: capture the logs of the recorded run first (the observability slide is a standard)")
+    return cfg
+
 def main():
     WORK.mkdir(parents=True, exist_ok=True)
     profile = tempfile.mkdtemp(prefix="a2a-take-")
@@ -245,7 +262,9 @@ def main():
     (Path(profile) / "Default" / "Preferences").write_text(json.dumps({
         "credentials_enable_service": False, "credentials_enable_autosignin": False,
         "profile": {"password_manager_enabled": False}, "autofill": {"profile_enabled": False, "credit_card_enabled": False}}))
-    result = {"ok": False}
+    from datetime import datetime, timezone
+    result = {"ok": False, "started_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"), "stamps": {}}
+    def stamp(name): result["stamps"][name] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     with sync_playwright() as pw:
         ctx = pw.chromium.launch_persistent_context(
             profile, headless=HEADLESS, no_viewport=not HEADLESS, viewport={"width": WIN_W, "height": WIN_H} if HEADLESS else None,
@@ -367,188 +386,202 @@ def main():
             return page.evaluate("p => ['custodian','main','gateway','aws'].map(i => i + ': ' + document.getElementById(p + i).textContent)", prefix)
 
         try:
-            if SAMPLE:
-                show_slide(SLIDES["sample_note"], extra=2.0, name="sample_note", cap=22.0)
-            show_slide(OPENING_SLIDE, extra=4.0, name="opening", cap=36.0)
-
-            # ===================== Part 1: our two agents (A2A with remote agents tab) =====================
-            if SAMPLE:
-                # The mock lab has no model, so the sample replays two recorded live runs of the chat route (kept in assets/, local only:
-                # they carry internal hostnames). The tabs, the reel and the trace are still drawn by the lab from those events.
-                fixtures = {"bob": (Path(__file__).parent / "assets" / "sample-part1-bob.sse").read_text(),
-                            "blocked": (Path(__file__).parent / "assets" / "sample-part1-blocked.sse").read_text()}
-                def replay(route):
-                    body = json.loads(route.request.post_data or "{}")
-                    route.fulfill(status=200, headers={"Content-Type": "text/event-stream"}, body=fixtures["blocked" if "prod-db" in body.get("message", "") else "bob"])
-                page.route("**/chat", replay)
-            page.goto(APP + "/"); page.wait_for_selector("#tab-aws")
-            page.select_option("[data-testid=theme-select]", THEME); page.select_option("[data-testid=font-select]", FONT)
-            app_mode = page.evaluate("fetch('/api/info').then(r => r.json()).then(j => j.source)")   # the lab's Mock/Real switch
-            status = page.evaluate("fetch('/status').then(r => r.json())")
-            log("app mode (Mock/Real switch):", app_mode, "| status:", json.dumps({k: status.get(k) for k in ("mode", "viaGateway", "bearerOnA2A")}))
-            if not SAMPLE and app_mode != "real":
-                raise RuntimeError(f"the take needs Real mode (switch says {app_mode!r}); refusing to record a mock")
-            page.wait_for_timeout(1200)
-            bubble("p1_intro", "#chat", prefer="right")
-            type_prompt("#input", P1_Q1)
-            bubble("p1_prompt", "#input", lines=["asks: " + P1_Q1], prefer="above", secs=4.5)
-            page.evaluate("() => window.__cm.clear()")
-            page.click("#send")
-            page.wait_for_selector("#reel-review .reel__frame", timeout=90000); page.wait_for_selector("#who .who-hop", timeout=90000)
-            page.wait_for_function("!document.getElementById('send').disabled", timeout=120000); page.wait_for_timeout(800)
-            titles1 = page.eval_on_selector_all("#reel-review .reel__title", "els => els.map(e => e.textContent)")
-            answer1 = (page.inner_text("#messages .message.agent >> nth=-1") if page.locator("#messages .message.agent").count() else "").strip()
-            log("part 1 / prompt 1 frames:", titles1, "| answer:", answer1[:160])
-            ok1 = "Send the message" in titles1 and "Tool result" in titles1 and bool(answer1) and "Request failed" not in answer1
-            result.update(part1_frames=titles1, part1_answer=answer1[:300])
-            bubble("p1_handoff", "#who", place="bl")
-            popout(frame_sel("#reel-review", "Send the message"), "The call", "p1_message")
-            if "Call the tool" in titles1:
-                page.locator(frame_sel("#reel-review", "Call the tool")).first.scroll_into_view_if_needed()
-                tag(frame_sel("#reel-review", "Call the tool"), "cm-mcp-frame")
-                bubble("p1_mcp", "#cm-mcp-frame", prefer="below")
-            redacted = page.evaluate("() => document.getElementById('trace').textContent.includes('REDACTED')")
-            popout(frame_sel("#reel-review", "Tool result"), "What came back", "p1_redacted", lines=["the email came back as [REDACTED:pii]"] if redacted else None)
-            log("part 1: redaction marker in trace:", redacted)
-            tag("#messages .message.agent >> nth=-1", "cm-answer1")
-            bubble("p1_answer", "#cm-answer1", prefer="right", lines=[first_sentence(answer1)])
-            page.evaluate("() => window.__cm.clear()")
-            # the refused question
-            type_prompt("#input", P1_Q2)
-            bubble("p1_refuse_prompt", "#input", lines=["asks: " + P1_Q2], prefer="above", secs=4.5)
-            page.evaluate("() => window.__cm.clear()")
-            page.click("#send")
-            page.wait_for_function("document.querySelectorAll('#trace .trace.error').length > 0 || !document.getElementById('send').disabled", timeout=120000)
-            page.wait_for_function("!document.getElementById('send').disabled", timeout=120000); page.wait_for_timeout(800)
-            titles2 = page.eval_on_selector_all("#reel-review .reel__title", "els => els.map(e => e.textContent)")
-            blocked = page.evaluate("() => /content_blocked|blocked by security policy/i.test(document.getElementById('trace').textContent)")
-            log("part 1 / prompt 2 frames:", titles2, "| blocked marker in trace:", blocked)
-            result.update(part1_blocked=blocked, part1_frames_2=titles2, part1_redacted=redacted)
-            ok1 = ok1 and (blocked or SAMPLE)
-            tag("#trace .trace.error >> nth=-1", "cm-blocked") if page.locator("#trace .trace.error").count() else tag("#reel-review .reel__frame >> nth=-1", "cm-blocked")
-            bubble("p1_blocked", "#cm-blocked", prefer="left")
-            page.evaluate("() => window.__cm.clear()")
-            if not ok1:
-                log("WARNING: part 1 did not show the expected run (frames=%s redacted=%s blocked=%s); fix and retake" % (titles1, redacted, blocked))
-
-            # ===================== Part 2: an agent in AWS (Custodian to AWS agent tab) =====================
-            show_slide(SLIDES["part2"], extra=2.0, name="slide-part2", cap=30.0)
-            page.click("#tab-aws"); page.wait_for_selector("#panel-aws:not([hidden])")
-            page.wait_for_function("document.getElementById('aws-mode').textContent.length > 20", timeout=15000); page.wait_for_timeout(1200)
-            mode = page.inner_text("#aws-mode").strip(); live = mode.startswith("LIVE")
-            if not SAMPLE and not live:
-                raise RuntimeError(f"the take needs the LIVE route (route says {mode[:40]!r}); refusing to record a mock")
-            log("route mode line:", mode)
-            bubble("intro", "#panel-aws h2", prefer="below")
-            bubble("custodian", "#aws-n-custodian", prefer="below")
-            bubble("main_agent", "#aws-n-main", prefer="below")
-            bubble("gateway", "#aws-n-gateway", prefer="below")
-            bubble("aws_agent", "#aws-n-aws", prefer="below")
-            if SAMPLE:   # the live takes say "this is a real run" once, on the opening slide; only the sample needs to say it is simulated
-                bubble("live_banner", "#aws-mode", prefer="below", lines=[first_sentence(mode)], sample_key="sample_live_banner")
-            page.evaluate("() => window.__cm.clear()")
-            show_slide(SLIDES["config_app"], extra=2.0, name="slide-config-app", cap=34.0)
-            show_slide(SLIDES["config_agent"], extra=2.0, name="slide-config-agent", cap=40.0)
-            show_slide(SLIDES["config_policy"], extra=2.0, name="slide-config-policy", cap=40.0)
-            show_slide(SLIDES["spec"], extra=2.0, name="slide-spec", cap=50.0)
-            show_slide(SLIDES["rfcs"], extra=2.0, name="slide-rfcs", cap=50.0)
-
-            # ---- success 1: what tools do you have
-            page.locator("#aws-input").scroll_into_view_if_needed()
-            type_prompt("#aws-input", P2_Q1)
-            bubble("pick_prompt", "#aws-input", prefer="below", lines=["asks: add 987654321 and 123456789"], secs=5.0)
-            page.evaluate("() => window.__cm.clear()")
-            page.keyboard.press("Enter")
-            if not SAMPLE:
-                page.wait_for_selector(frame_sel("#aws-reel", "Get a token"), timeout=60000); page.wait_for_timeout(500)
-                tag(frame_sel("#aws-reel", "Get a token"), "cm-token-frame")
-                bubble("token_frame", "#cm-token-frame", prefer="below")
-                popout(frame_sel("#aws-reel", "Get a token"), "The token", "token_popout", scroll_after=6.0)
-            page.wait_for_selector(frame_sel("#aws-reel", "Read the Agent Card"), timeout=60000); page.wait_for_timeout(500)
-            tag(frame_sel("#aws-reel", "Read the Agent Card"), "cm-card-frame")
-            bubble("card_frame", "#cm-card-frame", prefer="below")
-            page.wait_for_selector(frame_sel("#aws-reel", "Send the message"), timeout=60000)
-            popout(frame_sel("#aws-reel", "Send the message"), "The call", "message_popout")
-            page.wait_for_function("!document.getElementById('aws-send').disabled", timeout=90000); page.wait_for_timeout(800)
-            st1 = states(); answer = page.inner_text("#aws-answer").strip()
-            has_result = page.locator("#aws-trace li[data-kind=result]").count() > 0
-            err = "is-error" in (page.get_attribute("#aws-answer", "class") or "")
-            log("flow states:", st1); log("answer 1:", answer[:200]); log("result step present:", has_result, "answer is error:", err)
-            ok = (live or SAMPLE) and has_result and bool(answer) and not err and (SAMPLE or P2_SUM in answer.replace(',', ''))
-            result.update(sum1_correct=P2_SUM in answer.replace(',', ''))
-            result.update(ok=ok, live=live, states=st1, answer=answer[:300])
-            if ok:
-                page.evaluate("() => document.getElementById('aws-reel').scrollIntoView({block: 'center'})")
-                bubble("result", "#aws-trace li[data-kind=result]", prefer="left", lines=[page.locator("#aws-trace li[data-kind=result] .aws__at").first.inner_text().strip() and ("answered in " + page.locator("#aws-trace li[data-kind=result] .aws__at").first.inner_text().strip())])
-                page.evaluate("() => window.__cm.clear()")
-                bubble("answer", "#aws-answer", prefer="below", lines=[" · ".join(st1)])
-            else:
-                log("WARNING: this take does NOT show a live success (live=%s result=%s error=%s); fix the route and retake" % (live, has_result, err))
-            page.evaluate("() => window.__cm.clear()")
-
-            # ---- success 2: the tool question
-            if ok:
-                page.locator("#aws-input").scroll_into_view_if_needed()
-                type_prompt("#aws-input", P2_Q2)
-                bubble("second_prompt", "#aws-input", prefer="below", lines=["asks: add 48,213 and 9,787; even or odd?"], secs=5.0)
-                page.evaluate("() => window.__cm.clear()")
-                page.keyboard.press("Enter")
-                page.wait_for_function("document.getElementById('aws-send').disabled === true", timeout=10000)
-                page.wait_for_function("!document.getElementById('aws-send').disabled", timeout=120000); page.wait_for_timeout(800)
-                answer2 = page.inner_text("#aws-answer").strip()
-                err2 = "is-error" in (page.get_attribute("#aws-answer", "class") or "")
-                right = P2_SUM2 in answer2.replace(",", "") and "even" in answer2.lower()
-                log("answer 2:", answer2[:240], "| error:", err2, "| sum correct:", right)
-                result.update(answer2=answer2[:300], sum_correct=right)
-                if SAMPLE or (right and not err2):
-                    bubble("second_answer", "#aws-answer", prefer="below", lines=[first_sentence(answer2)])
-                else:
-                    ok = False; log("WARNING: the second answer was missing or wrong; fix and retake")
-                page.evaluate("() => window.__cm.clear()")
-
-            # ---- the refusal: the same question with a deliberately invalid credential; the lab's own button sends it
-            refusal_ok = False
-            if ok:
-                page.evaluate("() => document.getElementById('aws-refuse').scrollIntoView({block: 'center'})")
-                bubble("refuse_intro", "#aws-refuse", prefer="below")
-                page.evaluate("() => window.__cm.clear()")
-                page.click("#aws-refuse")
-                page.wait_for_selector("#aws-trace li[data-kind=error]", timeout=90000)
-                page.wait_for_function("!document.getElementById('aws-send').disabled", timeout=90000); page.wait_for_timeout(1200)
-                ref_states = states(); ref_answer = page.inner_text("#aws-answer").strip()
-                ref_text = page.text_content("#aws-trace li[data-kind=error]") or ""
-                m = re.search(r"WWW-Authenticate:\s*([^\n]+)", ref_text)
-                challenge = m.group(1) if m else ""
-                params = re.findall(r"([A-Za-z_]+)=", challenge)
-                log("refusal states:", ref_states, "| answer:", ref_answer[:80], "| challenge params:", params)
-                gw_state = page.inner_text("#aws-s-gateway").strip(); aws_state = page.inner_text("#aws-s-aws").strip()
-                refusal_ok = ref_answer.startswith("HTTP 401") and ((gw_state.startswith("refused") and aws_state == "not reached") if not SAMPLE else aws_state.startswith("stopped"))
-                result.update(refusal_ok=refusal_ok, refusal_states=ref_states, challenge_params=params)
-                if refusal_ok:
-                    page.evaluate("() => document.querySelector('ol.aws__flow').scrollIntoView({block: 'start'})")
-                    bubble("refused_states", "ol.aws__flow", prefer="below", lines=[" · ".join(ref_states)], sample_key="sample_refused_states")
-                    page.evaluate("() => window.__cm.clear()")
-                    page.evaluate("() => document.getElementById('aws-reel').scrollIntoView({block: 'center'})")
-                    popout(frame_sel("#aws-reel", "Refused"), "The challenge", "refused_popout")
-                    if page.locator(frame_sel("#aws-reel", "Read the sign-in metadata")).count() and not SAMPLE and "resource_metadata" in params:
-                        tag(frame_sel("#aws-reel", "Read the sign-in metadata"), "cm-meta-frame")
-                        bubble("refused_metadata", "#cm-meta-frame", prefer="below")
-                else:
-                    log("WARNING: the refusal did not look like a gateway 401 (states=%s answer=%s); fix and retake" % (ref_states, ref_answer[:80]))
-            ok = ok and refusal_ok and ok1
-            ok = ok and "window_moved_at" not in result
-            result["ok"] = ok
-            result["bubbles"] = count["n"]; result["bubbles_expected"] = TOTAL
-            if count["n"] != TOTAL: log("NOTE: %d caption bubbles were shown but the counter says %d; set TOTAL to match" % (count["n"], TOTAL))
-            page.evaluate("() => window.__cm.clear()")
-            if ok:
-                show_slide(SLIDES["config_activity"], extra=2.0, name="slide-config-activity", cap=40.0)   # the calls just made, on record in the console
-                show_slide(SLIDES["protect"], extra=2.0, name="slide-protect", cap=54.0)   # "what else could it stop?", just before the closing
+            if SEGMENT == "end":
+                page.goto(APP + "/"); page.wait_for_selector("#tab-aws")
+                page.select_option("[data-testid=theme-select]", THEME); page.select_option("[data-testid=font-select]", FONT)
+                page.wait_for_timeout(1500)
+                show_slide(SLIDES["protect"], extra=2.0, name="slide-protect", cap=54.0)   # "what else could it stop?"
+                show_slide(observability_slide(), extra=2.0, name="slide-observability", cap=40.0)   # what the run left behind, right before the closing
                 closing = dict(CLOSING_SLIDE)
-                if SAMPLE:   # the sample never claims a live run
+                if SAMPLE:
                     closing["lead"] = STEPS["sample_closing_lead"]["text"]
                     closing["col_a_lines"] = [STEPS["sample_closing_bullet"]["text"], *CLOSING_SLIDE["col_a_lines"][1:]]
                 show_slide(closing, extra=3.0, name="closing", cap=48.0)
+                result["ok"] = True
+            else:
+                if SAMPLE:
+                    show_slide(SLIDES["sample_note"], extra=2.0, name="sample_note", cap=22.0)
+                show_slide(OPENING_SLIDE, extra=4.0, name="opening", cap=36.0)
+
+                # ===================== Part 1: our two agents (A2A with remote agents tab) =====================
+                if SAMPLE:
+                    # The mock lab has no model, so the sample replays two recorded live runs of the chat route (kept in assets/, local only:
+                    # they carry internal hostnames). The tabs, the reel and the trace are still drawn by the lab from those events.
+                    fixtures = {"bob": (Path(__file__).parent / "assets" / "sample-part1-bob.sse").read_text(),
+                                "blocked": (Path(__file__).parent / "assets" / "sample-part1-blocked.sse").read_text()}
+                    def replay(route):
+                        body = json.loads(route.request.post_data or "{}")
+                        route.fulfill(status=200, headers={"Content-Type": "text/event-stream"}, body=fixtures["blocked" if "prod-db" in body.get("message", "") else "bob"])
+                    page.route("**/chat", replay)
+                page.goto(APP + "/"); page.wait_for_selector("#tab-aws")
+                page.select_option("[data-testid=theme-select]", THEME); page.select_option("[data-testid=font-select]", FONT)
+                app_mode = page.evaluate("fetch('/api/info').then(r => r.json()).then(j => j.source)")   # the lab's Mock/Real switch
+                status = page.evaluate("fetch('/status').then(r => r.json())")
+                log("app mode (Mock/Real switch):", app_mode, "| status:", json.dumps({k: status.get(k) for k in ("mode", "viaGateway", "bearerOnA2A")}))
+                if not SAMPLE and app_mode != "real":
+                    raise RuntimeError(f"the take needs Real mode (switch says {app_mode!r}); refusing to record a mock")
+                page.wait_for_timeout(1200)
+                bubble("p1_intro", "#chat", prefer="right")
+                type_prompt("#input", P1_Q1)
+                bubble("p1_prompt", "#input", lines=["asks: " + P1_Q1], prefer="above", secs=4.5)
+                page.evaluate("() => window.__cm.clear()")
+                stamp("part1_question_1"); page.click("#send")
+                page.wait_for_selector("#reel-review .reel__frame", timeout=90000); page.wait_for_selector("#who .who-hop", timeout=90000)
+                page.wait_for_function("!document.getElementById('send').disabled", timeout=120000); page.wait_for_timeout(800)
+                titles1 = page.eval_on_selector_all("#reel-review .reel__title", "els => els.map(e => e.textContent)")
+                answer1 = (page.inner_text("#messages .message.agent >> nth=-1") if page.locator("#messages .message.agent").count() else "").strip()
+                log("part 1 / prompt 1 frames:", titles1, "| answer:", answer1[:160])
+                ok1 = "Send the message" in titles1 and "Tool result" in titles1 and bool(answer1) and "Request failed" not in answer1
+                result.update(part1_frames=titles1, part1_answer=answer1[:300])
+                bubble("p1_handoff", "#who", place="bl")
+                popout(frame_sel("#reel-review", "Send the message"), "The call", "p1_message")
+                if "Call the tool" in titles1:
+                    page.locator(frame_sel("#reel-review", "Call the tool")).first.scroll_into_view_if_needed()
+                    tag(frame_sel("#reel-review", "Call the tool"), "cm-mcp-frame")
+                    bubble("p1_mcp", "#cm-mcp-frame", prefer="below")
+                redacted = page.evaluate("() => document.getElementById('trace').textContent.includes('REDACTED')")
+                popout(frame_sel("#reel-review", "Tool result"), "What came back", "p1_redacted", lines=["the email came back as [REDACTED:pii]"] if redacted else None)
+                log("part 1: redaction marker in trace:", redacted)
+                tag("#messages .message.agent >> nth=-1", "cm-answer1")
+                bubble("p1_answer", "#cm-answer1", prefer="right", lines=[first_sentence(answer1)])
+                page.evaluate("() => window.__cm.clear()")
+                # the refused question
+                type_prompt("#input", P1_Q2)
+                bubble("p1_refuse_prompt", "#input", lines=["asks: " + P1_Q2], prefer="above", secs=4.5)
+                page.evaluate("() => window.__cm.clear()")
+                stamp("part1_question_2"); page.click("#send")
+                page.wait_for_function("document.querySelectorAll('#trace .trace.error').length > 0 || !document.getElementById('send').disabled", timeout=120000)
+                page.wait_for_function("!document.getElementById('send').disabled", timeout=120000); page.wait_for_timeout(800)
+                titles2 = page.eval_on_selector_all("#reel-review .reel__title", "els => els.map(e => e.textContent)")
+                blocked = page.evaluate("() => /content_blocked|blocked by security policy/i.test(document.getElementById('trace').textContent)")
+                log("part 1 / prompt 2 frames:", titles2, "| blocked marker in trace:", blocked)
+                result.update(part1_blocked=blocked, part1_frames_2=titles2, part1_redacted=redacted)
+                ok1 = ok1 and (blocked or SAMPLE)
+                tag("#trace .trace.error >> nth=-1", "cm-blocked") if page.locator("#trace .trace.error").count() else tag("#reel-review .reel__frame >> nth=-1", "cm-blocked")
+                bubble("p1_blocked", "#cm-blocked", prefer="left")
+                page.evaluate("() => window.__cm.clear()")
+                if not ok1:
+                    log("WARNING: part 1 did not show the expected run (frames=%s redacted=%s blocked=%s); fix and retake" % (titles1, redacted, blocked))
+
+                # ===================== Part 2: an agent in AWS (Custodian to AWS agent tab) =====================
+                show_slide(SLIDES["part2"], extra=2.0, name="slide-part2", cap=30.0)
+                page.click("#tab-aws"); page.wait_for_selector("#panel-aws:not([hidden])")
+                page.wait_for_function("document.getElementById('aws-mode').textContent.length > 20", timeout=15000); page.wait_for_timeout(1200)
+                mode = page.inner_text("#aws-mode").strip(); live = mode.startswith("LIVE")
+                if not SAMPLE and not live:
+                    raise RuntimeError(f"the take needs the LIVE route (route says {mode[:40]!r}); refusing to record a mock")
+                log("route mode line:", mode)
+                bubble("intro", "#panel-aws h2", prefer="below")
+                bubble("custodian", "#aws-n-custodian", prefer="below")
+                bubble("main_agent", "#aws-n-main", prefer="below")
+                bubble("gateway", "#aws-n-gateway", prefer="below")
+                bubble("aws_agent", "#aws-n-aws", prefer="below")
+                if SAMPLE:   # the live takes say "this is a real run" once, on the opening slide; only the sample needs to say it is simulated
+                    bubble("live_banner", "#aws-mode", prefer="below", lines=[first_sentence(mode)], sample_key="sample_live_banner")
+                page.evaluate("() => window.__cm.clear()")
+                show_slide(SLIDES["config_app"], extra=2.0, name="slide-config-app", cap=34.0)
+                show_slide(SLIDES["config_agent"], extra=2.0, name="slide-config-agent", cap=40.0)
+                show_slide(SLIDES["config_policy"], extra=2.0, name="slide-config-policy", cap=40.0)
+                show_slide(SLIDES["spec"], extra=2.0, name="slide-spec", cap=50.0)
+                show_slide(SLIDES["rfcs"], extra=2.0, name="slide-rfcs", cap=50.0)
+
+                # ---- success 1: what tools do you have
+                page.locator("#aws-input").scroll_into_view_if_needed()
+                type_prompt("#aws-input", P2_Q1)
+                bubble("pick_prompt", "#aws-input", prefer="below", lines=["asks: add 987654321 and 123456789"], secs=5.0)
+                page.evaluate("() => window.__cm.clear()")
+                page.keyboard.press("Enter")
+                if not SAMPLE:
+                    page.wait_for_selector(frame_sel("#aws-reel", "Get a token"), timeout=60000); page.wait_for_timeout(500)
+                    tag(frame_sel("#aws-reel", "Get a token"), "cm-token-frame")
+                    bubble("token_frame", "#cm-token-frame", prefer="below")
+                    popout(frame_sel("#aws-reel", "Get a token"), "The token", "token_popout", scroll_after=6.0)
+                page.wait_for_selector(frame_sel("#aws-reel", "Read the Agent Card"), timeout=60000); page.wait_for_timeout(500)
+                tag(frame_sel("#aws-reel", "Read the Agent Card"), "cm-card-frame")
+                bubble("card_frame", "#cm-card-frame", prefer="below")
+                page.wait_for_selector(frame_sel("#aws-reel", "Send the message"), timeout=60000)
+                popout(frame_sel("#aws-reel", "Send the message"), "The call", "message_popout")
+                page.wait_for_function("!document.getElementById('aws-send').disabled", timeout=90000); page.wait_for_timeout(800)
+                st1 = states(); answer = page.inner_text("#aws-answer").strip()
+                has_result = page.locator("#aws-trace li[data-kind=result]").count() > 0
+                err = "is-error" in (page.get_attribute("#aws-answer", "class") or "")
+                log("flow states:", st1); log("answer 1:", answer[:200]); log("result step present:", has_result, "answer is error:", err)
+                ok = (live or SAMPLE) and has_result and bool(answer) and not err and (SAMPLE or P2_SUM in answer.replace(',', ''))
+                result.update(sum1_correct=P2_SUM in answer.replace(',', ''))
+                result.update(ok=ok, live=live, states=st1, answer=answer[:300])
+                if ok:
+                    page.evaluate("() => document.getElementById('aws-reel').scrollIntoView({block: 'center'})")
+                    bubble("result", "#aws-trace li[data-kind=result]", prefer="left", lines=[page.locator("#aws-trace li[data-kind=result] .aws__at").first.inner_text().strip() and ("answered in " + page.locator("#aws-trace li[data-kind=result] .aws__at").first.inner_text().strip())])
+                    page.evaluate("() => window.__cm.clear()")
+                    bubble("answer", "#aws-answer", prefer="below", lines=[" · ".join(st1)])
+                else:
+                    log("WARNING: this take does NOT show a live success (live=%s result=%s error=%s); fix the route and retake" % (live, has_result, err))
+                page.evaluate("() => window.__cm.clear()")
+
+                # ---- success 2: the tool question
+                if ok:
+                    page.locator("#aws-input").scroll_into_view_if_needed()
+                    type_prompt("#aws-input", P2_Q2)
+                    bubble("second_prompt", "#aws-input", prefer="below", lines=["asks: add 48,213 and 9,787; even or odd?"], secs=5.0)
+                    page.evaluate("() => window.__cm.clear()")
+                    page.keyboard.press("Enter")
+                    page.wait_for_function("document.getElementById('aws-send').disabled === true", timeout=10000)
+                    page.wait_for_function("!document.getElementById('aws-send').disabled", timeout=120000); page.wait_for_timeout(800)
+                    answer2 = page.inner_text("#aws-answer").strip()
+                    err2 = "is-error" in (page.get_attribute("#aws-answer", "class") or "")
+                    right = P2_SUM2 in answer2.replace(",", "") and "even" in answer2.lower()
+                    log("answer 2:", answer2[:240], "| error:", err2, "| sum correct:", right)
+                    result.update(answer2=answer2[:300], sum_correct=right)
+                    if SAMPLE or (right and not err2):
+                        bubble("second_answer", "#aws-answer", prefer="below", lines=[first_sentence(answer2)])
+                    else:
+                        ok = False; log("WARNING: the second answer was missing or wrong; fix and retake")
+                    page.evaluate("() => window.__cm.clear()")
+
+                # ---- the refusal: the same question with a deliberately invalid credential; the lab's own button sends it
+                refusal_ok = False
+                if ok:
+                    page.evaluate("() => document.getElementById('aws-refuse').scrollIntoView({block: 'center'})")
+                    bubble("refuse_intro", "#aws-refuse", prefer="below")
+                    page.evaluate("() => window.__cm.clear()")
+                    stamp("part2_refused_call"); page.click("#aws-refuse")
+                    page.wait_for_selector("#aws-trace li[data-kind=error]", timeout=90000)
+                    page.wait_for_function("!document.getElementById('aws-send').disabled", timeout=90000); page.wait_for_timeout(1200)
+                    ref_states = states(); ref_answer = page.inner_text("#aws-answer").strip()
+                    ref_text = page.text_content("#aws-trace li[data-kind=error]") or ""
+                    m = re.search(r"WWW-Authenticate:\s*([^\n]+)", ref_text)
+                    challenge = m.group(1) if m else ""
+                    params = re.findall(r"([A-Za-z_]+)=", challenge)
+                    log("refusal states:", ref_states, "| answer:", ref_answer[:80], "| challenge params:", params)
+                    gw_state = page.inner_text("#aws-s-gateway").strip(); aws_state = page.inner_text("#aws-s-aws").strip()
+                    refusal_ok = ref_answer.startswith("HTTP 401") and ((gw_state.startswith("refused") and aws_state == "not reached") if not SAMPLE else aws_state.startswith("stopped"))
+                    result.update(refusal_ok=refusal_ok, refusal_states=ref_states, challenge_params=params)
+                    if refusal_ok:
+                        page.evaluate("() => document.querySelector('ol.aws__flow').scrollIntoView({block: 'start'})")
+                        bubble("refused_states", "ol.aws__flow", prefer="below", lines=[" · ".join(ref_states)], sample_key="sample_refused_states")
+                        page.evaluate("() => window.__cm.clear()")
+                        page.evaluate("() => document.getElementById('aws-reel').scrollIntoView({block: 'center'})")
+                        popout(frame_sel("#aws-reel", "Refused"), "The challenge", "refused_popout")
+                        if page.locator(frame_sel("#aws-reel", "Read the sign-in metadata")).count() and not SAMPLE and "resource_metadata" in params:
+                            tag(frame_sel("#aws-reel", "Read the sign-in metadata"), "cm-meta-frame")
+                            bubble("refused_metadata", "#cm-meta-frame", prefer="below")
+                    else:
+                        log("WARNING: the refusal did not look like a gateway 401 (states=%s answer=%s); fix and retake" % (ref_states, ref_answer[:80]))
+                ok = ok and refusal_ok and ok1
+                ok = ok and "window_moved_at" not in result
+                result["ok"] = ok
+                result["bubbles"] = count["n"]; result["bubbles_expected"] = TOTAL
+                if count["n"] != TOTAL: log("NOTE: %d caption bubbles were shown but the counter says %d; set TOTAL to match" % (count["n"], TOTAL))
+                page.evaluate("() => window.__cm.clear()")
+                result["finished_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+                if ok and SEGMENT == "all":
+                    show_slide(SLIDES["protect"], extra=2.0, name="slide-protect", cap=54.0)   # "what else could it stop?"
+                    show_slide(observability_slide(), extra=2.0, name="slide-observability", cap=40.0)   # what the run left behind, right before the closing
+                    closing = dict(CLOSING_SLIDE)
+                    if SAMPLE:   # the sample never claims a live run
+                        closing["lead"] = STEPS["sample_closing_lead"]["text"]
+                        closing["col_a_lines"] = [STEPS["sample_closing_bullet"]["text"], *CLOSING_SLIDE["col_a_lines"][1:]]
+                    show_slide(closing, extra=3.0, name="closing", cap=48.0)
         finally:
             log("stopping recording")
             if ff is not None:

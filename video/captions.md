@@ -187,13 +187,15 @@ Each rule is paraphrased at the moment it shows up.
 
 ---
 
-# Slide: config_activity
+# Slide: observability
+
+<!-- The columns, image and lead are replaced at record time from assets/observability.json (captured from the logs of the recorded run). The text here is the fallback and the standard wording. -->
 
 ## Title
-Every call is on record
+What ends up for observability
 
 ## Lead
-The app's Activity Logs in the Privilege console, after the runs you just saw.
+The log entries this run left behind, read straight after the recording.
 
 ## Image
 console-activity-logs-crop.jpg
@@ -201,16 +203,14 @@ console-activity-logs-crop.jpg
 ## Layout
 wide
 
-## Column A: What it shows
-- Each call: when, who, and the route
+## Column A: Allowed (console Activity Logs, above)
 - The Agent Card read and the message send, as aws-agent-caller-identity
 
-## Column B: Why it matters
-- Every call and policy decision is auditable (Ping's docs)
-- Logs can stream to a SIEM
+## Column B: Refused and blocked (gateway log excerpt)
+- The refused call and the blocked data call, with their timestamps
 
 ## Verdict
-The AWS account id is masked in this screenshot.
+Excerpts, ids masked. Logs can stream to a SIEM (Ping's docs).
 
 ---
 
