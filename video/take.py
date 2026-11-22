@@ -30,7 +30,7 @@ WORK = Path(sys.argv[1] if len(sys.argv) > 1 else "take-work").resolve()
 SEGMENT = os.environ.get("SEGMENT", "all")
 PROFILE = os.environ.get("PROFILE", "monitor")
 PROFILES = {"monitor": dict(monitor="medium", display=(1920, 1080), font="L", scale=1.3, dsf=1, video=(1920, 1080)),
-            "laptop":  dict(monitor="laptop", display=(1800, 1169), font="S", scale=1.0, dsf=2, video=(2400, 1558))}
+            "laptop":  dict(monitor="laptop", display=(1800, 1169), font="S", scale=1.0, dsf=2, video=(1800, 1169))}   # Playwright records in page (CSS) pixels: a bigger canvas only adds grey bands, so the video is the display's own 1800x1169 points
 _prof = PROFILES[PROFILE]
 FONT = os.environ.get("FONT", _prof["font"]); SCALE = float(os.environ.get("SCALE", _prof["scale"]))
 MONITOR = os.environ.get("MONITOR", _prof["monitor"])        # "medium" (the middle external monitor) or "laptop" (built-in display)
