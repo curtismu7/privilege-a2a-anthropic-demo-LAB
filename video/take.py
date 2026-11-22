@@ -307,6 +307,9 @@ def main():
         def bubble(key, target=None, lines=None, secs=None, prefer=None, sample_key=None, place=None):
             """One numbered caption. The number is counted here, so a conditional scene never leaves a gap."""
             count["n"] += 1
+            if not HEADLESS:   # another window (another session's browser, a permission dialog) must never end up in the recording: keep ours in front
+                subprocess.run(["osascript", "-e", 'tell application "System Events" to set frontmost of (first process whose name is "Google Chrome for Testing") to true'], capture_output=True)
+                page.bring_to_front()
             st = STEPS[sample_key] if (SAMPLE and sample_key) else STEPS[key]
             page.evaluate("o => window.__cm.cap(o)", dict(n=count["n"], total=TOTAL, title=st["title"], text=st["text"], target=target, lines=lines, prefer=prefer, place=place))
             snap(f"step-{count['n']:02d}-{key}")
