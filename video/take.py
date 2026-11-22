@@ -41,6 +41,7 @@ _preset = PRESETS.get(MONITOR, PRESETS["medium"])
 ORIGIN_X, ORIGIN_Y = int(os.environ.get("DISPLAY_X", _preset["origin"][0])), int(os.environ.get("DISPLAY_Y", _preset["origin"][1]))
 WIN_X, WIN_Y = int(os.environ.get("WIN_X", _preset["win"][0])), int(os.environ.get("WIN_Y", _preset["win"][1]))
 WIN_W, WIN_H = _prof["display"]   # the window is the whole display
+OUT_W = int(os.environ.get("OUT_W", 2400))   # a retina capture (3600 px wide on the laptop) is scaled down to this width: a full-size encode stalls and loses the file
 REHEARSE = os.environ.get("REHEARSE") == "1"   # headless, no recording, no waiting for a person (runs against whatever route the app has: live or the local stand-in)
 SAMPLE = os.environ.get("SAMPLE") == "1"       # preview: headless, full timing, records with Playwright, mock stand-in allowed, labelled SAMPLE in the video
 HEADLESS_REAL = os.environ.get("HEADLESS_REAL") == "1"   # the REAL take (live route, Real mode, all checks) recorded headless by Playwright, for when the screen is locked or off
@@ -291,7 +292,7 @@ def main():
         page.evaluate("() => window.__cm.clear()")
         c = g["crop"]
         ff = None if HEADLESS else subprocess.Popen(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "avfoundation", "-framerate", "30", "-capture_cursor", "1",
-                               "-pixel_format", "uyvy422", "-i", f"{DEV}:none", "-vf", f"crop={c['w']}:{c['h']}:{c['x']}:{c['y']}",
+                               "-pixel_format", "uyvy422", "-i", f"{DEV}:none", "-vf", f"crop={c['w']}:{c['h']}:{c['x']}:{c['y']}" + (f",scale={OUT_W}:-2" if c["w"] > OUT_W else ""),
                                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-an", "-t", "900", str(WORK / "take.mp4")],
                               stdin=subprocess.PIPE, stderr=open(WORK / "ffmpeg.log", "w"))
         log("rehearsal" if REHEARSE else "sample recording started (playwright)" if SAMPLE else "recording started"); time.sleep(0.2 if REHEARSE else 1.5)
@@ -541,7 +542,7 @@ def main():
             if ff is not None:
                 try: ff.send_signal(signal.SIGINT)
                 except Exception: pass
-                try: ff.wait(timeout=30)
+                try: ff.wait(timeout=180)   # let the encoder flush and write the mp4 index; killing it early loses the whole recording
                 except Exception: ff.kill()
             (WORK / "result.json").write_text(json.dumps(result, indent=1))
             (WORK / "done.flag").write_text("done")
