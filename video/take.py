@@ -26,8 +26,8 @@ WORK = Path(sys.argv[1] if len(sys.argv) > 1 else "take-work").resolve()
 #   PROFILE=monitor  the middle 1920x1080 monitor: large app font (L) and large slides and captions
 #   PROFILE=laptop   the built-in display (1800x1169 points): small app font (S) so busy screens fit; slides and captions at normal size
 PROFILE = os.environ.get("PROFILE", "monitor")
-PROFILES = {"monitor": dict(monitor="medium", display=(1920, 1080), font="L", scale=1.3),
-            "laptop":  dict(monitor="laptop", display=(1800, 1169), font="S", scale=1.0)}
+PROFILES = {"monitor": dict(monitor="medium", display=(1920, 1080), font="L", scale=1.3, dsf=1, video=(1920, 1080)),
+            "laptop":  dict(monitor="laptop", display=(1800, 1169), font="S", scale=1.0, dsf=2, video=(2400, 1558))}
 _prof = PROFILES[PROFILE]
 FONT = os.environ.get("FONT", _prof["font"]); SCALE = float(os.environ.get("SCALE", _prof["scale"]))
 MONITOR = os.environ.get("MONITOR", _prof["monitor"])        # "medium" (the middle external monitor) or "laptop" (built-in display)
@@ -249,8 +249,9 @@ def main():
     with sync_playwright() as pw:
         ctx = pw.chromium.launch_persistent_context(
             profile, headless=HEADLESS, no_viewport=not HEADLESS, viewport={"width": WIN_W, "height": WIN_H} if HEADLESS else None,
+            **({"device_scale_factor": _prof["dsf"]} if HEADLESS else {}),   # the laptop is a retina display: render at 2x, record at 2400 px wide
             color_scheme="light",
-            **({"record_video_dir": str(WORK / "pw-video"), "record_video_size": {"width": WIN_W, "height": WIN_H}} if RECORD_PW else {}),
+            **({"record_video_dir": str(WORK / "pw-video"), "record_video_size": {"width": _prof["video"][0], "height": _prof["video"][1]}} if RECORD_PW else {}),
             args=[f"--window-position={WIN_X},{WIN_Y}", f"--window-size={WIN_W},{WIN_H}", "--no-first-run", "--no-default-browser-check", *([] if HEADLESS else ["--kiosk"])])
         ctx.add_init_script("window.__cmScale = " + json.dumps(SCALE) + ";")
         ctx.add_init_script("window.__pillText = " + json.dumps("SAMPLE: simulated stand-in, not a live run" if SAMPLE else None) + ";")
@@ -307,7 +308,12 @@ def main():
         def bubble(key, target=None, lines=None, secs=None, prefer=None, sample_key=None, place=None):
             """One numbered caption. The number is counted here, so a conditional scene never leaves a gap."""
             count["n"] += 1
-            if not HEADLESS:   # another window (another session's browser, a permission dialog) must never end up in the recording: keep ours in front
+            if not HEADLESS:
+                # the window must still be where the recording crops: a display that sleeps or reconnects moves it, and the video then shows the desktop
+                geo = page.evaluate("() => [window.screenX, window.screenY, window.innerWidth, window.innerHeight]")
+                if geo != [g["screenX"], g["screenY"], g["innerW"], g["innerH"]]:
+                    log("WARNING: the window moved or resized at caption %d (%s, expected %s): this recording is not usable" % (count["n"], geo, [g["screenX"], g["screenY"], g["innerW"], g["innerH"]]))
+                    result["window_moved_at"] = count["n"]; result["ok"] = False   # another window (another session's browser, a permission dialog) must never end up in the recording: keep ours in front
                 subprocess.run(["osascript", "-e", 'tell application "System Events" to set frontmost of (first process whose name is "Google Chrome for Testing") to true'], capture_output=True)
                 page.bring_to_front()
             st = STEPS[sample_key] if (SAMPLE and sample_key) else STEPS[key]
@@ -530,6 +536,7 @@ def main():
                 else:
                     log("WARNING: the refusal did not look like a gateway 401 (states=%s answer=%s); fix and retake" % (ref_states, ref_answer[:80]))
             ok = ok and refusal_ok and ok1
+            ok = ok and "window_moved_at" not in result
             result["ok"] = ok
             result["bubbles"] = count["n"]; result["bubbles_expected"] = TOTAL
             if count["n"] != TOTAL: log("NOTE: %d caption bubbles were shown but the counter says %d; set TOTAL to match" % (count["n"], TOTAL))

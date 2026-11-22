@@ -15,9 +15,10 @@ Order of work: `SCRIPT.md` (sources first) -> `captions.md` (wording) -> **sampl
     # rehearsal (fast, no video; REHEARSE_SHOTS=dir keeps a still per caption and slide). Against the live lab it makes the live calls.
     APP_URL=http://127.0.0.1:6981 REHEARSE=1 SAMPLE=1 REHEARSE_SHOTS=video/out/shots python3 video/take.py video/out/rehearse
 
-    # live take: the lab on :6881 in Real mode with the LIVE route; follow "Before every recording" in VIDEO-BEST-PRACTICES.md first
-    python3 video/take.py video/out/take-work                 # opens its own Chrome window, records it with ffmpeg
-    HEADLESS_REAL=1 python3 video/take.py video/out/take-work # same take recorded headless by Playwright (screen locked)
+    # live takes, one per screen (the lab on :6881 in Real mode with the LIVE route): exact-size headless recording is the default
+    HEADLESS_REAL=1 PROFILE=monitor python3 video/take.py <dir>   # 1920x1080, app text L, large slides
+    HEADLESS_REAL=1 PROFILE=laptop  python3 video/take.py <dir>   # 2400x1558 (retina), app text S, normal slides
+    # screen capture instead (leave the Mac alone, check every frame): PROFILE=monitor python3 video/take.py <dir>
 
 Needs node (with the repo's `node_modules`), python3 with playwright and pillow, ffmpeg. `out/` and `assets/` are gitignored: `assets/` holds two console screenshots (internal hostnames), so re-capture them from the console rather than committing them: `console-app-worker-crop.jpg` (the app) and `console-agent-caller-crop.jpg` (the agent), referenced in `captions.md`. Capture them read-only, with the page zoomed to about 1.5 so the text is large, and crop out the runtime id.
 The live take refuses to run unless the lab is in Real mode and the AWS tab says LIVE route, and refuses to claim success (`result.json`) unless Part 1 showed its frames, the data was redacted and then blocked, the AWS agent answered both questions correctly, and the refused call was refused at the gateway. The Agent Card panel's `protocolVersion` row is hidden during the recording (the video names no version below 1.0.0); the take never opens the Agent Card frame's pop-out.
