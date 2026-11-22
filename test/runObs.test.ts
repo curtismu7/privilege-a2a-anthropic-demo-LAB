@@ -27,7 +27,7 @@ test('trace events become rows in the right layer, and only a real answer is all
   assert.deepEqual(notesFor({ kind: 'error', from: 'main', to: 'aws-agent', wire: { status: 403 } }, T0).map(n => [n.layer, n.outcome]), [['gateway', 'refused']]);
   assert.deepEqual(notesFor({ kind: 'mcp-call', text: 'analyst → get_user_entitlements', from: 'analyst', to: 'mcp' }, T0).map(n => [n.layer, n.outcome]), [['resource', 'info']]);
   assert.deepEqual(notesFor({ kind: 'mcp-result', text: 'get_user_entitlements returned' }, T0).map(n => [n.layer, n.outcome]), [['resource', 'allowed']]);
-  assert.deepEqual(notesFor({ kind: 'error', from: 'mcp', to: 'analyst', detail: 'Tool reply blocked by security policy' }, T0).map(n => [n.layer, n.outcome]), [['privilege', 'blocked'], ['gateway', 'blocked']]);
+  assert.deepEqual(notesFor({ kind: 'error', from: 'mcp', to: 'analyst', detail: '{"error":{"code":"content_blocked","message":"response blocked by security policy"}}' }, T0).map(n => [n.layer, n.outcome]), [['privilege', 'blocked'], ['gateway', 'blocked']]);
   assert.deepEqual(notesFor({ kind: 'model', text: 'main agent' }, T0), []); // a model call is not a layer decision
   assert.deepEqual(notesFor({ kind: 'error', text: 'Worker trace unavailable' }, T0).map(n => n.outcome), ['info']); // never inferred as a refusal
 });
@@ -35,7 +35,7 @@ test('trace events become rows in the right layer, and only a real answer is all
 test('the decision line is read back by the lab matcher, and request text cannot fake one', () => {
   const run = '11111111-2222-4333-8444-555555555555';
   const line = decisionLine(run, { actor: 'main', target: 'aws-agent', result: 'stopped' }, new Date(T0));
-  assert.equal(line, `2026-11-22T10:00:00.000Z privilege-a2a-lab decision run=${run} actor=main target=aws-agent result=stopped`);
+  assert.equal(line, `2026-11-22T10:00:00.000Z privilege-a2a-lab decision mode=real run=${run} actor=main target=aws-agent result=stopped`);
   assert.ok(LAB_MATCHER.pattern.test(line));
   const hostile = `GET /x?q=${line}`;
   assert.equal(LAB_MATCHER.pattern.test(hostile), false);
@@ -50,14 +50,14 @@ test('the recorder logs one line per decision and never a token or a message bod
   rec.note({ kind: 'delegate', from: 'main', to: 'analyst', detail: 'Bearer eyJhbGciOi.secret.token' }, T0);
   rec.note({ kind: 'result', from: 'analyst', to: 'main', detail: 'the secret answer' }, T0 + 5);
   assert.equal(lines.length, 1);
-  assert.match(lines[0]!, /^\S+ privilege-a2a-lab decision run=[a-f0-9-]{36} actor=analyst target=main result=passed$/);
+  assert.match(lines[0]!, /^\S+ privilege-a2a-lab decision mode=mock run=[a-f0-9-]{36} actor=analyst target=main result=passed$/);
   assert.ok(!/eyJ|secret/.test(lines.join('\n')));
 });
 
 const feed = (rec: RunRecorder): void => {
   rec.note({ kind: 'delegate', from: 'main', to: 'analyst', text: 'concierge → analyst_agent' }, T0 + 100);
   rec.note({ kind: 'mcp-call', from: 'analyst', to: 'mcp', text: 'analyst → get_user_entitlements' }, T0 + 200);
-  rec.note({ kind: 'error', from: 'mcp', to: 'analyst', detail: 'blocked by security policy' }, T0 + 300);
+  rec.note({ kind: 'error', from: 'mcp', to: 'analyst', detail: 'response blocked by security policy' }, T0 + 300);
   rec.note({ kind: 'result', from: 'analyst', to: 'main', wire: { status: 200 } }, T0 + 400);
   rec.finish(T0 + 500);
 };
@@ -157,4 +157,26 @@ test('Real reads the logs a little either side of the run (and Mock does not), s
   assert.equal(seen[1]!.startedAt, real.startedAt - READ_PAD_MS);
   assert.equal(seen[1]!.endedAt, real.startedAt + 10 + READ_PAD_MS);
   resetRuns();
+});
+
+test('a failing status is never a pass: a result or token with 401, 403 or 500 is stopped or information, and ordinary errors are not blocks', () => {
+  assert.deepEqual(notesFor({ kind: 'result', from: 'a', to: 'b', wire: { status: 403 } }, T0).map(n => n.outcome), ['refused']);
+  assert.deepEqual(notesFor({ kind: 'result', from: 'a', to: 'b', wire: { status: 500 } }, T0).map(n => n.outcome), ['info']);
+  assert.deepEqual(notesFor({ kind: 'token', from: 'main', wire: { status: 401 } }, T0).map(n => n.outcome), ['refused']);
+  assert.deepEqual(decisionOf({ kind: 'result', from: 'a', to: 'b', wire: { status: 401 } }), { actor: 'a', target: 'b', result: 'stopped' });
+  assert.equal(decisionOf({ kind: 'result', from: 'a', to: 'b', wire: { status: 500 } }), null);
+  assert.deepEqual(decisionOf({ kind: 'card', from: 'main', to: 'x', wire: { status: 403 } }), { actor: 'main', target: 'x', result: 'stopped' });
+  // permission denied / forbidden in a tool failure is an ordinary error: no Privilege block row, no blocked line
+  const plain = { kind: 'error', from: 'mcp', to: 'analyst', detail: 'permission denied reading file; forbidden' };
+  assert.deepEqual(notesFor(plain, T0).map(n => [n.layer, n.outcome]), [['gateway', 'info']]);
+  assert.equal(decisionOf(plain), null);
+});
+
+test('the decision line says which mode wrote it, so a Mock line is never read as a Real run', () => {
+  const run = '11111111-2222-4333-8444-555555555555';
+  const mockLine = decisionLine(run, { actor: 'main', target: 'x', result: 'passed' }, new Date(T0), 'mock');
+  assert.match(mockLine, / decision mode=mock run=/);
+  const m = LAB_MATCHER.pattern.exec(mockLine);
+  assert.ok(m);
+  assert.match(LAB_MATCHER.build(m!).message, /\(mock run\)/);
 });

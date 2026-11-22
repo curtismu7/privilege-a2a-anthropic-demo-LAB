@@ -25,6 +25,8 @@ export default function RunObs() {
   const reload = useRef(() => {});
   const timer = useRef(null);
   const modeRef = useRef(null);
+  const ranRef = useRef(false);
+  const seq = useRef(0); // only the newest read may set the state
 
   useEffect(() => {
     let live = true;
@@ -32,22 +34,26 @@ export default function RunObs() {
       .then(jsonOrNull)
       .then((info) => { if (live && info) setMode((info.source || info.mode) === "real" ? "real" : "mock"); })
       .catch(() => { /* the paad:mode event still sets it */ });
-    const onMode = (e) => setMode(e.detail && e.detail.mode === "real" ? "real" : "mock");
-    const onReset = () => { setRan(false); setState(null); };
-    const load = () => {
-      setState((s) => ({ ...(s || {}), pending: true }));
+    const load = (fresh) => {
+      const mine = ++seq.current;
+      // A new run starts a clean panel; a re-read keeps the record on screen while it loads.
+      setState((s) => (fresh ? { pending: true } : { ...(s || {}), pending: true }));
       return fetch("/api/run-observability", { headers: { Accept: "application/json" } })
         .then(jsonOrNull)
-        .then((b) => { if (live) setState(b && "record" in b ? { record: b.record, message: b.message } : { record: b || { error: "unreachable", message: "The server answered with something that is not JSON." } }); })
-        .catch(() => { if (live) setState({ record: { error: "unreachable", message: "Could not reach the server." } }); });
+        .then((b) => { if (live && mine === seq.current) setState(b && "record" in b ? { record: b.record, message: b.message } : { record: b || { error: "unreachable", message: "The server answered with something that is not JSON." } }); })
+        .catch(() => { if (live && mine === seq.current) setState({ record: { error: "unreachable", message: "Could not reach the server." } }); });
     };
-    reload.current = load;
+    reload.current = () => load(false);
+    // The record belongs to the mode its run was made in: after a switch, ask again so the server says so, never show it under the other mode.
+    const onMode = (e) => { setMode(e.detail && e.detail.mode === "real" ? "real" : "mock"); if (ranRef.current) { clearTimeout(timer.current); load(true); } };
+    const onReset = () => { clearTimeout(timer.current); seq.current += 1; ranRef.current = false; setRan(false); setState(null); };
     const onDone = () => {
+      ranRef.current = true;
       setRan(true);
       clearTimeout(timer.current);
-      load();
+      load(true);
       // Real only: the logs arrive late, so read once more after a few seconds (Mock rows are computed, nothing to wait for).
-      if (modeRef.current === "real") timer.current = setTimeout(load, REREAD_MS);
+      if (modeRef.current === "real") timer.current = setTimeout(() => load(false), REREAD_MS);
     };
     window.addEventListener("paad:mode", onMode);
     window.addEventListener("paad:reset", onReset);

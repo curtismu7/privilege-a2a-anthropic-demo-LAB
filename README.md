@@ -538,10 +538,11 @@ the page script opens the drawer when a run finishes.
   working. The Docker reader is opt-in (`RUN_OBS_DOCKER=1`, for an ad-hoc run or a video capture); **this lab never mounts the Docker socket**. The one network
   call the vendored readers make is that read to the loopback Elasticsearch.
 - **The lab's own log.** For each decision it sees, the main agent writes one line to stdout (the same time the row carries): `<ISO time> privilege-a2a-lab decision
-  run=<id> actor=<name> target=<name> result=passed|stopped|blocked`. No token, no message body. That line is what the gateway lane reads as `logged`.
+  mode=mock|real run=<id> actor=<name> target=<name> result=passed|stopped|blocked`. No token, no message body. That line is what the gateway lane reads as `logged`.
 - **Time.** A row's time is when the lab saw the event. Real runs are read from 2 s before to 2 s after the run (container clocks and the collector's batching
   differ); a line found only by its time says so (`window`), a line carrying the run's id says `id`. Two runs close together can interleave window-matched rows.
   Real re-reads the logs once about 5 s after a run (the collector ships with a delay) and has a **Re-read logs** button.
+- **One record, the latest run.** The lab keeps ONE latest run, shared by every browser tab on it: a second run (or a second tab) replaces it. This is a single-user demo lab; run one prompt at a time.
 - The panel refuses a record whose mode differs from the page's mode, and `GET /api/run-observability` returns no record for a run made in the other mode.
 
 **Where this run leaves logs, and where they stream.**

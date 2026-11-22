@@ -24,9 +24,10 @@ export const LAB_PRODUCT = 'privilege-a2a-lab';
 
 const str = (v: unknown, max = 200): string => (typeof v === 'string' ? v.replace(/[\r\n]+/g, ' ').slice(0, max) : '');
 const statusOf = (e: TraceLike): number | null => (typeof e.wire?.status === 'number' ? e.wire.status : null);
-/** Same test the API call reel uses for a tool reply the gateway blocked. */
-const isBlockedReply = (e: TraceLike): boolean => e.kind === 'error' && e.from === 'mcp' && /blocked|security policy|denied|forbidden/i.test(str(e.detail, 1000));
+/** A tool reply the gateway's content check blocked: the measured wording is code content_blocked, "response blocked by security policy". Words like denied or forbidden are ordinary errors, not a block. */
+const isBlockedReply = (e: TraceLike): boolean => e.kind === 'error' && e.from === 'mcp' && /content_blocked|blocked by security policy/i.test(str(e.detail, 1000));
 const toolName = (e: TraceLike): string => str(e.text, 80).replace(/^analyst\s*(?:→|->)\s*/, '').replace(/\s+returned$|\s+failed$/, '');
+const failedStatus = (status: number | null): boolean => status !== null && status >= 400;
 const who = (v: unknown): string => str(v, 40).toLowerCase().replace(/[^a-z0-9_-]/g, '-') || 'unknown';
 
 /**
@@ -40,19 +41,22 @@ export function notesFor(e: TraceLike, at: number): RunNote[] {
   const note = (layer: RunLayer, outcome: RunOutcome, message: string): RunNote => ({ at, layer, outcome, message });
   switch (e.kind) {
     case 'token':
+      if (failedStatus(status)) return [note('agent', status === 401 || status === 403 ? 'refused' : 'info', `${from} asked the identity provider for a token and got HTTP ${status}`)];
       return [note('agent', 'allowed', `${from} was issued a token by the identity provider (client credentials)${status ? `, HTTP ${status}` : ''}`)];
     case 'card':
       return [note('gateway', status === 401 || status === 403 ? 'refused' : 'info', `${from} read ${to}'s Agent Card through the gateway${status ? `, HTTP ${status}` : ''}`)];
     case 'delegate':
       return [note('agent', 'info', `${from} handed the message to ${to} through the gateway`)];
     case 'result':
+      if (failedStatus(status)) return [note('gateway', status === 401 || status === 403 ? 'refused' : 'info', `${from} answered ${to} through the gateway with HTTP ${status}`)];
       return [note('gateway', 'allowed', `${from} answered ${to} through the gateway${status ? `, HTTP ${status}` : ''}`)];
     case 'mcp-call':
       return [note('resource', 'info', `${from} called the tool ${toolName(e)} on the MCP server`)];
     case 'mcp-result':
+      if (failedStatus(status)) return [note('resource', 'info', `The MCP server answered with HTTP ${status}`)];
       return [note('resource', 'allowed', `The MCP server returned the result of ${toolName(e)}`)];
     case 'error':
-      if (isBlockedReply(e)) return [note('privilege', 'blocked', `A tool reply was blocked on its way back (${str(e.detail, 120)})`), note('gateway', 'blocked', `The gateway did not pass the tool reply from ${from} to ${to}`)];
+      if (isBlockedReply(e)) return [note('privilege', 'blocked', `A tool reply was stopped on its way back: the gateway's content check said it was blocked`), note('gateway', 'blocked', `The gateway did not pass the tool reply from ${from} to ${to}`)];
       if (status === 401 || status === 403) return [note('gateway', 'refused', `The gateway refused the call to ${to}, HTTP ${status}`)];
       return [note('gateway', 'info', `${str(e.text, 120) || 'A hop failed'}${status ? `, HTTP ${status}` : ''}`)];
     default:
@@ -68,14 +72,15 @@ export function decisionOf(e: TraceLike): { actor: string; target: string; resul
   const status = statusOf(e);
   const actor = who(e.from); const target = who(e.to);
   if (isBlockedReply(e)) return { actor, target, result: 'blocked' };
-  if (e.kind === 'error' && (status === 401 || status === 403)) return { actor, target, result: 'stopped' };
+  if ((e.kind === 'error' || e.kind === 'card' || e.kind === 'result' || e.kind === 'token') && (status === 401 || status === 403)) return { actor, target, result: 'stopped' };
+  if (failedStatus(status)) return null; // any other failure carries no verdict: no line
   if (e.kind === 'result' || e.kind === 'mcp-result' || e.kind === 'token') return { actor, target, result: 'passed' };
   return null;
 }
 
 /** The one line the lab writes to stdout for each decision (run id, actor, target, result; never a token or a message body). Every value is already [a-z0-9_-]. */
-export function decisionLine(runId: string, d: { actor: string; target: string; result: string }, now = new Date()): string {
-  return `${now.toISOString()} ${LAB_PRODUCT} decision run=${runId} actor=${d.actor} target=${d.target} result=${d.result}`;
+export function decisionLine(runId: string, d: { actor: string; target: string; result: string }, now = new Date(), mode: RunSource = 'real'): string {
+  return `${now.toISOString()} ${LAB_PRODUCT} decision mode=${mode} run=${runId} actor=${d.actor} target=${d.target} result=${d.result}`;
 }
 
 const OUTCOME_OF = { passed: 'allowed', stopped: 'refused', blocked: 'blocked' } as const;
@@ -86,8 +91,8 @@ export const LAB_MATCHER = {
   product: LAB_PRODUCT,
   layer: 'gateway',
   basis: 'measured-shape',
-  pattern: /^\d{4}-\d{2}-\d{2}T[\d:.]+Z privilege-a2a-lab decision run=([a-f0-9-]{36}) actor=([a-z0-9_-]{1,40}) target=([a-z0-9_-]{1,40}) result=(passed|stopped|blocked)$/,
-  build: (m: RegExpMatchArray) => ({ outcome: OUTCOME_OF[m[4] as keyof typeof OUTCOME_OF], message: `The lab logged what it saw the gateway do for ${m[2]} → ${m[3]}: ${m[4]}`, detail: { actor: m[2], target: m[3], result: m[4] } }),
+  pattern: /^\d{4}-\d{2}-\d{2}T[\d:.]+Z privilege-a2a-lab decision mode=(mock|real) run=([a-f0-9-]{36}) actor=([a-z0-9_-]{1,40}) target=([a-z0-9_-]{1,40}) result=(passed|stopped|blocked)$/,
+  build: (m: RegExpMatchArray) => ({ outcome: OUTCOME_OF[m[5] as keyof typeof OUTCOME_OF], message: `The lab logged what it saw the gateway do for ${m[3]} → ${m[4]}: ${m[5]} (${m[1]} run)`, detail: { actor: m[3], target: m[4], result: m[5], mode: m[1] } }),
 };
 
 export interface RunRecord { [key: string]: unknown }
@@ -105,7 +110,7 @@ export class RunRecorder {
   note(event: TraceLike, at = Date.now()): void {
     this.notes.push(...notesFor(event, at));
     const decision = decisionOf(event);
-    if (decision) this.log(decisionLine(this.runId, decision, new Date(at)));
+    if (decision) this.log(decisionLine(this.runId, decision, new Date(at), this.source));
   }
 
   finish(at = Date.now()): void { this.endedAt = at; }

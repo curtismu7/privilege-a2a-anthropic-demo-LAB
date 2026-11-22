@@ -102,4 +102,52 @@ describe("RunObs (rule 27 panel under the run)", () => {
       expect(screen.queryByTestId("ro-reread")).toBeNull();
     } finally { vi.useRealTimers(); }
   });
+
+  test("switching mode after a run asks again, so a Mock record is not shown under Real", async () => {
+    let mode = "mock";
+    const f = vi.fn(async (url) => ({ json: async () => (String(url).startsWith("/api/info") ? { mode, source: mode } : (mode === "mock" ? { record: mockRecord } : { record: null, message: "The latest run was in Mock mode." })) }));
+    vi.stubGlobal("fetch", f);
+    render(<RunObs />);
+    await waitFor(() => expect(screen.getByTestId("ro-empty")).toBeInTheDocument());
+    await done();
+    await waitFor(() => expect(screen.getByTestId("ro-table")).toBeInTheDocument());
+    mode = "real";
+    await act(async () => { window.dispatchEvent(new CustomEvent("paad:mode", { detail: { mode: "real" } })); });
+    await waitFor(() => expect(screen.getByTestId("ro-none")).toHaveTextContent("Mock mode"));
+    expect(screen.queryByTestId("ro-table")).toBeNull();
+  });
+
+  test("an older read that finishes last cannot overwrite a newer one", async () => {
+    const slow = { release: null };
+    let n = 0;
+    const f = vi.fn((url) => {
+      if (String(url).startsWith("/api/info")) return Promise.resolve({ json: async () => ({ mode: "mock", source: "mock" }) });
+      n += 1;
+      if (n === 1) return new Promise((r) => { slow.release = () => r({ json: async () => ({ record: null, message: "OLD answer" }) }); });
+      return Promise.resolve({ json: async () => ({ record: null, message: "NEW answer" }) });
+    });
+    vi.stubGlobal("fetch", f);
+    render(<RunObs />);
+    await waitFor(() => expect(screen.getByTestId("ro-empty")).toBeInTheDocument());
+    await done(); // read 1 is slow
+    await done(); // read 2 answers at once
+    await waitFor(() => expect(screen.getByTestId("ro-none")).toHaveTextContent("NEW answer"));
+    await act(async () => { slow.release(); });
+    expect(screen.getByTestId("ro-none")).toHaveTextContent("NEW answer");
+  });
+
+  test("Reset cancels the pending Real re-read", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const f = answer("real", { record: realRecord });
+      vi.stubGlobal("fetch", f);
+      render(<RunObs />);
+      await waitFor(() => expect(screen.getByTestId("ro-empty")).toBeInTheDocument());
+      await done();
+      await act(async () => { window.dispatchEvent(new CustomEvent("paad:reset")); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(REREAD_MS * 2); });
+      expect(f.mock.calls.filter((c) => String(c[0]).startsWith("/api/run-observability")).length).toBe(1);
+      expect(screen.getByTestId("ro-empty")).toBeInTheDocument();
+    } finally { vi.useRealTimers(); }
+  });
 });
