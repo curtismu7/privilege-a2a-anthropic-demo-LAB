@@ -17,7 +17,7 @@ Order of work: `SCRIPT.md` (sources first) -> `captions.md` (wording) -> **sampl
 
     # live takes, one per screen (the lab on :6881 in Real mode with the LIVE route): exact-size headless recording is the default
     HEADLESS_REAL=1 PROFILE=monitor python3 video/take.py <dir>   # 1920x1080, app text L, large slides
-    HEADLESS_REAL=1 PROFILE=laptop  python3 video/take.py <dir>   # 2400x1558 (retina), app text S, normal slides
+    HEADLESS_REAL=1 PROFILE=laptop  python3 video/take.py <dir>   # 1800x1169 (the display in points; recorded in page pixels, a bigger canvas only adds grey bands), app text S, normal slides
     # screen capture instead (leave the Mac alone, check every frame): PROFILE=monitor python3 video/take.py <dir>
     # guarded: same take, but if the lab disappears mid-take it stops that take, restarts the lab, moves the partial run to <dir>-aborted-N and tries again (video/guarded_take.py; test: python3 video/test_guarded_take.py)
     HEADLESS_REAL=1 PROFILE=monitor SEGMENT=main python3 video/guarded_take.py <dir>
