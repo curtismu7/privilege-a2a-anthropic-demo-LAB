@@ -57,6 +57,7 @@ def _slide_fields(fields, which):
         _fail(f"{which} needs both a '## Column A: ...' and a '## Column B: ...' heading")
     return {
         "image": fields.get("Image", "").strip() or None,
+        "wide": fields.get("Layout", "").strip().lower() == "wide",   # optional "## Layout" = wide: the image runs full width above the two columns
         "title": title, "lead": lead,
         "col_a_heading": col_a_name.split(":", 1)[1].strip(), "col_a_lines": _bullets(fields[col_a_name]),
         "col_b_heading": col_b_name.split(":", 1)[1].strip(), "col_b_lines": _bullets(fields[col_b_name]),

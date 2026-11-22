@@ -153,7 +153,7 @@ OVERLAY = r"""
     card.querySelector('.colb h2').textContent = o.colb.h;
     card.querySelector('.colb ul').append(...o.colb.lines.map((l) => { const li = document.createElement('li'); li.textContent = l; return li; }));
     card.querySelector('.verdict').textContent = o.verdict;
-    if (o.image) { card.classList.add('withimg'); const split = document.createElement('div'); split.className = 'split'; const im = document.createElement('img'); im.src = o.image; im.alt = 'Screenshot of the Privilege console'; const cols = card.querySelector('.cols'); cols.style.gridTemplateColumns = '1fr'; cols.parentNode.insertBefore(split, cols); split.append(im, cols); }
+    if (o.image) { card.classList.add('withimg'); const split = document.createElement('div'); split.className = 'split'; const im = document.createElement('img'); im.src = o.image; im.alt = 'Screenshot of the Privilege console'; const cols = card.querySelector('.cols'); if (o.wide) { split.style.gridTemplateColumns = '1fr'; cols.parentNode.insertBefore(split, cols); split.append(im); } else { cols.style.gridTemplateColumns = '1fr'; cols.parentNode.insertBefore(split, cols); split.append(im, cols); } }
     // Belt and suspenders on top of the CSS max-height: an explicit pixel value computed from the real
     // viewport, so this never depends on vh units resolving the way a particular Chromium build expects.
     card.style.maxHeight = Math.round(innerHeight * 0.88 / S) + 'px';
@@ -221,7 +221,7 @@ def slide_payload(cfg):
     return dict(image=image, title=cfg["title"], lead=cfg["lead"],
                 cola=dict(h=cfg["col_a_heading"], lines=cfg["col_a_lines"]),
                 colb=dict(h=cfg["col_b_heading"], lines=cfg["col_b_lines"]),
-                verdict=cfg["verdict"])
+                verdict=cfg["verdict"], wide=bool(cfg.get("wide")))
 
 def slide_hold_text(cfg):
     return " ".join([cfg["lead"], *cfg["col_a_lines"], *cfg["col_b_lines"], cfg["verdict"]])
@@ -443,6 +443,7 @@ def main():
             page.evaluate("() => window.__cm.clear()")
             show_slide(SLIDES["config_app"], extra=2.0, name="slide-config-app", cap=34.0)
             show_slide(SLIDES["config_agent"], extra=2.0, name="slide-config-agent", cap=40.0)
+            show_slide(SLIDES["config_policy"], extra=2.0, name="slide-config-policy", cap=40.0)
             show_slide(SLIDES["spec"], extra=2.0, name="slide-spec", cap=50.0)
             show_slide(SLIDES["rfcs"], extra=2.0, name="slide-rfcs", cap=50.0)
 
@@ -534,6 +535,7 @@ def main():
             if count["n"] != TOTAL: log("NOTE: %d caption bubbles were shown but the counter says %d; set TOTAL to match" % (count["n"], TOTAL))
             page.evaluate("() => window.__cm.clear()")
             if ok:
+                show_slide(SLIDES["config_activity"], extra=2.0, name="slide-config-activity", cap=40.0)   # the calls just made, on record in the console
                 show_slide(SLIDES["protect"], extra=2.0, name="slide-protect", cap=54.0)   # "what else could it stop?", just before the closing
                 closing = dict(CLOSING_SLIDE)
                 if SAMPLE:   # the sample never claims a live run
