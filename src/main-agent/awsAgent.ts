@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { MAIN, maskKey, pretty, type CardSummary, type ChainEvent, type WireFacts } from './chain.js';
 import { parseChallenge, type Challenge } from './challenge.js';
 import { AWS_CARD_REFS, AWS_DELEGATE_REFS, ERROR_REFS, METADATA_REFS, REFUSED_REFS } from './reelRefs.js';
-import { describeToken } from './tokenView.js';
+import { describeToken, type TokenView } from './tokenView.js';
 
 /**
  * The main agent calling an agent that runs in AWS (a Bedrock AgentCore runtime), through the Privilege gateway.
@@ -56,6 +56,8 @@ export const maskAccountIds = (value: string): string =>
     .replace(/(:)\d{12}(:)/g, '$1xxxxxxxxxxxx$2')
     // The same id inside a URL-encoded ARN (`%3A`), or encoded twice by a gateway (`%253A`), as AWS's own Agent Card writes it.
     .replace(/(%(?:25)?3A)\d{12}(?=%(?:25)?3A)/gi, '$1xxxxxxxxxxxx');
+/** A decoded token for display, with any AWS account id inside a claim masked like the rest of the page. */
+export const maskTokenView = (view: TokenView): TokenView => JSON.parse(maskAccountIds(JSON.stringify(view))) as TokenView;
 /** Every wire body the page shows goes through here: cut to a readable length and with the AWS account id masked. */
 const clip = (raw: string): string => {
   const masked = maskAccountIds(raw); // mask before cutting: a cut inside an id would leave digits that no longer match
@@ -144,7 +146,7 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
   };
   const auth: Record<string, string> = bearer ? { Authorization: `Bearer ${bearer}` } : {};
   // The same credential goes on the card read and on the message, so one decoded view serves both. Never the raw token.
-  const tokenView = bearer ? { token: describeToken(bearer) } : {};
+  const tokenView = bearer ? { token: maskTokenView(describeToken(bearer)) } : {};
   const shownAuth = credential ? `\nAuthorization: Bearer ${credential}` : '';
 
   const report = (rawDetail: string, wire?: WireFacts, response?: string, challenge?: Challenge | null): string => {

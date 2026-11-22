@@ -9,7 +9,7 @@ import { systemPromptFor, toolChoiceFor } from './prompts.js';
 import { stripUnsourcedScope, textOfTurn } from './scopeFilter.js';
 import { buildWorkerClient } from './a2a-client.js';
 import { MAIN, maskKey, pretty, runChain } from './chain.js';
-import { runAwsAgent } from './awsAgent.js';
+import { maskTokenView, runAwsAgent } from './awsAgent.js';
 import { REFUSAL_DEMO_CREDENTIAL } from '../aws-refusal.js';
 import { createPfTokenProvider } from './pfToken.js';
 import { KIND_REFS, TOKEN_REFS } from './reelRefs.js';
@@ -261,7 +261,7 @@ app.post('/aws-agent', async (req: Request, res: Response) => {
         sendSse(res, 'trace', {
           kind: 'token', from: MAIN, to: 'pingfederate', toLabel: 'PingFederate (token endpoint)', text: 'main asks PingFederate for a token',
           detail: `OAuth client credentials grant${lifetime}`, elapsedMs: Date.now() - minting, request: mint.request, response: mint.response,
-          wire: { status: mint.status }, token: mint.token, refs: [...TOKEN_REFS], at: at(),
+          wire: { status: mint.status }, token: maskTokenView(mint.token), refs: [...TOKEN_REFS], at: at(),
         });
       }
     }
