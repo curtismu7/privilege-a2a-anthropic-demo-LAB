@@ -265,6 +265,17 @@ def main():
     from datetime import datetime, timezone
     result = {"ok": False, "started_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"), "stamps": {}}
     def stamp(name): result["stamps"][name] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    def grab_obs(page, name):
+        """Read the lab's own run-observability record for the run that just ended (what each layer logged), straight from the app, and keep it in result.json.
+        The end slide is built from these records, so it shows the very run that was recorded. A failed read is logged and recorded as such, never invented."""
+        try:
+            page.wait_for_timeout(1500)   # a log line is written the moment the lab decides; this only lets the stream settle
+            rec = page.evaluate("fetch('/api/run-observability').then(r => r.json())")
+        except Exception as e:
+            rec = {"error": "capture_failed", "message": str(e)[:200]}
+        result.setdefault("obs", {})[name] = rec
+        r = rec.get("record") if isinstance(rec, dict) else None
+        log("observability", name, "->", json.dumps({"coverage": r.get("coverage"), "summary": r.get("summary")}) if r else json.dumps(rec)[:200])
     with sync_playwright() as pw:
         ctx = pw.chromium.launch_persistent_context(
             profile, headless=HEADLESS, no_viewport=not HEADLESS, viewport={"width": WIN_W, "height": WIN_H} if HEADLESS else None,
@@ -275,6 +286,8 @@ def main():
         ctx.add_init_script("window.__cmScale = " + json.dumps(SCALE) + ";")
         ctx.add_init_script("window.__pillText = " + json.dumps("SAMPLE: simulated stand-in, not a live run" if SAMPLE else None) + ";")
         ctx.add_init_script(OVERLAY)
+        # The lab's observability drawer opens itself when a run ends and would reflow the page being filmed: keep it out of the picture. The take reads its record instead.
+        ctx.add_init_script("document.addEventListener('DOMContentLoaded', () => { const s = document.createElement('style'); s.textContent = '#run-obs-drawer{display:none!important}'; document.head.appendChild(s); });")
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         page.goto(APP + "/"); page.wait_for_selector("#tab-aws")
         page.select_option("[data-testid=theme-select]", THEME)
@@ -433,6 +446,7 @@ def main():
                 log("part 1 / prompt 1 frames:", titles1, "| answer:", answer1[:160])
                 ok1 = "Send the message" in titles1 and "Tool result" in titles1 and bool(answer1) and "Request failed" not in answer1
                 result.update(part1_frames=titles1, part1_answer=answer1[:300])
+                grab_obs(page, "part1_allowed")
                 bubble("p1_handoff", "#who", place="bl")
                 popout(frame_sel("#reel-review", "Send the message"), "The call", "p1_message")
                 if "Call the tool" in titles1:
@@ -456,6 +470,7 @@ def main():
                 blocked = page.evaluate("() => /content_blocked|blocked by security policy/i.test(document.getElementById('trace').textContent)")
                 log("part 1 / prompt 2 frames:", titles2, "| blocked marker in trace:", blocked)
                 result.update(part1_blocked=blocked, part1_frames_2=titles2, part1_redacted=redacted)
+                grab_obs(page, "part1_blocked")
                 ok1 = ok1 and (blocked or SAMPLE)
                 tag("#trace .trace.error >> nth=-1", "cm-blocked") if page.locator("#trace .trace.error").count() else tag("#reel-review .reel__frame >> nth=-1", "cm-blocked")
                 bubble("p1_blocked", "#cm-blocked", prefer="left")
@@ -509,6 +524,7 @@ def main():
                 ok = (live or SAMPLE) and has_result and bool(answer) and not err and (SAMPLE or P2_SUM in answer.replace(',', ''))
                 result.update(sum1_correct=P2_SUM in answer.replace(',', ''))
                 result.update(ok=ok, live=live, states=st1, answer=answer[:300])
+                grab_obs(page, "part2_allowed")
                 if ok:
                     page.evaluate("() => document.getElementById('aws-reel').scrollIntoView({block: 'center'})")
                     bubble("result", "#aws-trace li[data-kind=result]", prefer="left", lines=[page.locator("#aws-trace li[data-kind=result] .aws__at").first.inner_text().strip() and ("answered in " + page.locator("#aws-trace li[data-kind=result] .aws__at").first.inner_text().strip())])
@@ -556,6 +572,7 @@ def main():
                     gw_state = page.inner_text("#aws-s-gateway").strip(); aws_state = page.inner_text("#aws-s-aws").strip()
                     refusal_ok = ref_answer.startswith("HTTP 401") and ((gw_state.startswith("refused") and aws_state == "not reached") if not SAMPLE else aws_state.startswith("stopped"))
                     result.update(refusal_ok=refusal_ok, refusal_states=ref_states, challenge_params=params)
+                    grab_obs(page, "part2_refused")
                     if refusal_ok:
                         page.evaluate("() => document.querySelector('ol.aws__flow').scrollIntoView({block: 'start'})")
                         bubble("refused_states", "ol.aws__flow", prefer="below", lines=[" · ".join(ref_states)], sample_key="sample_refused_states")
