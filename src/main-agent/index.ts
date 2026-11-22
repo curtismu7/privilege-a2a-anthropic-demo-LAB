@@ -12,6 +12,8 @@ import { MAIN, maskKey, pretty, runChain } from './chain.js';
 import { runAwsAgent } from './awsAgent.js';
 import { REFUSAL_DEMO_CREDENTIAL } from '../aws-refusal.js';
 import { createPfTokenProvider } from './pfToken.js';
+import { KIND_REFS, TOKEN_REFS } from './reelRefs.js';
+import { describeToken } from './tokenView.js';
 import { renderPage } from './ui.js';
 import { shelfInfo } from '../shelfLink.js';
 import { labAllowedHosts, sameOriginGuard } from '../originGuard.js';
@@ -246,9 +248,26 @@ app.post('/aws-agent', async (req: Request, res: Response) => {
   res.on('close', () => { if (!res.writableEnded) abort.abort(); });
 
   try {
+    let bearer = config.bearer;
+    if (refusalDemo) {
+      bearer = REFUSAL_DEMO_CREDENTIAL;
+    } else if (awsAgentToken && !config.awsAgentSimulated) {
+      // A live run asks PingFederate for a fresh token, so the trace shows the mint (decoded; the secret masked, the token never raw).
+      const minting = Date.now();
+      bearer = await awsAgentToken({ fresh: true });
+      const mint = awsAgentToken.lastMint();
+      if (mint) {
+        const lifetime = mint.token.kind === 'jwt' && mint.token.lifetimeSeconds !== undefined ? `, valid for ${Math.round(mint.token.lifetimeSeconds / 60)} min` : '';
+        sendSse(res, 'trace', {
+          kind: 'token', from: MAIN, to: 'pingfederate', toLabel: 'PingFederate (token endpoint)', text: 'main asks PingFederate for a token',
+          detail: `OAuth client credentials grant${lifetime}`, elapsedMs: Date.now() - minting, request: mint.request, response: mint.response,
+          wire: { status: mint.status }, token: mint.token, refs: [...TOKEN_REFS], at: at(),
+        });
+      }
+    }
     const answer = await runAwsAgent({
       url: config.awsAgentA2aUrl,
-      bearer: refusalDemo ? REFUSAL_DEMO_CREDENTIAL : awsAgentToken && !config.awsAgentSimulated ? await awsAgentToken() : config.bearer,
+      bearer,
       message,
       simulated: config.awsAgentSimulated,
       refusalDemo,
@@ -394,7 +413,7 @@ app.post('/chat', async (req: Request, res: Response) => {
             params: { message: { role: 'user', messageId: '<message id>', parts: [{ kind: 'text', text: question }] } },
           })),
         ].join('\n');
-        sendSse(res, 'trace', { ...withLabels({ from: MAIN, to: 'analyst' }, profile), kind: 'delegate', text: 'concierge → analyst_agent', detail: question, request, at: at() });
+        sendSse(res, 'trace', { ...withLabels({ from: MAIN, to: 'analyst' }, profile), kind: 'delegate', text: 'concierge → analyst_agent', detail: question, request, refs: [...(KIND_REFS.delegate ?? [])], ...(config.bearer ? { credential: maskKey(config.bearer), token: describeToken(config.bearer) } : {}), at: at() });
         const hopStartedAt = Date.now();
         try {
           const { text: answer, toolOutputs } = await worker.sendQuestion(question, traceId, profile ? { vertical: profile.vertical, tools: profile.tools, ...(heuristic ? { mode: 'heuristics', userName: parseUserName(body) } : {}) } : undefined);

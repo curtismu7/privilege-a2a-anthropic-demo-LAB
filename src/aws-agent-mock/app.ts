@@ -27,13 +27,27 @@ export function createAwsAgentMockApp(options: AwsMockOptions = {}): Express {
 
   app.get('/ping', (_req: Request, res: Response) => res.json({ status: 'Healthy' }));
 
+  // RFC 9728: the metadata address a 401 challenge points at is this stand-in's own, so the demo reads it with no network.
+  const METADATA_PATH = '/.well-known/oauth-protected-resource';
+  const selfBase = (req: Request): string => `${req.protocol}://${req.get('host') ?? 'localhost'}`;
+
+  app.get(METADATA_PATH, (req: Request, res: Response) => {
+    res.json({
+      resource: `${selfBase(req)}/`,
+      resource_name: 'Cloud Access Agent (simulated)',
+      authorization_servers: ['https://auth.example.invalid'],
+      bearer_methods_supported: ['header'],
+    });
+  });
+
   const requireAuth = (req: Request, res: Response): boolean => {
+    const metadata = `resource_metadata="${selfBase(req)}${METADATA_PATH}"`;
     if ((req.header('authorization') ?? '') === `Bearer ${REFUSAL_DEMO_CREDENTIAL}`) {
-      res.status(401).set('WWW-Authenticate', 'Bearer error="invalid_token"').json({ error: 'unauthorized', error_description: 'The credential was not accepted (simulated refusal)' });
+      res.status(401).set('WWW-Authenticate', `Bearer error="invalid_token", ${metadata}`).json({ error: 'unauthorized', error_description: 'The credential was not accepted (simulated refusal)' });
       return false;
     }
     if (!options.requireBearer || /^Bearer\s+\S+/i.test(req.header('authorization') ?? '')) return true;
-    res.status(401).set('WWW-Authenticate', 'Bearer').json({ error: 'Bearer authentication required' });
+    res.status(401).set('WWW-Authenticate', `Bearer ${metadata}`).json({ error: 'Bearer authentication required' });
     return false;
   };
 

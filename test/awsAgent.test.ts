@@ -88,7 +88,8 @@ test('an OAuth-style runtime that wants a Bearer answers 401, and the card step 
     await assert.rejects(runAwsAgent({ url, bearer: '', message: 'hi', emit }), /HTTP 401/);
     assert.equal(events[0]?.kind, 'card');
     assert.match(events[0]?.text ?? '', /No readable Agent Card/);
-    assert.equal(events[events.length - 1]?.wire?.status, 401);
+    // The refusal is followed by the sign-in metadata read it points at, so the error event is not the last one.
+    assert.equal(events.find((event) => event.kind === 'error')?.wire?.status, 401);
   });
   await withMock({ requireBearer: true }, async (url) => {
     const { emit } = collect();
@@ -184,7 +185,7 @@ test('the refused-call demo: an invalid credential is refused with a 401, the ch
     await assert.rejects(runAwsAgent({ url, bearer: REFUSAL_DEMO_CREDENTIAL, message: 'hi', emit, refusalDemo: true }), /HTTP 401/);
     const delegate = events.find((event) => event.kind === 'delegate');
     assert.match(delegate?.text ?? '', /deliberately invalid credential/);
-    const last = events[events.length - 1];
+    const last = events.find((event) => event.kind === 'error');
     assert.equal(last?.kind, 'error');
     assert.equal(last?.wire?.status, 401);
     assert.match(last?.response ?? '', /WWW-Authenticate: Bearer error="invalid_token"/);

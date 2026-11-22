@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
 import type { Profile } from '../profile.js';
+import type { Challenge } from './challenge.js';
+import type { TokenView } from './tokenView.js';
 
 /**
  * The three-deep run: this agent hands a message to a middle agent through
@@ -14,7 +16,7 @@ export const MIDDLE = 'langchainagent';
 
 /** One step of the chain, as the trace pane and the reel draw it. */
 export interface ChainEvent {
-  kind: 'card' | 'delegate' | 'result' | 'error';
+  kind: 'card' | 'delegate' | 'result' | 'error' | 'token' | 'metadata';
   from: string;
   to: string;
   text: string;
@@ -32,6 +34,12 @@ export interface ChainEvent {
   credential?: string;
   /** On a refused call: the message that was sent (`detail` holds the reason). */
   message?: string;
+  /** The credential this call carried, decoded (never raw). On a `token` event, the token that was just minted. */
+  token?: TokenView;
+  /** Ids into the reel's reference table (reelRefs.ts): the specs that govern this step. */
+  refs?: string[];
+  /** On a refused call: the WWW-Authenticate challenge, read into its parts. */
+  challenge?: Challenge;
   /** Display names, present only when a vertical profile was supplied. */
   fromLabel?: string;
   toLabel?: string;

@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
 import { MAIN, maskKey, pretty, type CardSummary, type ChainEvent, type WireFacts } from './chain.js';
+import { parseChallenge, type Challenge } from './challenge.js';
+import { AWS_CARD_REFS, AWS_DELEGATE_REFS, ERROR_REFS, METADATA_REFS, REFUSED_REFS } from './reelRefs.js';
+import { describeToken } from './tokenView.js';
 
 /**
  * The main agent calling an agent that runs in AWS (a Bedrock AgentCore runtime), through the Privilege gateway.
@@ -19,6 +22,8 @@ import { MAIN, maskKey, pretty, type CardSummary, type ChainEvent, type WireFact
 export const AWS_AGENT = 'aws-agent';
 const DEFAULT_TIMEOUT_MS = 60_000;
 const MAX_WIRE_TEXT = 4000;
+const METADATA_TIMEOUT_MS = 10_000;
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]']);
 
 export interface AwsAgentOptions {
   /** The gateway route of the AWS agent's Remote Agent app (or the local stand-in). */
@@ -114,6 +119,11 @@ export function answerFrom(result: Record<string, unknown>): string {
   return partsText(record(record(result.status).message).parts) || partsText(result.parts);
 }
 
+const maskChallenge = (challenge: Challenge): Challenge => ({
+  scheme: challenge.scheme,
+  params: Object.fromEntries(Object.entries(challenge.params).map(([key, value]) => [key, maskAccountIds(value)])),
+});
+
 const reachMessage = (error: unknown): string => {
   const cause = error instanceof Error ? record((error as Error & { cause?: unknown }).cause) : {};
   const code = text(cause.code);
@@ -133,12 +143,75 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
     ...(credential ? { credential } : {}),
   };
   const auth: Record<string, string> = bearer ? { Authorization: `Bearer ${bearer}` } : {};
+  // The same credential goes on the card read and on the message, so one decoded view serves both. Never the raw token.
+  const tokenView = bearer ? { token: describeToken(bearer) } : {};
   const shownAuth = credential ? `\nAuthorization: Bearer ${credential}` : '';
 
-  const fail = (rawDetail: string, wire?: WireFacts, response?: string): never => {
+  const report = (rawDetail: string, wire?: WireFacts, response?: string, challenge?: Challenge | null): string => {
     const detail = maskAccountIds(rawDetail);
-    emit({ ...route, kind: 'error', text: 'The AWS agent call did not complete', detail, ...(wire ? { wire } : {}), ...(response ? { response: clip(response) } : {}) });
-    throw new Error(detail);
+    emit({
+      ...route, kind: 'error', text: 'The AWS agent call did not complete', detail, ...(wire ? { wire } : {}), ...(response ? { response: clip(response) } : {}),
+      ...(challenge ? { challenge: maskChallenge(challenge) } : {}), refs: [...(challenge ? REFUSED_REFS : ERROR_REFS)],
+    });
+    return detail;
+  };
+  const fail = (rawDetail: string, wire?: WireFacts, response?: string): never => {
+    throw new Error(report(rawDetail, wire, response));
+  };
+
+  /**
+   * RFC 9728: a 401 can point at the service's sign-in metadata. Read it, with no credentials, when the address is https (or
+   * loopback, for the local stand-in) and on the same host as the route; say why when it is skipped. Never fails the run.
+   */
+  const readMetadata = async (challenge: Challenge): Promise<void> => {
+    const address = challenge.params.resource_metadata;
+    if (!address) return;
+    const metaRoute = { from: MAIN, to: AWS_AGENT, ...(route.toLabel ? { toLabel: route.toLabel } : {}) };
+    const shownAddress = maskAccountIds(address);
+    const skipped = (why: string): void => emit({ ...metaRoute, kind: 'metadata', text: 'Sign-in metadata not read', detail: why, request: `GET ${shownAddress}`, refs: [...METADATA_REFS] });
+    let target: URL;
+    let routeHost: string;
+    try {
+      target = new URL(address);
+      routeHost = new URL(url).hostname;
+    } catch {
+      skipped('The metadata address in the challenge is not a valid URL, so it was not fetched.');
+      return;
+    }
+    if (target.protocol !== 'https:' && !(target.protocol === 'http:' && LOOPBACK_HOSTS.has(target.hostname))) {
+      skipped('The metadata address is not https, so it was not fetched.');
+      return;
+    }
+    if (target.username || target.password) {
+      skipped('The metadata address carries a user name or password, so it was not fetched.');
+      return;
+    }
+    if (target.hostname !== routeHost) {
+      skipped('The metadata address is on a different host from the route, so it was not fetched.');
+      return;
+    }
+    const started = Date.now();
+    const request = `GET ${shownAddress}\nAccept: application/json\n(no credentials sent)`;
+    try {
+      const response = await doFetch(target.toString(), {
+        method: 'GET', headers: { Accept: 'application/json' }, redirect: 'error',
+        signal: AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(METADATA_TIMEOUT_MS)]),
+      });
+      const raw = await response.text();
+      const body = response.ok ? parseJson(raw) : null;
+      const servers = body && Array.isArray(body.authorization_servers) ? strings(body.authorization_servers) : [];
+      emit({
+        ...metaRoute, kind: 'metadata', request, elapsedMs: Date.now() - started, wire: { status: response.status }, refs: [...METADATA_REFS],
+        text: response.ok && body ? 'main reads the sign-in metadata' : 'Sign-in metadata not available',
+        detail: response.ok && body
+          ? (servers.length ? `Tokens for this service come from: ${maskAccountIds(servers.join(', '))}` : 'The service describes itself, but names no authorization server.')
+          : `HTTP ${response.status} from ${shownAddress}`,
+        response: clip(`HTTP ${response.status}\n${pretty(raw)}`),
+      });
+    } catch (error) {
+      const why = error instanceof Error ? error.message : String(error);
+      emit({ ...metaRoute, kind: 'metadata', text: 'The sign-in metadata could not be read', detail: maskAccountIds(why), request, elapsedMs: Date.now() - started, refs: [...METADATA_REFS] });
+    }
   };
   const stopped = (): never => fail(options.signal?.aborted ? 'The request was cancelled.' : 'The AWS agent did not answer in time.');
 
@@ -156,16 +229,18 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
       emit({
         ...route, kind: 'card', text: `main reads ${text(body.name)}'s Agent Card`, detail: maskAccountIds(text(body.description)),
         elapsedMs: Date.now() - cardStarted, request, response: clip(pretty(raw)), card: summariseCard(body), wire: { status: response.status },
+        ...tokenView, refs: [...AWS_CARD_REFS],
       });
     } else {
       emit({
         ...route, kind: 'card', text: 'No readable Agent Card; sending the message anyway',
         detail: `HTTP ${response.status} from ${shownCard}`, elapsedMs: Date.now() - cardStarted, request, response: clip(raw), wire: { status: response.status },
+        ...tokenView, refs: [...AWS_CARD_REFS],
       });
     }
   } catch (error) {
     if (signal.aborted) stopped();
-    emit({ ...route, kind: 'card', text: 'No readable Agent Card; sending the message anyway', detail: maskAccountIds(reachMessage(error)), request: `GET ${shownCard}${shownAuth}` });
+    emit({ ...route, kind: 'card', text: 'No readable Agent Card; sending the message anyway', detail: maskAccountIds(reachMessage(error)), request: `GET ${shownCard}${shownAuth}`, ...tokenView, refs: [...AWS_CARD_REFS] });
   }
 
   const rpcId = randomUUID();
@@ -180,6 +255,7 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
   emit({
     ...route, kind: 'delegate', text: `main → ${AWS_AGENT} through Privilege${options.refusalDemo ? ' (deliberately invalid credential)' : ''}`, detail: message,
     request: `POST ${shownUrl}\nContent-Type: application/json${shownAuth}\n\n${JSON.stringify(payload, null, 2)}`, wire: { rpcId, messageId },
+    ...tokenView, refs: [...AWS_DELEGATE_REFS],
   });
 
   const started = Date.now();
@@ -201,9 +277,12 @@ export async function runAwsAgent(options: AwsAgentOptions): Promise<string> {
   if (status < 200 || status >= 300 || body?.error !== undefined) {
     const code = typeof rpcError.code === 'number' ? rpcError.code : undefined;
     const reason = text(rpcError.message) || clip(raw.trim()).slice(0, 300) || 'no body';
-    fail(`HTTP ${status}${code !== undefined ? ` · JSON-RPC ${code}` : ''}: ${reason}`, { status, rpcId, ...(code !== undefined ? { errorCode: code } : {}) },
+    const parsed = challenge ? parseChallenge(challenge) : null;
+    const detail = report(`HTTP ${status}${code !== undefined ? ` · JSON-RPC ${code}` : ''}: ${reason}`, { status, rpcId, ...(code !== undefined ? { errorCode: code } : {}) },
       // A 401 carries its challenge in a header (RFC 9110 section 15.5.2); show it, because that is where the client is told how to sign in.
-      challenge ? `HTTP ${status}\nWWW-Authenticate: ${maskAccountIds(challenge)}\n\n${raw}` : raw);
+      challenge ? `HTTP ${status}\nWWW-Authenticate: ${maskAccountIds(challenge)}\n\n${raw}` : raw, parsed);
+    if (status === 401 && parsed) await readMetadata(parsed);
+    throw new Error(detail);
   }
   if (!body) fail(`HTTP ${status}: the reply was not JSON`, { status, rpcId }, raw);
 
