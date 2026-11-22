@@ -254,7 +254,7 @@ async function run(text,refusal){
     if(!answer.textContent){answer.className='aws__answer is-error';answer.textContent='The run ended without an answer.'}
   }catch(err){
     answer.className='aws__answer is-error';answer.textContent='Request failed: '+err.message;setState('main','error','stopped');
-  }finally{busy(false);input.focus()}
+  }finally{busy(false);input.focus();window.dispatchEvent(new CustomEvent('paad:run-done'))}
 }
 /* One request at a time: Send and the suggested questions are off while a run is in flight, and run() refuses on its own. */
 function busy(on){send.disabled=on;document.querySelectorAll('.aws__prompts button').forEach(function(b){b.disabled=on});refuse.disabled=on}

@@ -8,6 +8,8 @@ COPY web/package.json web/
 RUN npm ci
 COPY src ./src
 COPY web ./web
+# The vendored run-observability core and readers (rule 27) are plain JS beside the compiled server: dist/runObs.js imports ../server/src/.
+COPY server ./server
 # `npm run build` compiles the server (tsc) and builds the island into dist/web, which the main agent serves at /web/assets/.
 RUN npm run build && npm prune --omit=dev
 
@@ -18,5 +20,6 @@ WORKDIR /app
 COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/server ./server
 USER node
 CMD ["node", "dist/worker-agent/index.js"]

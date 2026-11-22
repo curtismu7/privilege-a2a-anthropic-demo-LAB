@@ -129,3 +129,9 @@ MCP_DEMO_INJECTION=false
 # mkcert certificate: "$(mkcert -CAROOT)/rootCA.pem"). Mounted into the worker and main containers and trusted
 # through NODE_EXTRA_CA_CERTS; certificate checking stays on. Needs LOCAL_GATEWAY_HOST. Leave unset otherwise.
 # LOCAL_GATEWAY_CA=
+
+# Optional (Real mode, run observability, rule 27): read the products' logs for the panel under the Run. A LOOPBACK Elasticsearch
+# origin (a port-forward) and a READ-ONLY API key; leave both empty to see "unreachable" in the panel instead. The lab never
+# mounts the Docker socket (RUN_OBS_DOCKER=1 is for an ad-hoc run or a video capture, with its own override file).
+# RUN_OBS_ES_URL=
+# RUN_OBS_ES_READ_APIKEY=
