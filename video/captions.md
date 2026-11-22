@@ -20,20 +20,20 @@
 Agents calling agents, through a gateway
 
 ## Lead
-Two demos of A2A (Agent2Agent), a protocol for one agent to hand work to another. First our own two agents, then an agent that runs in AWS (Bedrock AgentCore). This is a real run, with the calls and tokens shown as they happen.
+A2A is how one agent hands work to another. Part 1: our two agents. Part 2: an agent in AWS. This is a real run.
 
-## Column A: Obvious way: each side trusts the other directly
-- Each agent holds the credentials the other one accepts
-- Nothing in the middle decides what a call may do
-- When an agent misbehaves, there is no single place to stop it
+## Column A: Obvious way
+- Each agent holds the other's credentials
+- Nothing in the middle decides
+- No place to stop a bad call
 
-## Column B: These demos: through the Privilege gateway
-- Each agent presents its own identity to the Privilege gateway
-- The gateway checks it, applies the agent's scope and policy, and screens what travels, before anything is forwarded
-- One place to see every call and to refuse one
+## Column B: These demos: the Privilege gateway
+- Each agent shows its own identity to the gateway
+- The gateway checks and screens, then forwards
+- One place to see and refuse every call
 
 ## Verdict
-Part 1: our two agents, with data behind them. Part 2: an agent in AWS, with a bad credential refused at the gateway.
+A gateway in the middle checks every call.
 
 ---
 
@@ -43,19 +43,19 @@ Part 1: our two agents, with data behind them. Part 2: an agent in AWS, with a b
 Part 2: an agent that runs in AWS
 
 ## Lead
-The same gateway, now in front of an agent on Amazon Bedrock AgentCore, in another cloud.
+The same gateway, in front of an agent on Amazon Bedrock AgentCore.
 
 ## Column A: Two ways to reach it
-- AWS's default: sign every call with AWS credentials, so our agent would hold AWS credentials
-- This demo: our agent holds a token from our own identity provider, PingFederate, and presents it to the gateway
+- AWS's default: sign every call with AWS credentials
+- This demo: a token from our own identity provider, PingFederate
 
 ## Column B: What to watch for
-- The token, decoded: who issued it, who it is for, how long it lives
+- The token, decoded
 - The Agent Card the AWS agent publishes
 - A refusal, and which box stops it
 
 ## Verdict
-The A2A specification leaves how a client gets its credentials to the deployment (section 7.3).
+The A2A spec leaves how a client gets credentials to the deployment (section 7.3).
 
 ---
 
@@ -65,21 +65,21 @@ The A2A specification leaves how a client gets its credentials to the deployment
 How Privilege is set up: the app
 
 ## Lead
-Read from the Privilege console on 22 November 2026, nothing changed. The app is the front door to the agent in AWS.
+Read from the Privilege console on 22 November 2026, nothing changed.
 
 ## Image
 console-app-worker-crop.jpg
 
 ## Column A: aws-agent-worker (Remote Agent)
 - Backend: the AgentCore regional host
-- Auth Mode: Pass Agent Token, so the caller's own verified token goes on to the AWS agent
+- Auth Mode: Pass Agent Token, so the caller's own verified token goes on to AWS
 
 ## Column B: The route
-- This app's gateway route is the address our agent calls
-- Its audience is checked against the agent's identity on the next slide
+- The gateway route is the address our agent calls
+- Its audience is checked against the agent's identity next
 
 ## Verdict
-In Privilege an agent reaches a Remote Agent only when the app is selected under its A2A access and policy allows it (Ping's agent privilege docs).
+An agent reaches a Remote Agent only when the app is selected under its A2A access and policy allows it.
 
 ---
 
@@ -89,22 +89,22 @@ In Privilege an agent reaches a Remote Agent only when the app is selected under
 How Privilege is set up: the agent
 
 ## Lead
-The agent that is allowed to call the app, as read from the console.
+The agent that may call the app, as read from the console.
 
 ## Image
 console-agent-caller-crop.jpg
 
 ## Column A: aws-agent-caller
-- Custodian (principal): aws-agent-caller-identity, a federated identity
-- Scope: a2a, which means reaching peer agents
-- No API key: it signs in with a token from one issuer, for one audience
+- Custodian: aws-agent-caller-identity, a federated identity
+- Scope: a2a, reaching peer agents
+- No API key: a token from one issuer, for one audience
 
-## Column B: What every token must carry
-- client_id and act.sub, the actor claim from RFC 8693
-- Policy is enforced as the principal identity: every request authorizes as aws-agent-caller-identity
+## Column B: Every token must carry
+- client_id and act.sub (the actor claim, RFC 8693)
+- Policy is enforced as the principal identity
 
 ## Verdict
-The refusal later is this identity check: a bad credential is stopped at sign-in, before any app or policy check.
+The refusal later is this identity check, before any app or policy check.
 
 ---
 
@@ -114,23 +114,48 @@ The refusal later is this identity check: a bad credential is stopped at sign-in
 Five things the A2A specification says
 
 ## Lead
-Agent2Agent (A2A) Protocol Specification, release 1.0.0, a2a-protocol.org. Section numbers are from that release.
+A2A Protocol Specification, release 1.0.0.
 
 ## Column A: What the spec says
-- Section 8: every A2A server publishes an Agent Card, a manifest of its identity, skills and requirements, found at /.well-known/agent-card.json (8.2)
-- Sections 4.4.1 and 4.5: the card's optional securitySchemes say what auth it needs
-- Section 7.3: the client gets its credentials out of band and sends them with every request
-- Section 7.4: the server MUST authenticate every request, and SHOULD include challenge information when it rejects one
-- Sections 5.3 and 9.4.1: sending a message is one JSON-RPC call. AgentCore documents it as message/send; 1.0.0 calls it SendMessage
+- 8: servers publish an Agent Card
+- 4.4.1, 4.5: its securitySchemes say what auth it needs
+- 7.3: credentials arranged out of band, sent every request
+- 7.4: server MUST authenticate every request, SHOULD say how
+- 5.3, 9.4.1: sending is one JSON-RPC call (message/send on AgentCore, SendMessage in 1.0.0)
 
-## Column B: Where you will see it here
+## Column B: Where you will see it
 - The Agent Card step
-- The token on every request, shown decoded
-- The message: a JSON-RPC 2.0 POST
-- The refusal: a 401 with a challenge, and the metadata it points to
+- The token on every request
+- The JSON-RPC message
+- The 401 challenge
 
 ## Verdict
-A2A (agent to agent) and MCP (agent to tools) are complementary: Appendix B of the specification.
+A2A is agent to agent; MCP is agent to tools (Appendix B).
+
+---
+
+# Slide: rfcs
+
+## Title
+The RFCs behind what you saw
+
+## Lead
+Each pop-out names the RFC behind what it shows.
+
+## Column A: Getting and carrying a token
+- RFC 6749 section 4.4: client-credentials grant, how our agent gets its token
+- RFC 6750: Bearer token, and the 401 challenge
+- RFC 7519: JWT claims: issuer, subject, audience, expiry
+- RFC 9068: a JWT access token carries client_id
+
+## Column B: Who is acting, and refusals
+- RFC 8693: the act claim, who acts for whom
+- RFC 7515: the token header: alg and kid
+- RFC 9110 section 15.5.2: a 401 must carry WWW-Authenticate
+- RFC 9728: resource_metadata, where to learn how to sign in
+
+## Verdict
+Each rule is paraphrased at the moment it shows up.
 
 ---
 
@@ -140,23 +165,23 @@ A2A (agent to agent) and MCP (agent to tools) are complementary: Appendix B of t
 What the Privilege gateway can protect
 
 ## Lead
-One enforcement point for agent traffic. From Ping's documentation for Agent Privilege:
+One enforcement point for agent traffic (Ping's Agent Privilege docs).
 
 ## Column A: What it enforces
-- Who may call: an API key or a workload identity; unregistered or revoked agents are denied, and identity is checked on every call
-- Which surfaces: key scopes for models (LLM), tools (MCP) and peer agents (A2A)
-- Which peer agents and operations: a Remote Agent must be selected on the agent, and policy picks operations by user or group and time window
-- What an A2A call says: skill policies can target an advertised skill or read the message parts
-- What travels in it: AI Guard allows, alerts, sanitizes or blocks traffic on MCP, A2A and LLM
+- Who may call: identity checked on every call
+- Which surfaces: models, tools (MCP), agents (A2A)
+- Which agents and operations, by user, group and time
+- What an A2A call says, down to a skill
+- What travels in it: AI Guard allows, sanitizes or blocks
 
 ## Column B: What that protects
-- The credential: validated and ended at the gateway, which injects what the target needs (this app passes the caller's own token instead)
-- Accountability: the custodian, and every call and policy decision in Activity Logs, streamable to a SIEM
-- Risky actions: policies can hold an action for human approval instead of refusing it
-- Secrets: hubs connect external vaults so users check out secrets by policy
+- The credential, ended at the gateway
+- Accountability: custodian and Activity Logs
+- Risky actions held for human approval
+- Secrets from external vaults
 
 ## Verdict
-This video shows the identity check, the data screening and the refusals. The rest is what Ping's docs say Privilege can do; it was not set up or shown here.
+This video showed identity checks, data screening and refusals; the rest is from Ping's docs.
 
 ---
 
@@ -168,21 +193,21 @@ This video shows the identity check, the data screening and the refusals. The re
 SAMPLE: simulated, not a live run
 
 ## Lead
-This preview uses the lab's local stand-ins so you can review wording and pacing. The final take replaces them with live calls.
+Local stand-ins, so you can review wording and pacing.
 
 ## Column A: What is simulated
-- Part 1 is replayed from two recorded live runs, not run again
-- The AWS agent is a local stand-in, called directly
-- The refusals come from the stand-ins, not from a gateway
-- There is no token mint, so the token scenes are skipped
+- Part 1 is replayed from two recorded live runs
+- The AWS agent is a local stand-in
+- The refusals come from the stand-ins
+- No token mint, so the token scenes are skipped
 
-## Column B: What is genuine in this preview
-- The script, the captions and the slides
-- The screenshots of the Privilege console
-- The tabs, the reel and the trace, as the lab draws them
+## Column B: What is genuine
+- The script, captions and slides
+- The console screenshots
+- The tabs, reel and trace, as the lab draws them
 
 ## Verdict
-Review the wording and pacing; the final take is recorded after this.
+The final take is recorded after this.
 
 ---
 
@@ -192,22 +217,22 @@ Review the wording and pacing; the final take is recorded after this.
 What these two runs showed
 
 ## Lead
-Two agents of ours handed work over A2A, and an agent in AWS answered ours, each with the gateway in the path. In both, a call that should not pass was stopped.
+Our two agents handed work over A2A, and an agent in AWS answered ours, each with the gateway in the path. A call that should not pass was stopped.
 
 ## Column A: What we did
-- Part 1: asked the concierge a question; it handed it to the analyst over A2A; the analyst read data over MCP and the email came back redacted
-- Part 1: asked about a resource whose data the gateway blocks, and no data came back
-- Part 2: our agent got a token from PingFederate, read the AWS agent's card, and sent two A2A messages, each answered by the AWS agent
-- Part 2: sent a deliberately invalid credential and saw a 401 with a challenge
+- Part 1: data read over MCP, email redacted
+- Part 1: a data call blocked by the gateway
+- Part 2: a token, the card, two answered messages
+- Part 2: an invalid credential got a 401
 
 ## Column B: Why it matters
-- Our agent held no AWS credentials, only a token the gateway checked and passed on
-- Identity is checked on every call (Ping's docs), and data is screened in flight
-- A refused call stops at the gateway and never reaches the other agent
-- Every call is one frame on the reel, with its token and the spec behind it
+- Our agent held no AWS credentials
+- Identity checked on every call, data screened in flight
+- A refused call never reaches the other agent
+- Every call is a frame with its token and spec
 
 ## Verdict
-Agent to agent, with a policy point in the middle. Specs: A2A Protocol Specification 1.0.0; AWS Bedrock AgentCore A2A contract; RFC 9110 section 15.5.2; RFC 6750; RFC 9728; RFC 7519; RFC 6749; RFC 8693. Privilege: Ping's Agent Privilege documentation.
+Specs: A2A 1.0.0; AgentCore A2A contract; RFC 6749, 6750, 7519, 8693, 9068, 9110, 9728.
 
 ---
 
