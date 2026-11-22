@@ -12,7 +12,7 @@ export interface Ref {
 export const REEL_REFS: Readonly<Record<string, Ref>> = {
   'rfc6749-4.4': {
     label: 'RFC 6749 section 4.4',
-    says: 'The client credentials grant: an app that acts for itself, not for a user, trades its own client id and secret for an access token at the token endpoint.',
+    says: 'The client credentials grant: an app that acts for itself, not for a user, authenticates itself at the token endpoint and gets an access token. Only confidential clients may use it.',
   },
   'rfc6749-5.1': {
     label: 'RFC 6749 section 5.1',
@@ -28,7 +28,7 @@ export const REEL_REFS: Readonly<Record<string, Ref>> = {
   },
   'rfc6750-3.1': {
     label: 'RFC 6750 section 3.1',
-    says: 'The error parameter says why access was refused: invalid_request (HTTP 400), invalid_token for an expired, revoked or malformed token (HTTP 401), insufficient_scope (HTTP 403).',
+    says: 'The error parameter says why access was refused: invalid_request (usually HTTP 400), invalid_token for an expired, revoked or malformed token (usually 401), insufficient_scope (usually 403).',
   },
   'rfc9110-15.5.2': {
     label: 'RFC 9110 section 15.5.2',
@@ -50,7 +50,7 @@ export const REEL_REFS: Readonly<Record<string, Ref>> = {
   'rfc7519-4.1.2': { label: 'RFC 7519 section 4.1.2', says: 'sub names who or what the token is about.' },
   'rfc7519-4.1.3': {
     label: 'RFC 7519 section 4.1.3',
-    says: 'aud names who the token is meant for; a service that is not listed there must refuse the token.',
+    says: 'aud names who the token is meant for; when it is present, a service that is not listed there must refuse the token.',
   },
   'rfc7519-4.1.4': {
     label: 'RFC 7519 section 4.1.4',
@@ -67,15 +67,15 @@ export const REEL_REFS: Readonly<Record<string, Ref>> = {
   'rfc7515-4.1.9': { label: 'RFC 7515 section 4.1.9', says: 'typ declares what kind of object the token is.' },
   'rfc9068-2.1': {
     label: 'RFC 9068 section 2.1',
-    says: 'A JWT access token must declare the type at+jwt in its header, so it cannot be mistaken for an ID token.',
+    says: 'A JWT access token must declare its type in the header (at+jwt is the short form), so a resource server can tell it apart from an ID token.',
   },
   'rfc9068-2.2': {
     label: 'RFC 9068 section 2.2',
-    says: 'A JWT access token must carry iss, exp, aud, sub, client_id, iat and jti; client_id is the app the token was issued to.',
+    says: 'A JWT access token must carry iss, exp, aud, sub, client_id, iat and jti; client_id is the OAuth client that requested the token.',
   },
   'rfc9068-2.2.3': {
     label: 'RFC 9068 section 2.2.3',
-    says: 'The scope claim lists what the token was granted, and each scope should mean something for the service named in aud.',
+    says: 'The scope claim lists the scopes associated with the token, and each scope must mean something for the service named in aud.',
   },
   'rfc8693-4.1': {
     label: 'RFC 8693 section 4.1',
@@ -123,11 +123,11 @@ export const REEL_REFS: Readonly<Record<string, Ref>> = {
   },
   'agentcore-401': {
     label: 'AgentCore OAuth responses',
-    says: 'For an OAuth-protected runtime, a call without a valid credential gets HTTP 401 with a Bearer challenge that points at a resource_metadata address.',
+    says: 'For an OAuth-protected runtime, a call without a credential gets HTTP 401 with a Bearer challenge that points at a resource_metadata address. A runtime set up for SigV4 answers 403 with no challenge.',
   },
   'agentcore-errors': {
     label: 'AgentCore error handling',
-    says: 'AgentCore reports a real HTTP status on errors instead of hiding them in a 200, and the JSON-RPC error body still explains them.',
+    says: 'AgentCore maps runtime errors to real HTTP statuses (such as 404, 400, 429 and 500) with a JSON-RPC error body; authentication and authorization failures come back as plain HTTP errors, not JSON-RPC.',
   },
 };
 
@@ -160,8 +160,8 @@ export const CLAIM_INFO: Readonly<Record<string, { says: string; ref: string }>>
   nbf: { says: 'the token is not accepted before this time', ref: 'rfc7519-4.1.5' },
   iat: { says: 'when the token was issued', ref: 'rfc7519-4.1.6' },
   jti: { says: 'a unique id for this token', ref: 'rfc7519-4.1.7' },
-  client_id: { says: 'the app the token was issued to', ref: 'rfc9068-2.2' },
-  scope: { says: 'what the token was granted', ref: 'rfc9068-2.2.3' },
+  client_id: { says: 'the OAuth client that requested the token', ref: 'rfc9068-2.2' },
+  scope: { says: 'the scopes associated with the token', ref: 'rfc9068-2.2.3' },
   act: { says: 'who is acting on the subject\'s behalf', ref: 'rfc8693-4.1' },
 };
 
