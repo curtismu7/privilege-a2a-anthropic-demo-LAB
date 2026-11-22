@@ -55,6 +55,8 @@ ${node('aws', 'AWS agent', 'Agent on AWS', "Runs in AWS (Bedrock AgentCore). It 
 </form>
 <div class="aws__refuse"><button type="button" id="aws-refuse" data-testid="aws-refuse">Try a refused call</button> <span class="aws__refuse-note" id="aws-refuse-note">Sends the first suggested question with a deliberately invalid credential, so you can see the gateway refuse it before it reaches AWS.</span></div>
 <div id="aws-answer" class="aws__answer" role="status" aria-live="polite"></div>
+<h3 class="aws__h3">The API calls in this run</h3>
+<ol id="aws-reel" class="aws__reel" aria-label="API calls in this run"></ol>
 <h3 class="aws__h3">What crossed each hop</h3>
 <ol id="aws-trace" class="aws__trace"><li class="aws__empty">Send a question. Each step appears here, with what was sent and what came back.</li></ol>
 <details class="aws__how"><summary>How to read this</summary>
@@ -210,8 +212,10 @@ function addStep(t){
   if(t.response)li.appendChild(wireBlock('What came back',t.response));
   trace.appendChild(li);
 }
+var reel=window.Reel?window.Reel.attach(document.getElementById('aws-reel')):null;
 function onTrace(t){
   addStep(t);
+  if(reel)reel.add(t);
   if(t.kind==='card'){setState('gateway',simulated?'ok':'working',simulated?'simulated':undefined)}
   else if(t.kind==='delegate'){setState('main','ok','sent');setState('gateway',simulated?'ok':'working',simulated?'simulated':undefined);setState('aws','working')}
   else if(t.kind==='result'){setState('gateway','ok',simulated?'simulated':undefined);setState('aws','ok','replied')}
@@ -225,7 +229,7 @@ function onTrace(t){
 async function run(text,refusal){
   text=text.trim();if(!text||send.disabled)return;
   resetFlow();setState('custodian','ok','acting');setState('main','working');
-  answer.textContent='';answer.className='aws__answer';trace.textContent='';busy(true);
+  answer.textContent='';answer.className='aws__answer';trace.textContent='';if(reel)reel.clear();busy(true);
   try{
     var res=await fetch('/aws-agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(refusal?{message:text,refusal:true}:{message:text})});
     if(!res.ok||!res.body)throw new Error('HTTP '+res.status);
