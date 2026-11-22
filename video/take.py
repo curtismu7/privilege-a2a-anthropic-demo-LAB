@@ -22,16 +22,25 @@ import base64
 from captions import OPENING_SLIDE, CLOSING_SLIDE, STEPS, SLIDES
 
 WORK = Path(sys.argv[1] if len(sys.argv) > 1 else "take-work").resolve()
-MONITOR = os.environ.get("MONITOR", "medium")        # "medium" (an external monitor) or "laptop" (built-in display)
+# Two videos, one per screen (owner, 2026-11-22): the window is full screen (Chrome --kiosk) so the video fills the display.
+#   PROFILE=monitor  the middle 1920x1080 monitor: large app font (L) and large slides and captions
+#   PROFILE=laptop   the built-in display (1800x1169 points): small app font (S) so busy screens fit; slides and captions at normal size
+PROFILE = os.environ.get("PROFILE", "monitor")
+PROFILES = {"monitor": dict(monitor="medium", display=(1920, 1080), font="L", scale=1.3),
+            "laptop":  dict(monitor="laptop", display=(1800, 1169), font="S", scale=1.0)}
+_prof = PROFILES[PROFILE]
+FONT = os.environ.get("FONT", _prof["font"]); SCALE = float(os.environ.get("SCALE", _prof["scale"]))
+MONITOR = os.environ.get("MONITOR", _prof["monitor"])        # "medium" (the middle external monitor) or "laptop" (built-in display)
 # Each preset's own global top-left in Quartz/Chromium coordinates (top-left origin, Y grows downward - NOT the
 # bottom-left/Y-up convention AppKit's NSScreen reports). "medium" was measured once against a real monitor
 # arrangement; "laptop" is exact by definition (a display's own top-left is Quartz (0, 0) only for the main
 # display, which the built-in one is on a laptop with no other display marked main).
-PRESETS = {"medium": {"origin": (-1920, -905), "win": (-1900, -875)}, "laptop": {"origin": (0, 0), "win": (40, 60)}}
+# The window sits at the display's own top-left and is made full screen. Re-read the layout before a take (NSScreen frames: Quartz y = main height - (y + h)).
+PRESETS = {"medium": {"origin": (-1920, -905), "win": (-1920, -905)}, "laptop": {"origin": (0, 0), "win": (0, 0)}}
 _preset = PRESETS.get(MONITOR, PRESETS["medium"])
 ORIGIN_X, ORIGIN_Y = int(os.environ.get("DISPLAY_X", _preset["origin"][0])), int(os.environ.get("DISPLAY_Y", _preset["origin"][1]))
 WIN_X, WIN_Y = int(os.environ.get("WIN_X", _preset["win"][0])), int(os.environ.get("WIN_Y", _preset["win"][1]))
-WIN_W, WIN_H = 1440, 980   # fits inside a 1920x1080 external monitor (medium) and a 1800x1169-logical laptop screen
+WIN_W, WIN_H = _prof["display"]   # the window is the whole display
 REHEARSE = os.environ.get("REHEARSE") == "1"   # headless, no recording, no waiting for a person (runs against whatever route the app has: live or the local stand-in)
 SAMPLE = os.environ.get("SAMPLE") == "1"       # preview: headless, full timing, records with Playwright, mock stand-in allowed, labelled SAMPLE in the video
 HEADLESS_REAL = os.environ.get("HEADLESS_REAL") == "1"   # the REAL take (live route, Real mode, all checks) recorded headless by Playwright, for when the screen is locked or off
@@ -94,24 +103,25 @@ def detect_capture_device(work):
 OVERLAY = r"""
 (() => {
   if (window.__cm) return;
+  const S = window.__cmScale || 1; const px = (n) => Math.round(n * S) + 'px';
   const css = `
   .cm-hl{position:fixed;z-index:2147483644;border:3px solid #ff3b57;border-radius:10px;box-shadow:0 0 0 9999px rgba(8,10,13,.28);pointer-events:none;transition:all .25s}
-  .cm-bub{box-sizing:border-box;position:fixed;z-index:2147483645;width:470px;background:#f7f8fc;color:#14202e;border:3px solid #e3002b;border-radius:20px;padding:14px 20px 14px 64px;font:18px/1.4 system-ui,sans-serif;box-shadow:0 14px 36px rgba(0,0,0,.55)}
-  .cm-bub .n{position:absolute;left:14px;top:14px;width:36px;height:36px;border-radius:50%;background:#e3002b;color:#fff;font:700 19px/36px system-ui;text-align:center}
-  .cm-bub h3{margin:0 0 4px;font-size:19px;color:#14202e !important;font-weight:800}
+  .cm-bub{box-sizing:border-box;position:fixed;z-index:2147483645;width:${px(470)};background:#f7f8fc;color:#14202e;border:3px solid #e3002b;border-radius:20px;padding:${px(14)} ${px(20)} ${px(14)} ${px(64)};font:${px(18)}/1.4 system-ui,sans-serif;box-shadow:0 14px 36px rgba(0,0,0,.55)}
+  .cm-bub .n{position:absolute;left:${px(14)};top:${px(14)};width:${px(36)};height:${px(36)};border-radius:50%;background:#e3002b;color:#fff;font:700 ${px(19)}/${px(36)} system-ui;text-align:center}
+  .cm-bub h3{margin:0 0 4px;font-size:${px(19)};color:#14202e !important;font-weight:800}
   .cm-bub p{margin:0;color:#233044}
   .cm-bub ul{margin:8px 0 0;padding:0;list-style:none}
-  .cm-bub li{margin:6px 0;padding:6px 9px;background:#e8ebf3;border-radius:6px;font:15px/1.5 ui-monospace,Menlo,monospace;color:#051727;font-weight:600;word-break:break-word;overflow-wrap:anywhere}
-  .cm-bub .of{position:absolute;right:14px;top:10px;font-size:12px;color:#5b667a}
+  .cm-bub li{margin:6px 0;padding:6px 9px;background:#e8ebf3;border-radius:6px;font:${px(15)}/1.5 ui-monospace,Menlo,monospace;color:#051727;font-weight:600;word-break:break-word;overflow-wrap:anywhere}
+  .cm-bub .of{position:absolute;right:14px;top:10px;font-size:${px(12)};color:#5b667a}
   .cm-tail{position:absolute;width:22px;height:22px;background:#f7f8fc;border:3px solid #e3002b;transform:rotate(45deg)}
   .cm-pill{position:fixed;right:14px;bottom:12px;z-index:2147483646;background:#1d232b;color:#f2f4f7;border:1px solid #3a4350;border-radius:999px;padding:4px 14px;font:700 13px system-ui,sans-serif;pointer-events:none}
   .cm-slide{box-sizing:border-box;position:fixed;z-index:2147483647;inset:0;display:flex;align-items:center;justify-content:center;background:#051727;font:17px/1.5 system-ui,sans-serif;padding:24px}
-  .cm-slide .card{box-sizing:border-box;width:min(1100px,94vw);max-height:92vh;overflow-y:auto;background:#0f2236;color:#f2f4f7;border:3px solid #e3002b;border-radius:24px;padding:32px 40px;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+  .cm-slide .card{zoom:${S};box-sizing:border-box;width:min(1100px,calc(94vw / ${S}));max-height:calc(92vh / ${S});overflow-y:auto;background:#0f2236;color:#f2f4f7;border:3px solid #e3002b;border-radius:24px;padding:32px 40px;box-shadow:0 24px 60px rgba(0,0,0,.6)}
   .cm-slide h1{margin:0 0 10px;font-size:32px;font-weight:800;color:#fff}
   .cm-slide .lead{margin:0 0 20px;color:#c7d0dc;font-size:19px}
   .cm-slide .cols{display:grid;grid-template-columns:1fr 1fr;gap:28px}
   @media (max-width:760px){ .cm-slide .cols{grid-template-columns:1fr} }
-  .cm-slide .card.withimg{width:min(1400px,98vw)}
+  .cm-slide .card.withimg{width:min(1400px,calc(98vw / ${S}))}
   .cm-slide .card.withimg h1{font-size:28px;margin-bottom:6px}.cm-slide .card.withimg .lead{margin-bottom:12px}
   .cm-slide .split{display:grid;grid-template-columns:1.25fr 1fr;gap:26px;align-items:start;margin-bottom:6px}
   .cm-slide .split img{width:100%;border-radius:10px;border:1px solid #2a3b52;background:#fff}
@@ -121,7 +131,7 @@ OVERLAY = r"""
   .cm-slide .col li{margin:7px 0;font-size:18px}
   .cm-slide .verdict{margin:22px 0 0;padding-top:16px;border-top:1px solid #2a3b52;font-weight:700;color:#fff;font-size:18px}
   .reel-backdrop{justify-content:flex-start !important;padding-left:20px !important}
-  .reel-dialog{width:min(880px,100%) !important}`;
+  .reel-dialog{width:min(${Math.round(880 * S)}px,100%) !important}`;
   const root = () => document.documentElement;
   const ensure = () => { if (!root() || document.getElementById('cm-style')) return; const st = document.createElement('style'); st.id = 'cm-style'; st.textContent = css; root().appendChild(st);
     const pill = document.createElement('div'); pill.className = 'cm-pill'; pill.textContent = window.__pillText || 'LIVE RUN'; root().appendChild(pill); };
@@ -145,12 +155,12 @@ OVERLAY = r"""
     if (o.image) { card.classList.add('withimg'); const split = document.createElement('div'); split.className = 'split'; const im = document.createElement('img'); im.src = o.image; im.alt = 'Screenshot of the Privilege console'; const cols = card.querySelector('.cols'); cols.style.gridTemplateColumns = '1fr'; cols.parentNode.insertBefore(split, cols); split.append(im, cols); }
     // Belt and suspenders on top of the CSS max-height: an explicit pixel value computed from the real
     // viewport, so this never depends on vh units resolving the way a particular Chromium build expects.
-    card.style.maxHeight = Math.round(innerHeight * 0.88) + 'px';
+    card.style.maxHeight = Math.round(innerHeight * 0.88 / S) + 'px';
     const wrap = document.createElement('div'); wrap.className = 'cm-slide'; wrap.append(card);
     root().appendChild(wrap); els.push(wrap);
   }, cap(o) {
     ensure(); clear();
-    const vw = innerWidth, vh = innerHeight, W = 470, GAP = 26, M = 12;
+    const vw = innerWidth, vh = innerHeight, W = Math.round(470 * S), GAP = 26, M = 12;
     const t = o.target ? document.querySelector(o.target) : null;
     // Scroll the target's own panel so it is on screen before measuring it: otherwise a sidebar field, a reel
     // frame or a step-detail row that has scrolled out of view gets highlighted in the wrong place, or the
@@ -237,10 +247,11 @@ def main():
     result = {"ok": False}
     with sync_playwright() as pw:
         ctx = pw.chromium.launch_persistent_context(
-            profile, headless=HEADLESS, no_viewport=not HEADLESS, viewport={"width": WIN_W, "height": 900} if HEADLESS else None,
+            profile, headless=HEADLESS, no_viewport=not HEADLESS, viewport={"width": WIN_W, "height": WIN_H} if HEADLESS else None,
             color_scheme="light",
-            **({"record_video_dir": str(WORK / "pw-video"), "record_video_size": {"width": WIN_W, "height": 900}} if RECORD_PW else {}),
-            args=[f"--window-position={WIN_X},{WIN_Y}", f"--window-size={WIN_W},{WIN_H}", "--no-first-run", "--no-default-browser-check"])
+            **({"record_video_dir": str(WORK / "pw-video"), "record_video_size": {"width": WIN_W, "height": WIN_H}} if RECORD_PW else {}),
+            args=[f"--window-position={WIN_X},{WIN_Y}", f"--window-size={WIN_W},{WIN_H}", "--no-first-run", "--no-default-browser-check", *([] if HEADLESS else ["--kiosk"])])
+        ctx.add_init_script("window.__cmScale = " + json.dumps(SCALE) + ";")
         ctx.add_init_script("window.__pillText = " + json.dumps("SAMPLE: simulated stand-in, not a live run" if SAMPLE else None) + ";")
         ctx.add_init_script(OVERLAY)
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
@@ -248,7 +259,7 @@ def main():
         page.select_option("[data-testid=theme-select]", THEME)
         if not HEADLESS:
             subprocess.run(["osascript", "-e", 'tell application "System Events" to set frontmost of (first process whose name is "Google Chrome for Testing") to true'], capture_output=True)
-        page.bring_to_front(); page.wait_for_timeout(1500)
+        page.bring_to_front(); page.wait_for_timeout(1500 if HEADLESS else 4500)   # a full-screen window needs a moment to settle
 
         if HEADLESS:
             DEV = None
@@ -361,7 +372,7 @@ def main():
                     route.fulfill(status=200, headers={"Content-Type": "text/event-stream"}, body=fixtures["blocked" if "prod-db" in body.get("message", "") else "bob"])
                 page.route("**/chat", replay)
             page.goto(APP + "/"); page.wait_for_selector("#tab-aws")
-            page.select_option("[data-testid=theme-select]", THEME); page.select_option("[data-testid=font-select]", "L")
+            page.select_option("[data-testid=theme-select]", THEME); page.select_option("[data-testid=font-select]", FONT)
             app_mode = page.evaluate("fetch('/api/info').then(r => r.json()).then(j => j.source)")   # the lab's Mock/Real switch
             status = page.evaluate("fetch('/status').then(r => r.json())")
             log("app mode (Mock/Real switch):", app_mode, "| status:", json.dumps({k: status.get(k) for k in ("mode", "viaGateway", "bearerOnA2A")}))
