@@ -108,6 +108,34 @@ The refusal later is this identity check, before any app or policy check.
 
 ---
 
+# Slide: config_policy
+
+## Title
+How Privilege is set up: the policy
+
+## Lead
+The policy that joins them, from the console's access graph.
+
+## Image
+console-policy-crop.jpg
+
+## Layout
+wide
+
+## Column A: What the graph shows
+- The identity, aws-agent-caller-identity, is allowed
+- through this policy, to the agent key aws-agent-caller
+- and on to the app aws-agent-worker
+
+## Column B: Why it matters
+- Per Ping's docs, an agent reaches a Remote Agent only when policy allows it
+- Policy can pick operations by user, group and time
+
+## Verdict
+A bad credential never gets as far as this policy.
+
+---
+
 # Slide: spec
 
 ## Title
@@ -156,6 +184,33 @@ Each pop-out names the RFC behind what it shows.
 
 ## Verdict
 Each rule is paraphrased at the moment it shows up.
+
+---
+
+# Slide: config_activity
+
+## Title
+Every call is on record
+
+## Lead
+The app's Activity Logs in the Privilege console, after the runs you just saw.
+
+## Image
+console-activity-logs-crop.jpg
+
+## Layout
+wide
+
+## Column A: What it shows
+- Each call: when, who, and the route
+- The Agent Card read and the message send, as aws-agent-caller-identity
+
+## Column B: Why it matters
+- Every call and policy decision is auditable (Ping's docs)
+- Logs can stream to a SIEM
+
+## Verdict
+The AWS account id is masked in this screenshot.
 
 ---
 
