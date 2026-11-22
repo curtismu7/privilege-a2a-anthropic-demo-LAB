@@ -520,3 +520,41 @@ shared settings file in another folder, and nothing from another project.
   Real option is disabled and `POST /api/mode {"source":"real"}` answers 409 with the how-to. Keys are write-only:
   scrubbed from every message, error and log line.
 - **UNVERIFIED**: Real against a live Privilege gateway or provider is owner-run; the tests use a local provider stub.
+
+## Run observability (rule 27)
+
+Under the Run, the drawer **What each layer logged for this run** shows, for the latest run of either tab, one row per thing each layer
+decided or logged, in time order, across six layers: person, agent, Authorize, Privilege, agent gateway, resource server. Each row has an
+exact timestamp and an origin tag. The panel is the shared component, vendored byte for byte from AI-DEMO-Standalone
+`shared/run-observability` (web files in `web/src/run-observability/`, the core and the log readers in `server/src/`, pinned by
+`run-observability.sha256` and checked by `scripts/run-observability-checkPin.mjs`, never edited here). `GET /api/run-observability` answers it;
+the page script opens the drawer when a run finishes.
+
+- **Mock.** Every row is `simulated`: it is computed from the trace events the lab itself sent to the page for this run (the handoff, the Agent Card read,
+  the answer, a tool call and its reply, a blocked tool reply). None is shown as read from a log. A layer nothing touched says `not logged` and why.
+- **Real.** Rows the lab holds as replies (an HTTP status from the gateway, a blocked tool reply, a token issued) are `response` rows, never `logged`.
+  `logged` rows are lines a reader found in a product's own log, read-only: Elasticsearch by default (`RUN_OBS_ES_URL`, a loopback URL such as a port-forward,
+  and `RUN_OBS_ES_READ_APIKEY`, a read-only key; both empty by default). If none is configured the layer says `unreachable` and what to set, and the lab keeps
+  working. The Docker reader is opt-in (`RUN_OBS_DOCKER=1`, for an ad-hoc run or a video capture); **this lab never mounts the Docker socket**. The one network
+  call the vendored readers make is that read to the loopback Elasticsearch.
+- **The lab's own log.** For each decision it sees, the main agent writes one line to stdout (the same time the row carries): `<ISO time> privilege-a2a-lab decision
+  mode=mock|real run=<id> actor=<name> target=<name> result=passed|stopped|blocked`. No token, no message body. That line is what the gateway lane reads as `logged`.
+- **Time.** A row's time is when the lab saw the event. Real runs are read from 2 s before to 2 s after the run (container clocks and the collector's batching
+  differ); a line found only by its time says so (`window`), a line carrying the run's id says `id`. Two runs close together can interleave window-matched rows.
+  Real re-reads the logs once about 5 s after a run (the collector ships with a delay) and has a **Re-read logs** button.
+- **One record, the latest run.** The lab keeps ONE latest run, shared by every browser tab on it: a second run (or a second tab) replaces it. This is a single-user demo lab; run one prompt at a time.
+- The panel refuses a record whose mode differs from the page's mode, and `GET /api/run-observability` returns no record for a run made in the other mode.
+
+**Where this run leaves logs, and where they stream.**
+
+| Product | Lives in | Streams to |
+|---|---|---|
+| This lab's main agent | the container's stdout: the decision line above | the family log collector to `demo-logs-privilege-a2a-lab`, then a SIEM, when the collector watches this container |
+| MCP server (this lab) | its container's stdout | the collector to `demo-logs-mcp-server` |
+| PingFederate | its audit log | not shipped by the collector yet |
+| Privilege agent gateway (hosted) and console | the SIEM index `ping-siem-events-v2`; the console Activity Logs (only allowed calls appear) | the Privilege SIEM export |
+| Privilege agent gateway (local) | `cyonproxy.log` in its log volume | the collector's file source to `ping-logs-privilege-gateway` |
+
+**What is `not logged` today.** Person (this lab has no sign-in). Authorize (this lab does not call it). A gateway refusal or an AI Guard block as a product log
+line: no real line shape has been confirmed, so those events show only as `response` rows from what the lab received; the console Activity Logs show allowed
+calls only. PingFederate token issue: its audit log is not shipped. Nothing here claims a line exists that was not read.

@@ -18,6 +18,7 @@ import { describeToken } from './tokenView.js';
 import { renderPage } from './ui.js';
 import { shelfInfo } from '../shelfLink.js';
 import { labAllowedHosts, sameOriginGuard } from '../originGuard.js';
+import { beginRun, runObservability, type RunKind, type RunRecorder, type TraceLike } from '../runObs.js';
 
 /** The token counts a model call reported, for the trace. Absent when the provider sent none. */
 function tokenCounts(message: Anthropic.Message): { input: number; output: number } | undefined {
@@ -90,6 +91,12 @@ app.get('/api/info', (_req: Request, res: Response) => {
   res.set('Cache-Control', 'no-store');
   res.json({ mode: uiMode, source: uiMode === 'real' ? 'real' : 'mock', realAvailable });
 });
+// Rule 27: what each layer logged for the latest run (mock: simulated rows; real: responses the lab holds plus the lines the readers find).
+app.get('/api/run-observability', async (_req: Request, res: Response) => {
+  const { status, body } = await runObservability(uiMode);
+  res.set('Cache-Control', 'no-store');
+  res.status(status).json(body);
+});
 app.post('/api/mode', (req: Request, res: Response) => {
   const body = (req.body ?? {}) as { source?: unknown; mode?: unknown };
   const wanted = body.source === 'real' || body.mode === 'real' ? 'real' : body.source === 'mock' || body.mode === 'mock' ? 'mock' : null;
@@ -111,7 +118,16 @@ app.post('/api/mode', (req: Request, res: Response) => {
 interface ChatRequestBody { message?: unknown; sessionId?: unknown; vertical?: unknown; agentName?: unknown; specialistName?: unknown; tools?: unknown; subtaskHint?: unknown; mode?: unknown }
 const conversations = new Map<string, Anthropic.MessageParam[]>();
 
+// Rule 27: the run each response belongs to; every trace event sent to the page is also noted for the run-observability record.
+const recorders = new WeakMap<Response, RunRecorder>();
+function startRun(res: Response, kind: RunKind): RunRecorder {
+  const recorder = beginRun(kind, uiMode);
+  recorders.set(res, recorder);
+  res.on('close', () => recorder.finish());
+  return recorder;
+}
 function sendSse(res: Response, event: string, payload: unknown): void {
+  if (event === 'trace') recorders.get(res)?.note(payload as TraceLike);
   if (!res.destroyed) res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
 }
 
@@ -201,6 +217,7 @@ app.post('/chain', async (req: Request, res: Response) => {
     'Cache-Control': 'no-cache, no-transform',
     Connection: 'keep-alive',
   });
+  startRun(res, 'chain');
   const startedAt = Date.now();
   const at = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
   const abort = new AbortController();
@@ -246,6 +263,7 @@ app.post('/aws-agent', async (req: Request, res: Response) => {
     'Cache-Control': 'no-cache, no-transform',
     Connection: 'keep-alive',
   });
+  startRun(res, 'aws-agent');
   const startedAt = Date.now();
   const at = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
   const abort = new AbortController();
@@ -315,6 +333,7 @@ app.post('/chat', async (req: Request, res: Response) => {
     'Cache-Control': 'no-cache, no-transform',
     Connection: 'keep-alive',
   });
+  startRun(res, 'chat');
 
   const startedAt = Date.now();
   const at = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
