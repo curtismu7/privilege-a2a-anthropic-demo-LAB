@@ -6,7 +6,7 @@ export const JSON_PANE_CSS = `
 .jsonbox__toggle button { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 0; min-height: 0; background: #171b25; color: #b8bfd0; border: 1px solid #4a5063; cursor: pointer; }
 .jsonbox__toggle button:first-child { border-radius: 6px 0 0 6px; }
 .jsonbox__toggle button:last-child { border-radius: 0 6px 6px 0; }
-.jsonbox__toggle button[aria-pressed="true"] { background: #6254ba; color: #fff; border-color: #6254ba; }
+.jsonbox__toggle button[aria-pressed="true"] { background: #232937; color: #e6e9f2; border-color: #7c86a8; }  /* pressed = selected, not an alarm (canonical 1e794d94, mapped to this page's dark palette) */
 .json { --j-key: #93c5fd; --j-string: #86efac; --j-number: #fbbf24; --j-bool: #fde68a; --j-null: #b8bfd0; --j-url: #67e8f9; --j-id: #a7f3d0; --j-time: #fde68a; --j-hot-bg: #2a2560; }
 .json--raw { color: #e8eaf0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, monospace; font-size: .9rem; margin: 0; }
 .json--form { white-space: normal; font-family: inherit; font-size: .9rem; padding: 4px 0; }
