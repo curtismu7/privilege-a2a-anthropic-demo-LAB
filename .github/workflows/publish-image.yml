@@ -1,0 +1,50 @@
+name: Publish image
+
+# Builds the lab image (one image: main agent, worker agent, MCP server; each container picks its
+# process with `command`) and publishes it to GHCR. The SE cluster's `workeragentdemo` deployment
+# pulls it. The old ghcr.io/ping-sandbox/... image is gone with that org.
+# A pull request only builds (no push); a manual run from main publishes sha-<commit> and latest.
+# The cluster nodes are arm64, so this builds natively on an arm64 runner.
+# A new GHCR package starts private: after the first publish, check it is public (it inherits this
+# repo's visibility through the source label), or the cluster needs an image pull secret.
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+  packages: write
+
+# Two overlapping runs must not race on the `latest` tag.
+concurrency:
+  group: publish-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+      # Only main publishes: a manual run from any other branch builds but pushes nothing.
+      - uses: docker/login-action@v3
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
