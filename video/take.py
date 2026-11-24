@@ -151,13 +151,11 @@ def main():
     global MASK_SCRIPT
     env_file = Path(os.environ.get("MASK_ENV", str(Path.home() / "Development/AI-DEMO-Standalone/standalone/privilege-a2a-anthropic-demo-LAB/.env")))
     try:
-        pairs = onscreen_mask.mask_pairs(env_file)
-    except OSError:
-        pairs = []
-    if not SAMPLE and len(pairs) < 3:
-        log("no on-screen masks: refusing a live take"); raise SystemExit(f"take.py: cannot build the on-screen masks from {env_file} (a public video must not show real hosts); set MASK_ENV to the lab's .env")
-    MASK_SCRIPT = onscreen_mask.mask_script(pairs) if pairs else None
-    log("on-screen masks:", len(pairs), "rules")
+        rules = onscreen_mask.mask_rules(env_file)
+    except (OSError, onscreen_mask.MaskConfigError) as e:   # every take is masked, the sample too (its fixtures carry real hosts)
+        log("no on-screen masks: refusing the take"); raise SystemExit(f"take.py: cannot build the on-screen masks from {env_file} ({type(e).__name__}): a public video must not show real hosts; set MASK_ENV to the lab's .env")
+    MASK_SCRIPT = onscreen_mask.mask_script(rules)
+    log("on-screen masks:", len(rules["pairs"]), "rules,", len(rules["detect"]), "leak detectors")
     profile = tempfile.mkdtemp(prefix="a2a-take-")
     # No "Save password?" bubble in the recording: switch the password manager off in this throw-away profile.
     (Path(profile) / "Default").mkdir(parents=True, exist_ok=True)
@@ -494,10 +492,6 @@ def main():
                 if count["n"] != TOTAL: log("NOTE: %d caption bubbles were shown but the counter says %d; set TOTAL to match" % (count["n"], TOTAL))
                 page.evaluate("() => window.__cm.clear()")
                 result["finished_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
-                if MASK_SCRIPT:   # a public video: nothing real may be in the page, shown or hidden
-                    leaks = page.evaluate("() => window.__onscreenMaskLeaks ? window.__onscreenMaskLeaks() : -1")
-                    result["mask_leaks"] = leaks; log("on-screen mask check: leaks =", leaks)
-                    if leaks != 0: result["ok"] = False; log("WARNING: real values reached the page (or the mask did not load): do not publish this take")
                 if ok and SEGMENT == "all":
                     show_slide(SLIDES["protect"], extra=2.0, name="slide-protect", cap=54.0)   # "what else could it stop?"
                     show_slide(observability_slide(), extra=2.0, name="slide-observability", cap=40.0)   # what the run left behind, right before the closing
@@ -507,6 +501,11 @@ def main():
                         closing["col_a_lines"] = [STEPS["sample_closing_bullet"]["text"], *CLOSING_SLIDE["col_a_lines"][1:]]
                     show_slide(closing, extra=3.0, name="closing", cap=48.0)
         finally:
+            if MASK_SCRIPT:   # a public video: no real value may have been on the page at ANY point of this take (every segment), shown or hidden
+                try: leaks = page.evaluate("() => window.__onscreenMaskLeaks ? window.__onscreenMaskLeaks() : -1")
+                except Exception: leaks = -1
+                result["mask_leaks"] = leaks; log("on-screen mask check: leaks =", leaks)
+                if leaks != 0: result["ok"] = False; log("WARNING: real values reached the page (or the mask did not load): do not publish this take")
             log("stopping recording")
             if ff is not None:
                 try: ff.send_signal(signal.SIGINT)
