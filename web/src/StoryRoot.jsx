@@ -20,6 +20,7 @@ export default function StoryRoot({ mode, ready = true, onExit, prefix = "a2a" }
     let live = true;
     let parts = null;
     window.__storyOn = true;   // the page's chat tells the server Story is on (offline Mock then gets a simulated run)
+    document.documentElement.classList.add("story-on");   // Story-only layout (shell.css): the reel pop-out moves to the left edge so a caption fits beside it, as in the video
     fetch("/api/story", { headers: { Accept: "application/json" } })
       .then(async (r) => {
         const body = await r.json().catch(() => ({}));
@@ -40,6 +41,7 @@ export default function StoryRoot({ mode, ready = true, onExit, prefix = "a2a" }
     return () => {
       live = false;
       delete window.__storyOn;
+      document.documentElement.classList.remove("story-on");
       if (parts) {   // exit first: it closes an open pop-out and clears the overlay; then everything is released
         const { s, host, overlay } = parts;
         s.exit().finally(() => { s.destroy(); host.dispose(); overlay.destroy(); });
