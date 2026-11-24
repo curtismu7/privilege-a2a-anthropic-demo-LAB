@@ -6,6 +6,7 @@ after masking (window.__onscreenMaskLeaks(), kept across page loads in sessionSt
 
   rules = mask_rules(env_file)      # {'pairs': [(regex, replacement)], 'detect': [regex]}; never print them, they hold the real values
   page_script = mask_script(rules)  # inject with context.add_init_script, before anything else
+  image = public_image(name, assets, rules)  # a slide's console screenshot: its local, OCR-checked .redacted copy, or the take refuses
 """
 import ipaddress, json, re
 from pathlib import Path
@@ -92,8 +93,9 @@ def mask_rules(env_file, allow_reserved=False):
         if len(client) < 4: raise MaskConfigError("AWS_AGENT_PF_CLIENT_ID is set but too short to mask safely")
         p = r"(?<![A-Za-z0-9_.-])" + re.escape(client) + r"(?![A-Za-z0-9_-])"
         pairs.append((p, CLIENT)); detect.append(p)
-    cust = env.get("AWS_AGENT_CUSTODIAN", "")
+    cust = env.get("AWS_AGENT_CUSTODIAN", ""); personal = []
     if cust and not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", cust) and cust.lower() != "sample custodian":   # a person's name or email, not an object name
+        personal = [cust]
         for form in {cust, quote(cust, safe="")}:
             p = r"(?<![A-Za-z0-9_.-])" + re.escape(form) + r"(?![A-Za-z0-9_-])"
             pairs.append((p, EMAIL if "@" in cust else PERSON)); detect.append(p)
@@ -106,7 +108,58 @@ def mask_rules(env_file, allow_reserved=False):
     lb = r"(?:(?<![A-Za-z0-9_-])|(?<=%3a)|(?<=%253a)|(?<=%2f)|(?<=%252f))"
     rt = lb + r"(runtimes?(?:/|\\/|%2f|%252f))(?!" + RUNTIME + r")[A-Za-z0-9_.-]+"
     pairs.append((rt, r"\1" + RUNTIME)); detect.append(lb + r"runtimes?(?:/|\\/|%2f|%252f)(?!" + RUNTIME + r")[A-Za-z0-9_.-]+")
-    return {"pairs": pairs, "detect": detect}
+    # the literal values, for images: OCR text can wrap a host over two lines, so public_image also looks for these with all whitespace removed
+    values = sorted({*hosts_gateway, *hosts_idp, *domains, *([client] if client else []), *personal,
+                     *(set(re.findall(r"runtimes?/([A-Za-z0-9_.-]{6,})", a2a)) - {RUNTIME})})
+    return {"pairs": pairs, "detect": detect, "values": values}
+
+
+# a console-generated Privilege policy name ('RichmondRiver-546e6b457145'), tolerant of OCR slips: any case, a space by the hyphen, letters for digits
+POLICY_NAME = r"[A-Za-z]{3,}\s?-\s?(?=[0-9A-Za-z]{0,11}[0-9])[0-9A-Za-z]{12}(?![0-9A-Za-z])"
+
+
+def _ocr(p):
+    """tesseract on a 3x copy: small print in a screenshot is read too (the check must not pass what it cannot read)."""
+    import subprocess, tempfile
+    from PIL import Image
+    with tempfile.TemporaryDirectory() as d:
+        big = Path(d) / "big.png"
+        im = Image.open(p).convert("RGB"); im.resize((im.width * 3, im.height * 3), Image.LANCZOS).save(big)
+        return subprocess.run(["tesseract", str(big), "-"], capture_output=True, text=True, check=True).stdout
+
+
+UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"   # a console environment, app or object id: a tenant id, never on a public slide
+PLACEHOLDERS = (GATEWAY, IDP, CLIENT, RUNTIME, OTHER, EMAIL, PERSON, "example-policy")
+
+
+def image_leaks(text, rules):
+    """How many real values OCR text still shows: the page's detectors, the policy-name and UUID patterns, and the literal values with all whitespace
+    removed (a console wraps long URLs). The placeholders are taken out first, so a real value that happens to sit inside one never refuses a clean copy."""
+    flat = re.sub(r"\s+", "", text).lower().replace(",", ".")
+    for ph in PLACEHOLDERS: flat = flat.replace(re.sub(r"\s+", "", ph).lower(), " ")
+    values = {re.sub(r"\s+", "", v).lower() for v in rules.get("values", [])}
+    return (sum(1 for d in rules["detect"] if re.search(d, text, re.I)) + len(re.findall(POLICY_NAME, text)) + len(re.findall(POLICY_NAME, flat))
+            + len(re.findall(UUID, flat)) + sum(1 for v in values if v and v in flat))
+
+
+def public_image(name, assets_dir, rules, ocr=None):
+    """The page masking cannot change a screenshot, so a public take never shows a console image as captured: it shows <stem>.redacted<ext> from the
+    local assets folder (the real values painted over with the same placeholders), and only when OCR finds none of the real values in it.
+    The captured original must sit beside it and be readable by OCR: the control that the check can see this image's text at all.
+    Returns the redacted file name; raises SystemExit otherwise. The message never names a value."""
+    src = Path(assets_dir) / name
+    red = src.with_name(src.stem + ".redacted" + src.suffix)
+    for f in (src, red):
+        if not f.exists():
+            raise SystemExit(f"take.py: {f.name} is missing: a public video shows only a redacted copy of {name}, checked against the captured original")
+    try: orig, text = (ocr or _ocr)(src), (ocr or _ocr)(red)
+    except Exception as e:
+        raise SystemExit(f"take.py: cannot read {name} with OCR ({type(e).__name__}): install tesseract and pillow; every slide image is checked before a public take")
+    if len(re.sub(r"[^A-Za-z0-9]", "", orig)) < 20:
+        raise SystemExit(f"take.py: OCR reads almost nothing in {name}, so it cannot vouch for {red.name}: re-capture it larger (page zoom about 1.5)")
+    if image_leaks(text, rules):
+        raise SystemExit(f"take.py: {red.name} still shows a real value (OCR found one): redact it again")
+    return red.name
 
 
 def mask_pairs(env_file):   # kept for callers that only need the replacements

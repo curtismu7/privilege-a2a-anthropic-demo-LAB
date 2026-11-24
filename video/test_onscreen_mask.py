@@ -91,6 +91,102 @@ class Rules(unittest.TestCase):
         self.assertRaises(om.MaskConfigError, build, "WORKER_A2A_URL=https://gw.corp.invalid/a\nAWS_AGENT_PF_CLIENT_ID=ab\n")
         self.assertRaises(om.MaskConfigError, build, "WORKER_A2A_URL=https://gw.corp.invalid/a\n", False)   # reserved names are skipped outside tests
 
+class PublicImage(unittest.TestCase):
+    """A console screenshot on a slide: the page masking cannot change pixels, so only an OCR-clean .redacted copy may be shown."""
+    def _assets(self, *names):
+        d = tempfile.TemporaryDirectory(); self.addCleanup(d.cleanup)
+        for n in names: (Path(d.name) / n).write_bytes(b"x")
+        return d.name
+
+    ORIGINAL = "Issuer https://someone-pf.corp.invalid Audience https://gw-lb.corp.invalid/aws-agent-worker"
+    CLEAN = "Issuer https://pingfederate.example Audience https://gateway.example/aws-agent-worker client_id=aws-agent-client example-policy"
+
+    def _check(self, redacted, original=ORIGINAL, names=("shot.jpg", "shot.redacted.jpg")):
+        ocr = lambda p: redacted if Path(p).name == "shot.redacted.jpg" else original
+        return om.public_image("shot.jpg", self._assets(*names), build(ENV), ocr=ocr)
+
+    def _refused(self, redacted, **kw):
+        with self.assertRaises(SystemExit) as cm: self._check(redacted, **kw)
+        for real in REAL: self.assertNotIn(real, str(cm.exception), real)   # the refusal never repeats a value
+        return str(cm.exception)
+
+    def test_the_captured_image_is_never_used_without_a_redacted_copy_or_its_original(self):
+        self.assertIn("missing", self._refused(self.CLEAN, names=("shot.jpg",)))
+        self.assertIn("missing", self._refused(self.CLEAN, names=("shot.redacted.jpg",)))
+
+    def test_a_redacted_copy_that_still_shows_a_real_value_is_refused(self):
+        self._refused("Issuer https://someone-pf.corp.invalid")
+        self._refused("Audience https://gw-lb.corp.invalid/aws-agent-worker")
+        self._refused("Required Claims client_id=demo-client-pass")
+        self._refused("Policies > RichmondRiver-546e6b457145")
+
+    def test_a_value_wrapped_over_two_lines_or_misread_by_ocr_is_still_found(self):
+        self._refused("Audience https://gw-lb.corp.\ninvalid/aws-agent-worker")   # the console wraps a long URL
+        self._refused("Issuer https://someone-pf.corp,invalid")                 # OCR reads '.' as ','
+        self._refused("Policies > richmondriver - 546e6b45714S")               # case, spaces, a letter for a digit
+
+    def test_a_custodian_wrapped_over_two_lines_and_a_console_uuid_are_found(self):
+        self._refused("Custodian Owner\nPerson")
+        self._refused("Environment 3f2b8c1a-9d4e-4b7a-8c2d-1e5f6a7b8c9d")
+
+    def test_a_real_value_inside_a_placeholder_never_refuses_a_clean_copy(self):
+        rules = build(ENV.replace('AWS_AGENT_PF_CLIENT_ID="demo-client-pass"', 'AWS_AGENT_PF_CLIENT_ID="agent-client"'))
+        self.assertEqual(om.image_leaks("client_id=aws-agent-client sub aws-agent-client", rules), 0)
+        self.assertGreater(om.image_leaks("client_id=agent-client", rules), 0)
+
+    def test_an_original_ocr_cannot_read_cannot_vouch_for_its_copy(self):
+        self.assertIn("almost nothing", self._refused(self.CLEAN, original="  | . "))
+
+    def test_ocr_that_cannot_run_refuses_rather_than_passes(self):
+        def broken(p): raise FileNotFoundError("tesseract")
+        with self.assertRaises(SystemExit):
+            om.public_image("shot.jpg", self._assets("shot.jpg", "shot.redacted.jpg"), build(ENV), ocr=broken)
+
+    def test_a_clean_copy_is_what_the_slide_shows(self):
+        self.assertEqual(self._check(self.CLEAN), "shot.redacted.jpg")
+        self.assertEqual(self._check("Backend https://bedrock-agentcore.us-east-1.amazonaws.com aws-agent-worker 2026-11-21"), "shot.redacted.jpg")
+
+    def test_real_ocr_reads_small_print(self):
+        import shutil
+        try: from PIL import Image, ImageDraw, ImageFont
+        except ImportError: self.skipTest("Pillow not installed")
+        if not shutil.which("tesseract"): self.skipTest("tesseract not installed")
+        try: big, small = ImageFont.load_default(size=40), ImageFont.load_default(size=14)
+        except TypeError: self.skipTest("Pillow too old for a sized default font")
+        d = self._assets()
+        for name, font in (("shot.jpg", big), ("shot.redacted.jpg", small)):   # the value left in small print, as the review found
+            im = Image.new("RGB", (1400, 120), "white"); ImageDraw.Draw(im).text((20, 30), "Issuer https://someone-pf.corp.invalid", fill="black", font=font)
+            im.save(Path(d) / name)
+        with self.assertRaises(SystemExit): om.public_image("shot.jpg", d, build(ENV))
+
+
+class TakeWiring(unittest.TestCase):
+    """take.py checks every slide's image before recording and shows only the checked copy."""
+    def setUp(self):
+        try:
+            import take
+        except ImportError as e:
+            self.skipTest(f"take.py needs {e.name}")
+        self.take = take; self.addCleanup(setattr, take, "PUBLIC_IMAGES", take.PUBLIC_IMAGES)
+
+    def test_opening_closing_and_every_slide_image_is_checked(self):
+        seen = []
+        orig = om.public_image
+        om.public_image = lambda name, assets, rules: seen.append(name) or name.replace(".jpg", ".redacted.jpg")
+        self.addCleanup(setattr, om, "public_image", orig)
+        out = self.take.public_images([{"image": "open.jpg"}, {"image": "close.jpg"}, None, {"title": "no image"}, {"image": "a.jpg"}], rules={})
+        self.assertEqual(seen, ["open.jpg", "close.jpg", "a.jpg"])
+        self.assertEqual(out["a.jpg"], "a.redacted.jpg")
+
+    def test_a_masked_take_shows_the_checked_copy_and_never_an_unchecked_image(self):
+        captured = []
+        orig = self.take._slide_payload
+        self.take._slide_payload = lambda cfg, assets: captured.append(cfg["image"])
+        self.addCleanup(setattr, self.take, "_slide_payload", orig)
+        self.take.PUBLIC_IMAGES = {"a.jpg": "a.redacted.jpg"}
+        self.take.slide_payload({"image": "a.jpg"}); self.take.slide_payload({"image": "unchecked.jpg"})
+        self.assertEqual(captured, ["a.redacted.jpg", None])
+
 try:
     import playwright.sync_api as pw
     HAVE = True
