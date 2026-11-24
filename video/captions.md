@@ -1,7 +1,7 @@
 <!--
   All the WORDING for the two-part A2A recording. Edit the text under each heading — nothing else needs to change.
-  take.py reads this file and fills in the live values (a status code, a timing, the agent's own answer) around
-  whatever you write here; it never touches this file itself. SCRIPT.md is the source for every claim below.
+  The lab serves this file at GET /api/story (the shared Story parser); the live Story and take.py both read that, and take.py fills in the live values (a status code,
+  a timing, the agent's own answer) around whatever you write here; it never touches this file itself. SCRIPT.md is the source for every claim below.
 
   Rules for editing safely:
   - Don't rename a "# Opening Slide" / "# Closing Slide" / "# Slide: <key>" / "# Step: <key>" heading, and don't rename
