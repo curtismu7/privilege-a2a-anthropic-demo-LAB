@@ -2,3 +2,7 @@
 66f46df83a301cadcdb0e43daabaf1a46fa0b933:test/story.test.ts:generic-api-key:81
 66f46df83a301cadcdb0e43daabaf1a46fa0b933:web/src/storyScript.js:generic-api-key:77
 66f46df83a301cadcdb0e43daabaf1a46fa0b933:web/src/storyWiringBedrock.test.jsx:generic-api-key:43
+# the same three, at the squash-merge commit of the Bedrock tab on main (a squash changes the commit hash, so the fingerprints above no longer match)
+7aa0078276642110ddc84fce098f1afbb24f9c1b:test/story.test.ts:generic-api-key:81
+7aa0078276642110ddc84fce098f1afbb24f9c1b:web/src/storyScript.js:generic-api-key:77
+7aa0078276642110ddc84fce098f1afbb24f9c1b:web/src/storyWiringBedrock.test.jsx:generic-api-key:43
