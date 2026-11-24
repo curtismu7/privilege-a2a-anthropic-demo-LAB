@@ -344,7 +344,7 @@ app.post('/chat', async (req: Request, res: Response) => {
 
   // Story mode, offline Mock: no model key means no live run to show, so the two scripted questions get a SIMULATED run (src/storyReplay.ts). Only when the page says Story
   // is on; anything else, including Demo mode, takes the path below unchanged.
-  if (body.story === true && uiMode === 'mock' && !realModelConfigured()) {
+  if (body.story === true && uiMode === 'mock' && !realModelConfigured() && !heuristic) {
     const simulated = simulatedRun(message);
     if (simulated) {
       let closed = false;

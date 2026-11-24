@@ -629,7 +629,7 @@ Ran the tabs in simulated mode: the calls went to local stand-ins, not to the ga
 What each layer logged for this run
 
 ## Text
-This panel lists the log lines each layer left for the run you just made, in time order, with the timestamps the products wrote. Ids, tokens and addresses are masked. A layer that wrote no line says so; nothing is filled in.
+This panel lists what each layer left for the run you just made: the responses this lab received and any log lines its readers found, each with its own time and a tag that says where it came from. Ids, tokens and addresses are masked. A layer with no line says so; nothing is claimed for it.
 
 ---
 
@@ -678,4 +678,51 @@ Blocked in flight (simulated)
 
 ## Text
 This shows how the live demo reads when the gateway blocks a tool response: no data reaches the analyst. In this simulated run no gateway was involved; the block is part of the recorded shape.
+---
+
+# Step: sample_p1_intro
+
+<!-- Story only, simulated run: the live wording says Privilege sits between the agents -->
+
+## Title
+The A2A with remote agents tab (simulated)
+
+## Text
+The concierge is the agent you talk to; the analyst is a second agent that reads the access data. In the live demo Privilege sits between them. Here the agents are a local simulation, as the banner says.
+
+---
+
+# Step: sample_p1_message
+
+<!-- Story only, simulated run: the live wording says a message is sent -->
+
+## Title
+The message between the agents (simulated)
+
+## Text
+In the live demo one JSON-RPC message goes from the concierge to the analyst with an agent key, shown masked. This frame shows the shape of that message; in this simulated run nothing was sent.
+
+---
+
+# Step: sample_p1_mcp
+
+<!-- Story only, simulated run: the live wording says the analyst uses MCP -->
+
+## Title
+The analyst reads the data (simulated)
+
+## Text
+In the live demo the analyst reads the data over MCP: A2A is how agents talk to each other, MCP is how an agent uses tools (specification, Appendix B). In this simulated run no tool was called.
+
+---
+
+# Step: sample_p1_answer
+
+<!-- Story only, simulated run: the live wording says the answer came from the analyst -->
+
+## Title
+The answer (simulated)
+
+## Text
+In the live demo the concierge answers from what the analyst returned, and nothing the data did not say. This answer is canned: no model and no analyst produced it.
 

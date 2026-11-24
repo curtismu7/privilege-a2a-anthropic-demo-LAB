@@ -8,7 +8,9 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
 import { notesFor } from '../src/runObs.js';
-import { playSimulated, simulatedRun } from '../src/storyReplay.js';
+import { SCRIPTED_ALLOWED, SCRIPTED_BLOCKED, playSimulated, simulatedRun } from '../src/storyReplay.js';
+// @ts-expect-error plain JavaScript data
+import { P1_Q1, P1_Q2 } from '../web/src/storyScript.js';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const tsxCli = join(root, 'node_modules/tsx/dist/cli.mjs');
@@ -20,6 +22,12 @@ test('story replay: only the two scripted questions get a simulated run', () => 
   assert.equal(simulatedRun(BLOCKED)?.kind, 'blocked');
   assert.equal(simulatedRun('who is Carol Nguyen?'), null);
   assert.equal(simulatedRun(''), null);
+  // matched whole: a question that only mentions them is the viewer's own
+  assert.equal(simulatedRun('Remove Bob Reyes from payments-api'), null);
+  assert.equal(simulatedRun('Is prod-db-primary safe?'), null);
+  assert.equal(simulatedRun('  what can   BOB reyes reach? ')?.kind, 'allowed');
+  // the server's copies of the questions are the script's (the page fills the box from the script)
+  assert.equal(SCRIPTED_ALLOWED, P1_Q1); assert.equal(SCRIPTED_BLOCKED, P1_Q2);
 });
 
 test('story replay: the events have the shape of a live run, in order, and the blocked one has no tool result', () => {
@@ -82,7 +90,20 @@ test('story replay: over HTTP, only a Story-on question gets the simulated run; 
     assert.match(story, /simulated \(no model call\)/); assert.match(story, /event: done/); assert.match(story, /REDACTED:pii/);
     const demo = await (await post({ message: BOB, mode: 'mock' })).text();
     assert.equal(/simulated/i.test(demo), false, 'without story: true nothing is simulated');
-    assert.match(demo, /Model not configured|error/i);
+    assert.match(demo, /event: error/); assert.match(demo, /Model not configured for MAIN_AGENT/);
+    for (const flag of ['true', 1, 'yes', {}]) {   // only the boolean true turns it on: a client cannot get a simulated run by accident
+      const t = await (await post({ message: BOB, mode: 'mock', story: flag })).text();
+      assert.equal(/simulated/i.test(t), false, `story: ${JSON.stringify(flag)} is not Story`);
+    }
+    const heuristic = await (await post({ message: BOB, mode: 'heuristics', story: true, vertical: 'banking', agentName: 'a', specialistName: 'b', tools: ['x'], subtaskHint: 'h' })).text();
+    assert.equal(/simulated \(no model call\)/.test(heuristic), false, 'a heuristic/profile request keeps its own path even with story: true');
+    // a viewer who leaves mid-run: the server stops, and the next request is served normally
+    const ctl = new AbortController(); const cut = await fetch(`http://127.0.0.1:${port}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: BOB, mode: 'mock', story: true }), signal: ctl.signal });
+    const reader = cut.body!.getReader(); await reader.read(); ctl.abort(); await reader.cancel().catch(() => undefined);
+    await delay(300);
+    assert.equal((await fetch(`http://127.0.0.1:${port}/api/health`)).status, 200);
+    assert.match(await (await post({ message: BLOCKED, mode: 'mock', story: true })).text(), /content_blocked/);
+    assert.equal(/ERR_|Unhandled|TypeError/.test(output), false, `the server logged no error:\n${output}`);
     const other = await (await post({ message: 'who is Carol Nguyen?', mode: 'mock', story: true })).text();
     assert.equal(/simulated \(no model call\)/.test(other), false, 'an unscripted question is not simulated');
   } finally {

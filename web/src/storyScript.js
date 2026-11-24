@@ -31,13 +31,13 @@ export const STEPS = [
   { key: 'opening', type: 'slide', trigger: 'load' },
 
   // ---- Part 1: our two agents (the "A2A with remote agents" tab)
-  { key: 'p1_intro', type: 'bubble', tab: REVIEW, trigger: 'load', target: '#chat', prefer: 'right' },
+  { key: 'p1_intro', type: 'bubble', tab: REVIEW, trigger: 'load', target: '#chat', prefer: 'right', sampleKey: 'sample_p1_intro' },
   { key: 'p1_prompt', type: 'bubble', tab: REVIEW, trigger: 'load', target: '#input', prefer: 'above', prompt: { text: P1_Q1 }, fixedSecs: 4.5, askLine: `asks: ${P1_Q1}` },
   { key: 'p1_handoff', type: 'bubble', trigger: 'run-done', target: '#who .who-hop', place: 'bl', sampleKey: 'sample_p1_handoff' },   // only when a handoff happened: a run that failed before it shows no hop
-  { key: 'p1_message', type: 'bubble', trigger: 'frame', popout: { root: '#reel-review', frame: 'Send the message', section: 'The call' }, prefer: 'right' },
-  { key: 'p1_mcp', type: 'bubble', trigger: 'frame', target: { frame: 'Call the tool', root: '#reel-review' }, prefer: 'below' },
+  { key: 'p1_message', type: 'bubble', trigger: 'frame', popout: { root: '#reel-review', frame: 'Send the message', section: 'The call' }, prefer: 'right', sampleKey: 'sample_p1_message' },
+  { key: 'p1_mcp', type: 'bubble', trigger: 'frame', target: { frame: 'Call the tool', root: '#reel-review' }, prefer: 'below', sampleKey: 'sample_p1_mcp' },
   { key: 'p1_redacted', type: 'bubble', trigger: 'frame', popout: { root: '#reel-review', frame: 'Tool result', section: 'What came back' }, prefer: 'right', lines: 'redacted', sampleKey: 'sample_p1_redacted' },
-  { key: 'p1_answer', type: 'bubble', trigger: 'load', target: { lastMessage: 'agent' }, prefer: 'right', lines: 'answer1' },
+  { key: 'p1_answer', type: 'bubble', trigger: 'load', target: { lastMessage: 'agent' }, prefer: 'right', lines: 'answer1', sampleKey: 'sample_p1_answer' },
   { key: 'p1_refuse_prompt', type: 'bubble', trigger: 'load', target: '#input', prefer: 'above', prompt: { text: P1_Q2 }, fixedSecs: 4.5, askLine: `asks: ${P1_Q2}` },
   { key: 'p1_blocked', type: 'bubble', trigger: 'run-done', target: { last: '#trace .trace.error', fallback: '#reel-review .reel__frame', only: 'blocked' }, prefer: 'left', sampleKey: 'sample_p1_blocked' },   // only when the trace says the gateway blocked it (the video's own test)
 

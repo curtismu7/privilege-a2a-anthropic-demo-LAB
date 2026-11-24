@@ -33,14 +33,20 @@ function build(question: string, tool: string, toolInput: string, outcome: Simul
   return { kind, steps: head };
 }
 
+// The two scripted Part 1 questions (the same text as web/src/storyScript.js P1_Q1 and P1_Q2; a test keeps them equal). Matched whole, ignoring case and spacing:
+// a question that merely mentions Bob Reyes or the resource is the viewer's own and takes the normal path.
+export const SCRIPTED_ALLOWED = 'What can Bob Reyes reach?';
+export const SCRIPTED_BLOCKED = 'Review access on prod-db-primary';
+const norm = (s: string): string => s.trim().replace(/\s+/g, ' ').toLowerCase();
+
 /** The simulated run for one of the two scripted questions, or null (any other question is left to the normal path). */
 export function simulatedRun(message: string): SimulatedRun | null {
-  if (/prod-db-primary/i.test(message)) {
+  if (norm(message) === norm(SCRIPTED_BLOCKED)) {
     return build(message, 'get_access_grants', '{"resource":"prod-db-primary"}',
       { delayMs: 500, event: 'trace', payload: { kind: 'error', text: 'get_access_grants failed', detail: 'Streamable HTTP error: Error POSTing to endpoint: {"error":{"code":"content_blocked","message":"response blocked by security policy"}}', from: 'mcp', to: 'analyst' } },
       BLOCKED_ANSWER, 'blocked');
   }
-  if (/bob\s+reyes/i.test(message)) {
+  if (norm(message) === norm(SCRIPTED_ALLOWED)) {
     return build(message, 'list_entitlements', '{"user":"Bob Reyes"}',
       { delayMs: 500, event: 'trace', payload: { kind: 'mcp-result', text: 'list_entitlements returned', detail: JSON.stringify(TOOL_REPLY, null, 2), from: 'mcp', to: 'analyst' } },
       BOB_ANSWER, 'allowed');

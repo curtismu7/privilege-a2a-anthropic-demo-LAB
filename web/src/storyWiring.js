@@ -143,7 +143,7 @@ function linesFor(doc, step) {
   const states = () => ['custodian', 'main', 'gateway', 'aws'].map((id) => `${id}: ${text(doc.getElementById(`aws-s-${id}`))}`).join(' · ');
   if (step.askLine) return () => [step.askLine];
   switch (step.lines) {
-    case 'redacted': return () => (text(doc.getElementById('trace')).includes('REDACTED') ? ['the email came back as [REDACTED:pii]'] : []);
+    case 'redacted': return () => { const t = text(doc.getElementById('trace')); if (!t.includes('REDACTED')) return []; return t.includes('simulated (no model call)') ? ['the recorded shape shows the email as [REDACTED:pii]'] : ['the email came back as [REDACTED:pii]']; };
     case 'answer1': return () => [firstSentence(agentAnswer())];
     case 'routeMode': return () => [firstSentence(text(doc.getElementById('aws-mode')))];
     case 'answeredIn': return () => { const at = text(doc.querySelector('#aws-trace li[data-kind=result] .aws__at')); return at ? [`answered in ${at}`] : []; };

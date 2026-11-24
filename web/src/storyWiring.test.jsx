@@ -190,6 +190,8 @@ describe("buildSteps", () => {
     expect(by.answer.lines()).toEqual(["custodian: acting · main: sent · gateway: passed · aws: replied"]);
     expect(by.second_answer.lines()).toEqual(["The sum is 58,000, which is even."]);
     expect(by.p1_prompt.lines()).toEqual(["asks: What can Bob Reyes reach?"]);
+    document.getElementById("trace").textContent = "session ab12 · simulated (no model call) email: [REDACTED:pii]";
+    expect(by.p1_redacted.lines()).toEqual(["the recorded shape shows the email as [REDACTED:pii]"]);   // a simulated run never says the email "came back"
     document.body.innerHTML = '<div id="trace">nothing here</div><ul id="aws-trace"></ul>';
     expect(by.p1_redacted.lines()).toEqual([]); expect(by.result.lines()).toEqual([]);
   });
