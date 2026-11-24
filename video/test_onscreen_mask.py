@@ -62,6 +62,14 @@ class Rules(unittest.TestCase):
         self.assertEqual(leaks(out, self.rules), 0)
         self.assertGreater(leaks("Bearer sk-orion-ab12… (masked)", self.rules), 0)   # and an unmasked one is counted as a leak (also for OCR'd frames and images)
 
+    def test_the_key_rule_does_not_assume_the_key_alphabet_or_the_product_word(self):
+        for shown in ("sk-orion-ab-c…", "sk-orion-a_b2…", "sk-orion-a…", "sk-orion2-ab12…", "sk-pingone-9z8y…"):
+            out = apply(f"Bearer {shown} (masked)", self.rules)
+            self.assertRegex(out, r"^Bearer sk-[a-z0-9]+-xxxx… \(masked\)$", shown)
+            self.assertEqual(leaks(out, self.rules), 0, shown)
+        for masked in ("sk-orion-xxxx…", "sk-orion-xxx…", "sk-orion-xx…"):   # a placeholder OCR read with fewer x's is not a leak
+            self.assertEqual(leaks(f"Bearer {masked} (masked)", self.rules), 0, masked)
+
     def test_the_env_is_read_like_dotenv(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / ".env"; p.write_text(ENV); env = om._env(p)
@@ -176,12 +184,12 @@ class TakeClip(unittest.TestCase):
             self.skipTest(f"take.py needs {e.name}")
         self.clip = take.clip_window
 
-    def test_it_starts_just_before_the_first_slide(self):
-        self.assertEqual(self.clip(5.0, None), {"start": 4.85, "end": None})   # the main segment is not cut short: it ends on the page
-        self.assertEqual(self.clip(0.05, None)["start"], 0.0)                 # never before the start of the recording
+    def test_it_starts_just_after_the_first_slide_is_drawn_so_no_frame_of_the_page_is_kept(self):
+        self.assertEqual(self.clip(5.0, None), {"start": 5.05, "end": None})   # the main segment is not cut short: it ends on the page
+        self.assertGreater(self.clip(5.0, None)["start"], 5.0)
 
     def test_it_ends_just_after_the_closing_slide(self):
-        self.assertEqual(self.clip(2.0, 30.0), {"start": 1.85, "end": 30.8})
+        self.assertEqual(self.clip(2.0, 30.0), {"start": 2.05, "end": 30.8})
 
     def test_a_take_with_no_slide_is_left_whole(self):
         self.assertEqual(self.clip(None, None), {"start": 0.0, "end": None})

@@ -122,12 +122,12 @@ def public_images(slides, rules, assets=ASSETS):
     """Every image any slide of this take can show (opening, closing and the rest), mapped to its OCR-checked redacted copy. Refuses before recording."""
     return {s["image"]: onscreen_mask.public_image(s["image"], assets, rules) for s in slides if s and s.get("image")}
 
-def clip_window(first, last, lead=0.15, tail=0.8):
-    """Where to cut the recorded video (seconds from the start of the page's own recording): from just before the first slide is drawn, so the first page
+def clip_window(first, last, delay=0.05, tail=0.8):
+    """Where to cut the recorded video (seconds from the start of the page's own recording): from just after the first slide is drawn, so the first page
     of the video is the title (owner rule 29), to just after the closing slide has been held, when there is one. A take with no slide is left whole.
     Returns {'start': s, 'end': s or None}."""
     if first is None: return {"start": 0.0, "end": None}
-    start = max(0.0, first - lead)
+    start = first + delay   # the slide is painted within a frame of being drawn: the video never shows the page underneath
     return {"start": round(start, 2), "end": round(last + tail, 2) if last is not None else None}
 
 def slide_payload(cfg):
