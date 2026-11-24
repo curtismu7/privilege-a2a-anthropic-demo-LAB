@@ -23,8 +23,9 @@ def classic(name):
 
 # take.py's own additions around the shared overlay: the SAMPLE pill, the reel pop-out pushed to the left edge (so the caption bubble sits beside it) and widened at the
 # large scale, and the hidden protocolVersion row.
-GLUE = r"""
-  if (window.__cm) return;
+GUARD = "  if (window.__cm) return;"   # a second injection in one page does nothing
+
+GLUE_BODY = r"""
   const S = window.__cmScale || 1;
   const ov = createOverlay({ scale: S, follow: false });   // follow: false: a caption is drawn once and stays exactly there, as the video always did
   window.__cm = { clear: ov.clear, cap: (o) => ov.cap(o), slide: (o) => ov.slide(o), scrollSlide: ov.scrollSlide };
@@ -47,8 +48,7 @@ GLUE = r"""
 def overlay_script():
     """One self-contained function: the shared names (words, holdMs, createOverlay ...) stay inside it, so nothing of ours can collide with the page's own scripts, and running it
     twice in one page is harmless. Only window.__cm and window.__storyHold are visible to take.py."""
-    guard, body = GLUE.split("\n", 2)[1], GLUE.split("\n", 2)[2]
-    return ";(() => {\n" + guard + "\n" + classic("hold.js") + "\n" + classic("overlay.js") + "\n" + body + "})();\n"
+    return ";(() => {\n" + GUARD + "\n" + classic("hold.js") + "\n" + classic("overlay.js") + "\n" + GLUE_BODY + "})();\n"
 
 def slide_payload(cfg, assets_dir):
     """captions.py's flat slide -> the shared overlay's shape. An image is read from the local, gitignored assets folder (nothing ships in the repo)."""

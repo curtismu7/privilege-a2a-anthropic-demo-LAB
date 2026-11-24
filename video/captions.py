@@ -42,10 +42,13 @@ def load(app_url, local_file=None, timeout=15):
         raise ValueError(detail or f"/api/story answered HTTP {e.code}") from None
     except (urllib.error.URLError, OSError) as e:
         raise ValueError(f"the lab is not reachable at {app_url} ({e}): the video reads its wording from the running lab") from None
+    if not isinstance(story, dict):
+        raise ValueError(f"{app_url} answered /api/story with something that is not the Story wording (is this the lab?)")
     if "error" in story:
         raise ValueError(story["error"])
     if local_file is not None and os.environ.get("ALLOW_STALE_WORDING") != "1":
-        want = hashlib.sha256(Path(local_file).read_bytes()).hexdigest()
+        try: want = hashlib.sha256(Path(local_file).read_bytes()).hexdigest()
+        except OSError as e: raise ValueError(f"cannot read {local_file} to check the lab's wording against it ({e})") from None
         if story.get("sourceSha256") != want:
             raise ValueError("the lab is serving a different captions.md than " + str(local_file) + " (its wording is stale or from another checkout): restart it with "
                              "`docker compose up -d --build` (the compose file mounts the file, so a plain restart also picks it up), or set ALLOW_STALE_WORDING=1 to record anyway")

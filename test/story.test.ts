@@ -168,6 +168,19 @@ test('story: a fix to captions.md shows without a restart (the wording is read a
   assert.equal(loadCaptions(file).opening.title, 'second');
 });
 
+test('story: an edit that keeps the same timestamp still shows, and the served hash always matches the served wording (one read)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'story-'));
+  const file = join(dir, 'captions.md');
+  const slide = (t: string) => `# Opening Slide\n\n## Title\n${t}\n\n## Lead\nl\n\n## Column A: a\n- x\n\n## Column B: b\n- y\n\n## Verdict\nv\n\n---\n\n`;
+  const doc = (t: string) => slide(t) + slide('c').replace('# Opening Slide', '# Closing Slide');
+  writeFileSync(file, doc('first')); const when = new Date(Date.now() - 60_000); utimesSync(file, when, when);
+  const a = storyResponse(file).body as unknown as { opening: { title: string }; sourceSha256: string };
+  assert.equal(a.opening.title, 'first'); assert.equal(a.sourceSha256, createHash('sha256').update(readFileSync(file)).digest('hex'));
+  writeFileSync(file, doc('other')); utimesSync(file, when, when);            // new bytes, the very same timestamp
+  const b = storyResponse(file).body as unknown as { opening: { title: string }; sourceSha256: string };
+  assert.equal(b.opening.title, 'other'); assert.notEqual(b.sourceSha256, a.sourceSha256);
+});
+
 test('story: no console screenshot is tracked, and the assets folder is ignored (the repo is public)', () => {
   assert.match(readFileSync(`${root}video/.gitignore`, 'utf8'), /^assets\/$/m);
   let tracked: string[] | null = null;

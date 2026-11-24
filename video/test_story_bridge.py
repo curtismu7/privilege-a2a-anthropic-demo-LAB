@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Tests for the video's bridge to the shared Story code. Run: python3 video/test_story_bridge.py   (needs node; no browser, no Playwright)
+"""Tests for the video's bridge to the shared Story code. Run: python3 video/test_story_bridge.py   (needs node; the real-browser checks in InABrowser run when Playwright and its Chromium are installed and are skipped otherwise)
 The golden numbers are what take.py's own formulas gave before it moved to the shared hold.js (max(5.0, words*0.30+2.2) and min(10.0, max(6.0, words*0.25+3.0)))."""
-import json, shutil, subprocess, sys, tempfile, threading, unittest
+import json, os, shutil, subprocess, sys, tempfile, threading, unittest
+from unittest import mock
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -113,8 +114,13 @@ class Wording(unittest.TestCase):
     def test_stale_wording_is_refused_unless_you_say_otherwise(self):
         with tempfile.TemporaryDirectory() as d:
             f = Path(d) / "captions.md"; f.write_text("the current captions.md")
-            import hashlib, os
+            import hashlib
             good = {**self.STORY, "sourceSha256": hashlib.sha256(f.read_bytes()).hexdigest()}
+            srv, url = self._serve({"code": 200}, {"doc": good})
+            with mock.patch.dict(os.environ): os.environ.pop("ALLOW_STALE_WORDING", None); self._stale_checks(f, good)
+
+    def _stale_checks(self, f, good):
+        if True:
             srv, url = self._serve({"code": 200}, {"doc": good})
             try: self.assertEqual(captions.load(url, f)[0]["title"], "O")              # the lab serves this very file
             finally: srv.shutdown(); srv.server_close()
@@ -123,10 +129,20 @@ class Wording(unittest.TestCase):
                 try:
                     with self.assertRaises(ValueError) as cm: captions.load(url, f)
                     self.assertIn("stale", str(cm.exception))
-                    os.environ["ALLOW_STALE_WORDING"] = "1"
-                    try: self.assertEqual(captions.load(url, f)[0]["title"], "O")
-                    finally: del os.environ["ALLOW_STALE_WORDING"]
+                    with mock.patch.dict(os.environ, {"ALLOW_STALE_WORDING": "1"}): self.assertEqual(captions.load(url, f)[0]["title"], "O")
                 finally: srv.shutdown(); srv.server_close()
+
+    def test_a_missing_local_file_and_a_server_that_is_not_the_lab_are_clear_errors(self):
+        srv, url = self._serve({"code": 200}, {"doc": self.STORY})
+        try:
+            with mock.patch.dict(os.environ): 
+                os.environ.pop("ALLOW_STALE_WORDING", None)
+                with self.assertRaises(ValueError) as cm: captions.load(url, "/nonexistent/captions.md")
+                self.assertIn("cannot read", str(cm.exception))
+        finally: srv.shutdown(); srv.server_close()
+        srv, url = self._serve({"code": 200}, {"doc": ["not", "the", "wording"]})
+        try: self.assertRaises(ValueError, captions.load, url)
+        finally: srv.shutdown(); srv.server_close()
 
     def test_a_slide_missing_a_part_is_a_value_error_not_a_key_error(self):
         broken = {**self.STORY, "slides": {"x": {"title": "t"}}}
@@ -151,13 +167,13 @@ class InABrowser(unittest.TestCase):
     PAGE = "<!doctype html><html><head><title>p</title></head><body><button id='t' style='position:absolute;left:300px;top:300px'>target</button></body></html>"
 
     def setUp(self):
-        self.p = _pw.sync_playwright().start(); self.b = self.p.chromium.launch(headless=True)
+        self.p = _pw.sync_playwright().start(); self.addCleanup(self.p.stop)
+        try: self.b = self.p.chromium.launch(headless=True)
+        except Exception as e: self.skipTest(f"no Chromium for Playwright here ({str(e).splitlines()[0][:80]})")
+        self.addCleanup(self.b.close)
         self.page = self.b.new_context(viewport={"width": 1920, "height": 1080}).new_page()
         self.page.add_init_script("window.__cmScale = 1.3;"); self.page.add_init_script(story_bridge.overlay_script())
         self.page.goto("data:text/html," + self.PAGE); self.page.wait_for_selector("#t")
-
-    def tearDown(self):
-        self.b.close(); self.p.stop()
 
     def test_cap_and_slide_draw_what_take_py_sends_and_clear_removes_them(self):
         self.page.evaluate("o => window.__cm.cap(o)", dict(n=4, total=25, title="Ask", text="Type it.", target="#t", lines=["asks: x"], prefer="right", place=None))
