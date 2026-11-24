@@ -618,3 +618,64 @@ Sample closing bullet
 
 ## Text
 Ran the tabs in simulated mode: the calls went to local stand-ins, not to the gateway
+
+---
+
+# Step: observability_panel
+
+<!-- Story only: the live Run observability panel under the run. The recorded video shows its own captured-evidence slide ("Slide: observability") instead. -->
+
+## Title
+What each layer logged for this run
+
+## Text
+This panel lists the log lines each layer left for the run you just made, in time order, with the timestamps the products wrote. Ids, tokens and addresses are masked. A layer that wrote no line says so; nothing is filled in.
+
+---
+
+# Step: sample_observability_panel
+
+<!-- Story only, simulated run: what the panel shows when no product wrote a log. -->
+
+## Title
+What each layer logged for this run
+
+## Text
+In this simulated run no product wrote a log line. The panel lists what this lab itself noted for the run, so you can see how the real panel reads.
+
+---
+
+# Step: sample_p1_handoff
+
+<!-- Story only, simulated run: the live wording says a call happened; this run made none. -->
+
+## Title
+The A2A handoff (simulated)
+
+## Text
+This is the shape of the handoff the live demo shows: the concierge hands the question to the analyst, and every call is one frame on the reel. In this simulated run no A2A call was made.
+
+---
+
+# Step: sample_p1_redacted
+
+<!-- Story only, simulated run: nothing was screened here. -->
+
+## Title
+Where the gateway screens the data (simulated)
+
+## Text
+The email shows as [REDACTED:pii], the way the live demo shows data the gateway screened. In this simulated run nothing was screened; the redaction is part of the recorded shape.
+
+---
+
+# Step: sample_p1_blocked
+
+<!-- Story only, simulated run: no gateway blocked anything here. -->
+
+## Title
+Blocked in flight (simulated)
+
+## Text
+This shows how the live demo reads when the gateway blocks a tool response: no data reaches the analyst. In this simulated run no gateway was involved; the block is part of the recorded shape.
+

@@ -19,6 +19,7 @@ export default function StoryRoot({ mode, ready = true, onExit, prefix = "a2a" }
   useEffect(() => {
     let live = true;
     let parts = null;
+    window.__storyOn = true;   // the page's chat tells the server Story is on (offline Mock then gets a simulated run)
     fetch("/api/story", { headers: { Accept: "application/json" } })
       .then(async (r) => {
         const body = await r.json().catch(() => ({}));
@@ -38,6 +39,7 @@ export default function StoryRoot({ mode, ready = true, onExit, prefix = "a2a" }
       .catch((e) => { if (live) setError(e.message || "The Story wording could not be loaded."); });
     return () => {
       live = false;
+      delete window.__storyOn;
       if (parts) {   // exit first: it closes an open pop-out and clears the overlay; then everything is released
         const { s, host, overlay } = parts;
         s.exit().finally(() => { s.destroy(); host.dispose(); overlay.destroy(); });

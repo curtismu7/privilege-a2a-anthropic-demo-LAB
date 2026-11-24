@@ -159,8 +159,8 @@ const CONDITIONS = {
   awsLive: (doc) => () => text(doc.getElementById('aws-mode')).startsWith('LIVE'),
 };
 
-// Steps left out until their wording and wiring are checked in the browser (the next slice): the observability slide is the live panel, not a captured image.
-export const NOT_YET = ['observability'];
+// Steps left out of the walk-through. None now: the observability scene is the live panel (a Story-only bubble), and the video's captured slide is not in the script.
+export const NOT_YET = [];
 
 /** The script as engine steps. `captions` is /api/story; it supplies the Mock closing slide's replacement lines. */
 export function buildSteps({ captions, host, doc = document, win = window, script = STEPS, notYet = NOT_YET }) {
@@ -171,6 +171,9 @@ export function buildSteps({ captions, host, doc = document, win = window, scrip
     if (s.prompt) step.prompt = s.prompt;
     if (s.when) step.when = CONDITIONS[s.when](doc);
     if (s.type === 'bubble') {
+      if (s.target && s.target.open) {   // a <details> to open first (the observability drawer); nothing to close afterwards
+        step.before = async () => { const d = doc.querySelector(s.target.open); if (d) d.open = true; await host._sleep(150); };
+      }
       if (s.popout) Object.assign(step, popoutHooks(doc, win, s.popout, host));
       else step.target = targetFor(doc, s.target, host);
       const lines = linesFor(doc, s);
