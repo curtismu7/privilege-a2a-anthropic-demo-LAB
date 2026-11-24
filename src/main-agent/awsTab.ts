@@ -31,7 +31,31 @@ const promptButton = ({ q, proves }: AwsPrompt): string =>
 export const AWS_TABS_HTML = `<div class="tabs" role="tablist" aria-label="Demo views">
 <button type="button" role="tab" id="tab-review" aria-selected="true" aria-controls="panel-review" data-testid="tab-review">A2A with remote agents</button>
 <button type="button" role="tab" id="tab-aws" aria-selected="false" aria-controls="panel-aws" tabindex="-1" data-testid="tab-aws">Custodian to AWS agent</button>
+<button type="button" role="tab" id="tab-bedrock" aria-selected="false" aria-controls="panel-bedrock" tabindex="-1" data-testid="tab-bedrock">Gateway to Bedrock (IAM)</button>
 </div>`;
+
+// The tab bar: click, the arrow keys (wrapping), Home and End move between the three tabs; the URL hash is #aws or #bedrock (none for the first tab), and
+// a page opened with that hash starts on that tab. Classic script, no template literals inside.
+export const TABS_SCRIPT = String.raw`(function(){
+var order=['review','aws','bedrock'],tabs={},panels={};
+order.forEach(function(k){tabs[k]=document.getElementById('tab-'+k);panels[k]=document.getElementById('panel-'+k)});
+function select(which,focus){
+  order.forEach(function(k){var on=k===which;tabs[k].setAttribute('aria-selected',String(on));tabs[k].tabIndex=on?0:-1;panels[k].hidden=!on});
+  if(focus)tabs[which].focus();
+  try{tabs[which].scrollIntoView({inline:'nearest',block:'nearest'})}catch(e){}
+  try{history.replaceState(null,'',which==='review'?location.pathname+location.search:'#'+which)}catch(e){}
+}
+order.forEach(function(k,i){
+  tabs[k].addEventListener('click',function(){select(k)});
+  tabs[k].addEventListener('keydown',function(e){
+    var n=order.length,to=e.key==='ArrowRight'?order[(i+1)%n]:e.key==='ArrowLeft'?order[(i+n-1)%n]:e.key==='Home'?order[0]:e.key==='End'?order[n-1]:null;
+    if(!to)return;
+    e.preventDefault();   /* the key moves between tabs only: without this the page also scrolls (Home and End jump it) */
+    select(to,true);
+  });
+});
+if(location.hash==='#aws'||location.hash==='#bedrock')select(location.hash.slice(1));
+})();`;
 
 const node = (id: string, kicker: string, name: string, sub: string, extra = ''): string =>
   `<li class="aws__node" id="aws-n-${id}" data-state="idle"><span class="aws__kicker">${kicker}</span><span class="aws__name" id="aws-name-${id}">${name}</span><span class="aws__sub" id="aws-sub-${id}">${sub}</span><span class="aws__state" id="aws-s-${id}">waiting</span>${extra}</li>`;
@@ -139,26 +163,8 @@ export const AWS_TAB_CSS = `
 `;
 
 // Classic script. No template literals inside: this string is itself a template literal in the page.
+// The tab bar's own handling is TABS_SCRIPT above.
 export const AWS_TAB_SCRIPT = String.raw`(function(){
-var review=document.getElementById('tab-review'),aws=document.getElementById('tab-aws');
-var panels={review:document.getElementById('panel-review'),aws:document.getElementById('panel-aws')};
-var tabs={review:review,aws:aws};
-function select(which,focus){
-  Object.keys(tabs).forEach(function(k){var on=k===which;tabs[k].setAttribute('aria-selected',String(on));tabs[k].tabIndex=on?0:-1;panels[k].hidden=!on});
-  if(focus)tabs[which].focus();
-  try{history.replaceState(null,'',which==='aws'?'#aws':location.pathname+location.search)}catch(e){}
-}
-review.addEventListener('click',function(){select('review')});
-aws.addEventListener('click',function(){select('aws')});
-[review,aws].forEach(function(tab){tab.addEventListener('keydown',function(e){
-  var order=['review','aws'],i=order.indexOf(tab===review?'review':'aws');
-  if(e.key==='ArrowRight')select(order[(i+1)%2],true);
-  else if(e.key==='ArrowLeft')select(order[(i+1)%2],true);
-  else if(e.key==='Home')select('review',true);
-  else if(e.key==='End')select('aws',true);
-})});
-if(location.hash==='#aws')select('aws');
-
 var hub=document.getElementById('aws-hub'),hubNote=document.getElementById('aws-hub-note'),hubChip=document.getElementById('aws-hub-chip');
 hub.addEventListener('change',function(){hubNote.hidden=!hub.checked;hubChip.hidden=!hub.checked});
 var WORDS={idle:'waiting',working:'working…',ok:'done',refused:'refused',error:'stopped'};

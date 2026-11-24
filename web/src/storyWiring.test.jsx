@@ -121,7 +121,7 @@ describe("buildSteps", () => {
     const steps = buildSteps({ captions, host });
     const count = (mode) => steps.filter((s) => s.type === "bubble" && !STORY_ONLY.includes(s.key) && (!s.modes || s.modes.includes(mode)) && (!s.when || s.when())).length;
     expect(count("real")).toBe(27); expect(count("mock")).toBe(25);
-    expect(steps.filter((s) => s.type === "bubble" && (!s.modes || s.modes.includes("real")) && (!s.when || s.when())).length).toBe(28);   // Story adds one: the live observability panel
+    expect(steps.filter((s) => s.type === "bubble" && (!s.modes || s.modes.includes("real")) && (!s.when || s.when())).length).toBe(28 + STEPS.filter((s) => s.key.startsWith("b_")).length);   // Story adds the live observability panel and Part 3 (the Bedrock tab)
     document.getElementById("aws-mode").textContent = "SIMULATED: no Privilege gateway.";
     expect(steps.filter((s) => s.type === "bubble" && !STORY_ONLY.includes(s.key) && (!s.modes || s.modes.includes("real")) && (!s.when || s.when())).length).toBe(24);
   });

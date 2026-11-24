@@ -1,0 +1,4 @@
+# False positives: the Story step named part3_bedrock (a `key:` field next to a mixed-case word reads as a generic API key). Exact findings only, by fingerprint, so a real secret in these files is still caught.
+66f46df83a301cadcdb0e43daabaf1a46fa0b933:test/story.test.ts:generic-api-key:81
+66f46df83a301cadcdb0e43daabaf1a46fa0b933:web/src/storyScript.js:generic-api-key:77
+66f46df83a301cadcdb0e43daabaf1a46fa0b933:web/src/storyWiringBedrock.test.jsx:generic-api-key:43
