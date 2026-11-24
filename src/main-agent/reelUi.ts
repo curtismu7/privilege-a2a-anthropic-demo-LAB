@@ -70,7 +70,10 @@ var WHAT={token:'token endpoint',card:'Agent Card',delegate:'A2A message',metada
 function code(t){return t.wire&&t.wire.status}
 function isRefusal(t){var s=code(t);return Boolean(t.challenge)||s===400||s===401||s===403||s===429}
 function blocked(t){return t.kind==='error'&&t.from==='mcp'&&/blocked|security policy|denied|forbidden/i.test(t.detail||'')}
+// An event may name its own frame (t.reel: { title, status, word, what }): the Bedrock tab's simulated steps do, so they need no kind of their own here.
+function own(t){return t.reel&&typeof t.reel==='object'?t.reel:null}
 function title(t){
+  if(own(t))return String(own(t).title||'');
   if(t.kind==='error'){
     if(blocked(t))return 'Tool reply blocked';
     if(isRefusal(t))return 'Refused';
@@ -80,6 +83,7 @@ function title(t){
 }
 function status(t){
   var s=code(t);
+  if(own(t)&&SYMBOL[own(t).status])return own(t).status;
   if(t.kind==='error')return (isRefusal(t)||blocked(t))?'refused':'error';
   if(t.kind==='metadata')return (s&&s<400)?'ok':'note';
   if(t.kind==='card')return (s&&s>=400)||!s&&/No readable/.test(t.text||'')?'note':'ok';
@@ -89,7 +93,7 @@ var SYMBOL={ok:'✓',note:'!',refused:'✕',error:'!'};
 var WORD={ok:'OK',note:'Note',refused:'Refused',error:'Stopped'};
 function line(t){
   var first=String(t.request||'').split('\n')[0],m=/^(GET|POST|PUT|DELETE)\s/.exec(first),s=code(t);
-  return (m?m[1]+' ':'')+(t.kind==='error'&&t.from==='mcp'?'MCP tool reply':(WHAT[t.kind]||t.kind))+(s?' → '+s:'');
+  return (m?m[1]+' ':'')+(own(t)&&own(t).what?String(own(t).what):t.kind==='error'&&t.from==='mcp'?'MCP tool reply':(WHAT[t.kind]||t.kind))+(s?' → '+s:'');
 }
 function fact(t){
   var tk=t.token;
@@ -213,7 +217,7 @@ function attach(ol){
       var li=el('li','reel__item'),b=el('button','reel__frame');b.type='button';b.dataset.status=st;
       b.setAttribute('aria-haspopup','dialog');
       var top=el('span','reel__top');top.appendChild(el('span','reel__num',n));
-      top.appendChild(el('span','reel__status',SYMBOL[st]+' '+(code(t)&&st==='ok'?code(t):(st==='refused'&&blocked(t)?'Blocked':WORD[st]))));
+      top.appendChild(el('span','reel__status',SYMBOL[st]+' '+(own(t)&&own(t).word?String(own(t).word):code(t)&&st==='ok'?code(t):(st==='refused'&&blocked(t)?'Blocked':WORD[st]))));
       b.appendChild(top);b.appendChild(el('span','reel__title',ttl));b.appendChild(el('span','reel__line',line(t)));
       var f=fact(t);if(f)b.appendChild(el('span','reel__fact',f));
       var ids=refIds(t);

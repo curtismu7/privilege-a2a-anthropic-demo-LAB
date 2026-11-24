@@ -21,6 +21,7 @@ import { labAllowedHosts, sameOriginGuard } from '../originGuard.js';
 import { beginRun, runObservability, type RunKind, type RunRecorder, type TraceLike } from '../runObs.js';
 import { storyResponse } from '../story.js';
 import { playSimulated, simulatedRun } from '../storyReplay.js';
+import { parseBedrockBody, simulateBedrock } from '../bedrockSim.js';
 
 /** The token counts a model call reported, for the trace. Absent when the provider sent none. */
 function tokenCounts(message: Anthropic.Message): { input: number; output: number } | undefined {
@@ -127,8 +128,8 @@ const conversations = new Map<string, Anthropic.MessageParam[]>();
 
 // Rule 27: the run each response belongs to; every trace event sent to the page is also noted for the run-observability record.
 const recorders = new WeakMap<Response, RunRecorder>();
-function startRun(res: Response, kind: RunKind): RunRecorder {
-  const recorder = beginRun(kind, uiMode);
+function startRun(res: Response, kind: RunKind, source: 'mock' | 'real' = uiMode): RunRecorder {
+  const recorder = beginRun(kind, source);
   recorders.set(res, recorder);
   res.on('close', () => recorder.finish());
   return recorder;
@@ -310,6 +311,42 @@ app.post('/aws-agent', async (req: Request, res: Response) => {
   } finally {
     if (!res.writableEnded) res.end();
   }
+});
+
+/**
+ * The Gateway to Bedrock (IAM) tab: a SIMULATED run in every mode (src/bedrockSim.ts; no gateway with an IAM role exists yet, and nothing in Privilege or AWS
+ * is called). Streams the same SSE shape as /aws-agent: one `trace` per step, then `token` and `done`, or `error` (with `blocked: true` for a block).
+ */
+const BEDROCK_STEP_MS = 350;
+app.post('/bedrock', async (req: Request, res: Response) => {
+  if (!bffAuthorized(req, res)) return;
+  const parsed = parseBedrockBody(req.body);
+  if (!parsed.ok) {
+    res.status(400).json({ error: parsed.error });
+    return;
+  }
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+  });
+  // Always a simulated run, so it is recorded as Mock: in Real its rows must never read as measured ones, and no product log is read for it.
+  startRun(res, 'bedrock', 'mock');
+  const run = simulateBedrock(parsed.input);
+  const startedAt = Date.now();
+  const at = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
+  for (const event of run.events) {
+    await new Promise(resolve => setTimeout(resolve, BEDROCK_STEP_MS));
+    if (res.destroyed) return;
+    sendSse(res, 'trace', { ...event, at: at() });
+  }
+  if (run.answer !== undefined) {
+    sendSse(res, 'token', { text: run.answer });
+    sendSse(res, 'done', {});
+  } else {
+    sendSse(res, 'error', { error: run.error, ...(run.outcome === 'blocked' ? { blocked: true } : {}) });
+  }
+  if (!res.writableEnded) res.end();
 });
 
 app.post('/chat', async (req: Request, res: Response) => {
