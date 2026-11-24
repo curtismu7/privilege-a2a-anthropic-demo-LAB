@@ -212,7 +212,7 @@ Excerpts, ids masked. Logs can stream to a SIEM (Ping's docs).
 
 ---
 
-# Slide: part3_bedrock
+# Slide: part3
 
 <!-- Story only, for now: Part 3, the Gateway to Bedrock (IAM) tab. Every run on that tab is SIMULATED, in Mock and in Real. -->
 

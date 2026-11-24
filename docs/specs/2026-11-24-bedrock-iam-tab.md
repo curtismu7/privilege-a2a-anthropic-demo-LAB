@@ -62,7 +62,7 @@ A third tab, **"Gateway to Bedrock (IAM)"**. It shows our agent's model call goi
 - Run observability: if `startRun`/`runObs` take a route name generically, record the run as `bedrock`. Otherwise leave it out and say so in the PR.
 
 ## Story (Story-only for now; the video does not change)
-- A Part 3 slide, `part3_bedrock`, then about 13 bubbles keyed `b_*`, placed before the `protect` slide.
+- A Part 3 slide, `part3`, then about 13 bubbles keyed `b_*`, placed before the `protect` slide.
 - `tab: 'bedrock'`. Scenario steps use `prompt: { press: '#bedrock-sc-...' }`; results use `run-done` targets that exist only when the page shows that result: the blocked answer, the refused node, the `Assume the role` frame.
 - Every key goes in `STORY_ONLY`. The wording goes in `video/captions.md`, says simulated, and uses the generic phrasing.
 - The `storyWiring.js` host learns the `bedrock` tab: `switchTab`, and `INPUTS` gets `#bedrock-input` / `#bedrock-send`.

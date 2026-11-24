@@ -74,7 +74,7 @@ export const STEPS = [
 
   // ---- Part 3 (Story only, SIMULATED in every mode): the gateway signs the Bedrock call with an IAM role (the "Gateway to Bedrock (IAM)" tab). Each scenario is a
   // button the viewer (or Play) presses; each result bubble points at something that exists only when the page shows that result.
-  { key: 'part3_bedrock', type: 'slide', trigger: 'load' },
+  { key: 'part3', type: 'slide', trigger: 'load' },
   { key: 'b_intro', type: 'bubble', tab: BEDROCK, trigger: 'load', target: '#panel-bedrock h2', prefer: 'below' },
   { key: 'b_key', type: 'bubble', trigger: 'load', target: '#bedrock-key', prefer: 'below' },
   { key: 'b_own', type: 'bubble', tab: BEDROCK, trigger: 'load', target: '#bedrock-sc-own', prefer: 'below', prompt: { press: '#bedrock-sc-own' } },
