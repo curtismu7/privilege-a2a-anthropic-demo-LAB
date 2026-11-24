@@ -10,12 +10,11 @@ import { createHost, buildSteps } from "./storyWiring.js";
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 
-export default function StoryRoot({ mode, onExit, prefix = "a2a" }) {
+export default function StoryRoot({ mode, ready = true, onExit, prefix = "a2a" }) {
   const [story, setStory] = useState(null);
   const [error, setError] = useState("");
   const modeRef = useRef(mode);
   modeRef.current = mode;
-  const first = useRef(true);
 
   useEffect(() => {
     let live = true;
@@ -35,19 +34,26 @@ export default function StoryRoot({ mode, onExit, prefix = "a2a" }) {
         s.subscribe((st) => { if (wasActive && !st.active && live) onExit(); wasActive = st.active; });
         parts = { host, overlay, s };
         setStory(s);
-        s.start();
       })
       .catch((e) => { if (live) setError(e.message || "The Story wording could not be loaded."); });
     return () => {
       live = false;
-      if (parts) { parts.s.destroy(); parts.host.dispose(); parts.overlay.destroy(); }
+      if (parts) {   // exit first: it closes an open pop-out and clears the overlay; then everything is released
+        const { s, host, overlay } = parts;
+        s.exit().finally(() => { s.destroy(); host.dispose(); overlay.destroy(); });
+      }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- one story per time Story is switched on
 
+  // Start once the wording is loaded AND the server's mode is known (a Real lab must not flash the Mock walk-through). After that, a Mock/Real switch empties the
+  // page (the old run's chat, trace and answers describe the other mode) and restarts the walk-through.
+  const started = useRef(false);
   useEffect(() => {
-    if (first.current) { first.current = false; return; }
-    if (story) story.restart();
-  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps -- a mode switch restarts the walk-through
+    if (!story || !ready) return;
+    if (!started.current) { started.current = true; story.start(); return; }
+    window.dispatchEvent(new CustomEvent("paad:reset"));
+    story.restart();
+  }, [story, ready, mode]);
 
   if (error) {
     return (

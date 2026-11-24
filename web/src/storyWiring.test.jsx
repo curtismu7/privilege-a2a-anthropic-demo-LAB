@@ -46,6 +46,20 @@ describe("host: runs", () => {
     host.dispose();
   });
 
+  test("a Reset while a step waits for a run tells it so (it is not reported as a failed run)", async () => {
+    const host = createHost({});
+    const p = host.waitForRun(host.mark(), 5000);
+    fire("paad:reset");
+    await expect(p).resolves.toMatchObject({ ok: false, reason: expect.stringMatching(/page was reset/) });
+    fire("paad:run-end", { ok: false });   // the aborted run's own end follows: nobody is waiting, nothing throws
+    host.dispose();
+  });
+
+  test("dispose clears the wait timers (a torn-down Story leaves nothing running)", () => {
+    vi.useFakeTimers(); const host = createHost({}); host.waitForRun(host.mark(), 180000);
+    expect(vi.getTimerCount()).toBe(1); host.dispose(); expect(vi.getTimerCount()).toBe(0);
+  });
+
   test("after dispose the host no longer counts runs", () => {
     const host = createHost({}); host.dispose();
     const m = host.mark(); fire("paad:run-start"); expect(host.runStarted(m)).toBe(false);
@@ -110,6 +124,9 @@ describe("buildSteps", () => {
     expect(by.card_frame.target().textContent).toBe("Read the Agent Card");
     expect(by.token_frame.target().textContent).toBe("Get a token");
     expect(by.p1_answer.target().textContent).toBe("second");
+    document.getElementById("messages").insertAdjacentHTML("beforeend", '<div class="message error">Request failed: HTTP 500</div>');
+    expect(by.p1_answer.target()).toBeNull();                            // the run failed: the newest message is an error, not an answer (and an older answer is not quoted)
+    expect(by.p1_answer.lines()).toEqual([""]);
     expect(by.p1_blocked.target()).toBeNull();                          // nothing in the trace says blocked: a failed run is not called a block
     document.getElementById("trace").innerHTML = '<div class="trace error" id="err">Agent request failed: Model not configured</div>';
     expect(by.p1_blocked.target()).toBeNull();                          // an ordinary error is not a block either
@@ -129,17 +146,33 @@ describe("buildSteps", () => {
     expect(by.answer.target().id).toBe("aws-answer"); expect(document.querySelector(by.p1_handoff.target)).not.toBeNull();
   });
 
-  test("a pop-out opens its frame, points at one section, and closes it again; a missing frame is a quiet skip", async () => {
+  // The page's Reel builds its dialog once and only hides it on close: this mirrors that, so "a dialog is in the DOM" is not mistaken for "a pop-out is open".
+  const realReel = () => {
+    document.body.insertAdjacentHTML("beforeend", '<div class="reel-backdrop" hidden><div class="reel-dialog"><div class="reel-dialog__body"><div class="reel-sec"><h4>The call</h4></div></div></div></div>');
+    const backdrop = document.querySelector(".reel-backdrop");
+    window.Reel = { close: vi.fn(() => { backdrop.hidden = true; }) };
+    return backdrop;
+  };
+
+  test("a pop-out: the step waits on its frame, opens it, points at one section of the open dialog, and closes it again", async () => {
     document.body.innerHTML = '<div id="reel-review"><div class="reel__frame"><span class="reel__title">Send the message</span></div></div>';
-    const frame = document.querySelector(".reel__frame"); frame.scrollIntoView = () => {};
-    frame.addEventListener("click", () => { document.body.insertAdjacentHTML("beforeend", '<div class="reel-dialog"><div class="reel-dialog__body"><div class="reel-sec"><h4>The call</h4></div></div></div>'); });
-    window.Reel = { close: vi.fn() };
+    const backdrop = realReel();
+    const frame = document.querySelector(".reel__frame"); frame.scrollIntoView = () => {}; frame.addEventListener("click", () => { backdrop.hidden = false; });
     const h = createHost({ settleMs: 0 });
     const step = buildSteps({ captions, host: h }).find((s) => s.key === "p1_message");
+    expect(step.target()).toBe(frame);                                  // before it opens: the frame, so the engine's wait for the step ends at once (not after the 60 s timeout)
     await step.before();
     expect(step.target().querySelector("h4").textContent).toBe("The call");
-    step.after(); expect(window.Reel.close).toHaveBeenCalled();
-    document.body.innerHTML = ""; await expect(step.before()).resolves.toBeUndefined(); expect(step.target()).toBeNull();   // no such frame in this run: skipped, not an error
+    step.after(); expect(window.Reel.close).toHaveBeenCalled(); expect(backdrop.hidden).toBe(true);
+    h.dispose();
+  });
+
+  test("regression: a frame this run does not have is skipped even though the Reel's hidden dialog is still in the page", async () => {
+    document.body.innerHTML = '<div id="reel-review"></div>';
+    realReel();                                                          // an earlier pop-out left the dialog behind (hidden)
+    const h = createHost({ settleMs: 0 });
+    const step = buildSteps({ captions, host: h }).find((s) => s.key === "refused_popout");
+    await expect(step.before()).resolves.toBeUndefined(); expect(step.target()).toBeNull();
     h.dispose();
   });
 
@@ -158,6 +191,37 @@ describe("buildSteps", () => {
     expect(by.p1_prompt.lines()).toEqual(["asks: What can Bob Reyes reach?"]);
     document.body.innerHTML = '<div id="trace">nothing here</div><ul id="aws-trace"></ul>';
     expect(by.p1_redacted.lines()).toEqual([]); expect(by.result.lines()).toEqual([]);
+  });
+
+  test("the results a bubble claims are checked on the page as take.py checks them (live: the sum, the 401 refusal; Mock skips the sums)", () => {
+    document.body.innerHTML = `<div id="aws-answer" class="aws__answer">The sum is 1,111,111,110.</div><ul id="aws-trace"><li data-kind="result"></li></ul><ol class="aws__flow"></ol>
+      <span id="aws-s-gateway">passed</span><span id="aws-s-aws">replied</span>`;
+    let mode = "real"; const h = createHost({ mode: () => mode });
+    const by = Object.fromEntries(buildSteps({ captions, host: h }).map((s) => [s.key, s]));
+    expect(by.answer.target().id).toBe("aws-answer"); expect(by.result.target()).not.toBeNull();       // the right sum
+    document.getElementById("aws-answer").textContent = "The sum is 42.";
+    expect(by.answer.target()).toBeNull(); expect(by.result.target()).toBeNull();                       // a wrong answer is not celebrated
+    expect(by.second_answer.target()).toBeNull();
+    document.getElementById("aws-answer").textContent = "48,213 + 9,787 = 58,000, which is even.";
+    expect(by.second_answer.target()).not.toBeNull();
+    expect(by.refused_states.target()).toBeNull();                                                      // not a refusal yet
+    document.getElementById("aws-answer").textContent = "HTTP 401: unauthorized"; document.getElementById("aws-s-gateway").textContent = "unreachable";
+    expect(by.refused_states.target()).toBeNull();                                                      // a 401 text but the gateway did not refuse it
+    document.getElementById("aws-s-gateway").textContent = "refused (HTTP 401)"; document.getElementById("aws-s-aws").textContent = "not reached";
+    expect(by.refused_states.target()).not.toBeNull();
+    mode = "mock"; document.getElementById("aws-answer").textContent = "SIMULATED reply";                // Mock's stand-in answers in its own words
+    expect(by.answer.target()).not.toBeNull(); expect(by.second_answer.target()).not.toBeNull();
+    document.getElementById("aws-answer").textContent = "HTTP 401: x"; document.getElementById("aws-s-aws").textContent = "stopped (HTTP 401)";
+    expect(by.refused_states.target()).not.toBeNull();
+    h.dispose();
+  });
+
+  test("regression: every step names the tab it belongs to (the last tab named before it), so Back never lands on a hidden panel", () => {
+    const steps = buildSteps({ captions, host });
+    const tab = Object.fromEntries(steps.map((s) => [s.key, s.tab]));
+    for (const k of ["p1_intro", "p1_handoff", "p1_message", "p1_redacted", "p1_answer", "p1_refuse_prompt", "p1_blocked"]) expect(tab[k]).toBe("review");
+    for (const k of ["intro", "custodian", "card_frame", "message_popout", "result", "refuse_intro", "refused_popout"]) expect(tab[k]).toBe("aws");
+    expect(tab.sample_note).toBeUndefined(); expect(tab.opening).toBeUndefined();
   });
 
   test("the Mock closing slide swaps in the simulated wording and never claims a live run; Real keeps the slide as written", () => {

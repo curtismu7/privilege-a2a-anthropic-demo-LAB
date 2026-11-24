@@ -3,7 +3,10 @@
 // the numbered-bubble counts and the fixed holds equal take.py's.
 //
 //   target   a CSS selector | { frame, root } a reel frame by its title | { last, fallback, only } the last match of a selector (only: 'blocked' = if the trace says blocked)
-//            | { selector, unless } an element unless it has that class (an answer box that holds an error is not an answer). A bubble whose target is not there is skipped.
+//            | { selector, unless, check } an element unless it has that class (an answer box that holds an error is not an answer) and only when the named check holds on the page
+//            | { lastMessage: 'agent' } the chat's newest message, only when it is an agent answer (a failed run leaves an error message there, not an answer)
+//            check: 'sum1' | 'sum2' (live runs: the answer holds the expected sum, as take.py requires), 'refusal' (the answer is HTTP 401 and the gateway refused it). Mock skips the sum checks.
+//            A bubble whose target is not there is skipped.
 //   popout   { root, frame, section, scrollAfter }  open that reel frame's pop-out and point the bubble at one section of it
 //   prompt   { text } fill the question and the viewer presses Send | { press } the viewer (or Play) presses that existing button
 //   lines    the name of a live value the page reads for the bubble's fact lines (the page wiring, slice 2)
@@ -15,6 +18,8 @@ export const P1_Q1 = 'What can Bob Reyes reach?';
 export const P1_Q2 = 'Review access on prod-db-primary';
 export const P2_Q1 = 'Use add_numbers to add 987654321 and 123456789. Show the exact tool call you made and the value it returned.';
 export const P2_Q2 = 'Add 48,213 and 9,787, then say whether the result is even or odd.';
+export const P2_SUM = '1111111110';   // the video's own answer checks (take.py): a live answer is only called right when it holds the sum
+export const P2_SUM2 = '58000';
 
 const REVIEW = 'review';
 const AWS = 'aws';
@@ -31,7 +36,7 @@ export const STEPS = [
   { key: 'p1_message', type: 'bubble', trigger: 'frame', popout: { root: '#reel-review', frame: 'Send the message', section: 'The call' }, prefer: 'right' },
   { key: 'p1_mcp', type: 'bubble', trigger: 'frame', target: { frame: 'Call the tool', root: '#reel-review' }, prefer: 'below' },
   { key: 'p1_redacted', type: 'bubble', trigger: 'frame', popout: { root: '#reel-review', frame: 'Tool result', section: 'What came back' }, prefer: 'right', lines: 'redacted' },
-  { key: 'p1_answer', type: 'bubble', trigger: 'load', target: { last: '#messages .message.agent' }, prefer: 'right', lines: 'answer1' },
+  { key: 'p1_answer', type: 'bubble', trigger: 'load', target: { lastMessage: 'agent' }, prefer: 'right', lines: 'answer1' },
   { key: 'p1_refuse_prompt', type: 'bubble', trigger: 'load', target: '#input', prefer: 'above', prompt: { text: P1_Q2 }, fixedSecs: 4.5, askLine: `asks: ${P1_Q2}` },
   { key: 'p1_blocked', type: 'bubble', trigger: 'run-done', target: { last: '#trace .trace.error', fallback: '#reel-review .reel__frame', only: 'blocked' }, prefer: 'left' },   // only when the trace says the gateway blocked it (the video's own test)
 
@@ -53,12 +58,12 @@ export const STEPS = [
   { key: 'token_popout', type: 'bubble', trigger: 'frame', modes: ['real'], when: 'awsLive', popout: { root: '#aws-reel', frame: 'Get a token', section: 'The token', scrollAfter: 6.0 }, prefer: 'right' },
   { key: 'card_frame', type: 'bubble', trigger: 'frame', frameTimeoutMs: FRAME_WAIT, target: { frame: 'Read the Agent Card', root: '#aws-reel' }, prefer: 'below' },
   { key: 'message_popout', type: 'bubble', trigger: 'frame', frameTimeoutMs: FRAME_WAIT, popout: { root: '#aws-reel', frame: 'Send the message', section: 'The call' }, prefer: 'right' },
-  { key: 'result', type: 'bubble', trigger: 'run-done', target: '#aws-trace li[data-kind=result]', prefer: 'left', lines: 'answeredIn' },
-  { key: 'answer', type: 'bubble', trigger: 'load', target: { selector: '#aws-answer', unless: 'is-error' }, prefer: 'below', lines: 'flowStates' },
+  { key: 'result', type: 'bubble', trigger: 'run-done', target: { selector: '#aws-trace li[data-kind=result]', check: 'sum1' }, prefer: 'left', lines: 'answeredIn' },
+  { key: 'answer', type: 'bubble', trigger: 'load', target: { selector: '#aws-answer', unless: 'is-error', check: 'sum1' }, prefer: 'below', lines: 'flowStates' },
   { key: 'second_prompt', type: 'bubble', trigger: 'load', target: '#aws-input', prefer: 'below', prompt: { text: P2_Q2 }, fixedSecs: 5.0, askLine: 'asks: add 48,213 and 9,787; even or odd?' },
-  { key: 'second_answer', type: 'bubble', trigger: 'run-done', target: { selector: '#aws-answer', unless: 'is-error' }, prefer: 'below', lines: 'answer2' },
+  { key: 'second_answer', type: 'bubble', trigger: 'run-done', target: { selector: '#aws-answer', unless: 'is-error', check: 'sum2' }, prefer: 'below', lines: 'answer2' },
   { key: 'refuse_intro', type: 'bubble', trigger: 'load', target: '#aws-refuse', prefer: 'below', prompt: { press: '#aws-refuse' } },   // no fixed hold: the video holds it for its wording (take.py gives it no secs)
-  { key: 'refused_states', type: 'bubble', trigger: 'run-done', target: 'ol.aws__flow', prefer: 'below', sampleKey: 'sample_refused_states', lines: 'flowStates' },
+  { key: 'refused_states', type: 'bubble', trigger: 'run-done', target: { selector: 'ol.aws__flow', check: 'refusal' }, prefer: 'below', sampleKey: 'sample_refused_states', lines: 'flowStates' },
   { key: 'refused_popout', type: 'bubble', trigger: 'frame', popout: { root: '#aws-reel', frame: 'Refused', section: 'The challenge' }, prefer: 'right' },
   { key: 'refused_metadata', type: 'bubble', trigger: 'frame', modes: ['real'], when: 'awsLive', target: { frame: 'Read the sign-in metadata', root: '#aws-reel' }, prefer: 'below' },
 

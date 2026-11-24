@@ -6,6 +6,21 @@ import StoryToggle, { storyKey } from "./story/StoryToggle.jsx";
 const StoryRoot = lazy(() => import("./StoryRoot.jsx"));
 export const STORY_PREFIX = "a2a";
 
+// If the Story chunk cannot load (the lab was rebuilt, a stale file name, the network) the shell bar must survive: Demo mode is never taken down by Story.
+export class StoryBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { failed: false }; }
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div className="story-bar" role="alert" data-testid="story-error">
+        <span className="story-msg">Story could not load. Reload the page and try again.</span>
+        <button type="button" onClick={this.props.onExit}>Exit</button>
+      </div>
+    );
+  }
+}
+
 // The shell bar's controls for the lab page. The page itself stays server-rendered with its own vanilla script; this island
 // renders only the shared TopMenu and talks to that script through three window events and nothing else:
 //   paad:mode   (detail.mode = "mock" | "real")  the current mode, sent once it is known and after every switch
@@ -38,6 +53,7 @@ export default function Shell() {
   const [theme, setTheme] = useState(() => (THEMES.includes(readStore(THEME_KEY)) ? readStore(THEME_KEY) : "auto"));
   const [fontStep, setFontStep] = useState(() => (FONT_STEPS.includes(readStore(FONT_KEY)) ? readStore(FONT_KEY) : "M"));
   const [storyOn, setStoryOn] = useState(false);
+  const [modeKnown, setModeKnown] = useState(false); // Story waits for the server's mode: it must not start in the wrong one
   const [toggleKey, setToggleKey] = useState(0);
 
   // Rule 19: the mode shown is the server's current mode (GET /api/info `source`), never the launch mode.
@@ -51,8 +67,9 @@ export default function Shell() {
         setMode(current);
         setRealAvailable(info.realAvailable !== false);
         announceMode(current);
+        setModeKnown(true);
       })
-      .catch(() => { /* the select stays on Mock, which is what the page script assumes too */ });
+      .catch(() => { if (live) setModeKnown(true); /* the select stays on Mock, which is what the page script assumes too */ });
     return () => { live = false; };
   }, []);
 
@@ -108,7 +125,7 @@ export default function Shell() {
       onReset={reset}
       extra={<>{note ? <span className="shell-note" role="alert" data-testid="mode-note">{note}</span> : null}<StoryToggle key={toggleKey} prefix={STORY_PREFIX} onChange={onView} /></>}
     />
-    {storyOn ? <Suspense fallback={null}><StoryRoot mode={mode} onExit={leaveStory} prefix={STORY_PREFIX} /></Suspense> : null}
+    {storyOn ? <StoryBoundary onExit={leaveStory}><Suspense fallback={null}><StoryRoot mode={mode} ready={modeKnown} onExit={leaveStory} prefix={STORY_PREFIX} /></Suspense></StoryBoundary> : null}
     </>
   );
 }

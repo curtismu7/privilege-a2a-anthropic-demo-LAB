@@ -2,7 +2,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import Shell from "./Shell.jsx";
+import Shell, { StoryBoundary } from "./Shell.jsx";
+import StoryRoot from "./StoryRoot.jsx";
 import { storyKey } from "./story/StoryToggle.jsx";
 import { parseCaptions } from "../../server/src/story/captions.js";
 
@@ -75,3 +76,54 @@ describe("the toggle", () => {
     await waitFor(() => expect(screen.queryByTestId("story-error")).toBeNull());
   });
 });
+
+describe("Story and the page", () => {
+  test("Story does not start until the server's mode is known (a Real lab must not flash the Mock walk-through)", async () => {
+    let release; const gate = new Promise((r) => { release = r; });
+    fetch.mockImplementation(async (url) => {
+      if (url === "/api/info") { await gate; return { ok: true, json: async () => ({ source: "real", realAvailable: true }) }; }
+      if (url === "/api/story") return { ok: true, status: 200, json: async () => captions };
+      return { ok: false, json: async () => ({}) };
+    });
+    window.history.replaceState(null, "", "/?story=1");
+    render(<Shell />);
+    await waitFor(() => expect(calls.includes("/api/info") || fetch.mock.calls.length > 0).toBe(true));
+    await new Promise((r) => setTimeout(r, 80));
+    expect(document.querySelector(".story-slide, .story-bub")).toBeNull();            // wording loaded, mode unknown: nothing shown yet
+    await act(async () => { release(); await gate; });
+    await waitFor(() => expect(document.querySelector(".story-slide h1")?.textContent).toBe(captions.opening.title));   // Real: no 'sample_note' slide first
+    expect(screen.queryByTestId("story-simulated")).toBeNull();
+  });
+
+  test("switching Mock/Real mid-story empties the page (paad:reset) and restarts from the top", async () => {
+    const reset = vi.fn(); window.addEventListener("paad:reset", reset);
+    const { rerender } = render(<StoryRoot mode="mock" ready onExit={() => {}} />);
+    await screen.findByTestId("story-bar");
+    fireEvent.click(screen.getByTestId("story-next"));
+    await waitFor(() => expect(document.querySelector(".story-slide h1")?.textContent).toBe(captions.opening.title));
+    rerender(<StoryRoot mode="real" ready onExit={() => {}} />);
+    await waitFor(() => expect(reset).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(document.querySelector(".story-slide h1")?.textContent).toBe(captions.opening.title));   // Real starts at the opening (no sample_note)
+    expect(screen.queryByTestId("story-simulated")).toBeNull();
+    window.removeEventListener("paad:reset", reset);
+  });
+
+  test("a failed Story chunk shows a message with Exit and the rest of the shell survives", () => {
+    const Boom = () => { throw new Error("chunk 404"); };
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const onExit = vi.fn();
+    render(<div><span data-testid="shell">shell bar</span><StoryBoundary onExit={onExit}><Boom /></StoryBoundary></div>);
+    expect(screen.getByTestId("shell")).toBeInTheDocument(); expect(screen.getByTestId("story-error")).toHaveTextContent(/could not load/);
+    fireEvent.click(screen.getByText("Exit")); expect(onExit).toHaveBeenCalled(); spy.mockRestore();
+  });
+
+  test("turning Story off closes an open pop-out and leaves no overlay, bar or listener behind", async () => {
+    const closed = vi.fn(); window.Reel = { close: closed };
+    const { unmount } = render(<StoryRoot mode="mock" ready onExit={() => {}} />);
+    await screen.findByTestId("story-bar");
+    unmount();
+    await waitFor(() => expect(document.querySelector(".story-slide, .story-bub, .story-hl, .story-bar")).toBeNull());
+    delete window.Reel;
+  });
+});
+

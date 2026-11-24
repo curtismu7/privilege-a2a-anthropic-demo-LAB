@@ -5,7 +5,7 @@
 // The page script announces runs with paad:run-start and paad:run-end ({ ok }): ok is false only when the request itself failed. A question the gateway
 // blocks completes normally (the block is in the trace), so it is a run that ended ok.
 
-import { STEPS } from './storyScript.js';
+import { STEPS, P2_SUM, P2_SUM2 } from './storyScript.js';
 
 const INPUTS = { review: { input: '#input', send: '#send' }, aws: { input: '#aws-input', send: '#aws-send' } };
 const text = (el) => (el && el.textContent ? el.textContent.trim() : '');
@@ -23,14 +23,18 @@ export function firstSentence(s, limit = 150) {
 
 export function createHost({ win = window, doc = document, mode = () => 'mock', settleMs = 500 } = {}) {
   const runs = { starts: 0, ends: 0, lastOk: true };
-  const waiters = new Set();
+  const waiters = new Set();   // each is (ok, reason) => void
+  const timers = new Set();
   const onStart = () => { runs.starts += 1; };
   const onEnd = (e) => {
     runs.ends += 1; runs.lastOk = e.detail ? e.detail.ok !== false : true;
     for (const w of [...waiters]) w(runs.lastOk);
   };
+  // A Reset empties the page: a step waiting for a run is told so (and the run's own end, which follows, finds nobody waiting).
+  const onReset = () => { for (const w of [...waiters]) w(false, 'The page was reset. Press Next to carry on, or Exit.'); };
   win.addEventListener('paad:run-start', onStart);
   win.addEventListener('paad:run-end', onEnd);
+  win.addEventListener('paad:reset', onReset);
 
   const q = (sel) => doc.querySelector(sel);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -43,9 +47,11 @@ export function createHost({ win = window, doc = document, mode = () => 'mock', 
     runStarted: (m) => runs.starts > m.starts,
     waitForRun(m, timeoutMs) {
       return new Promise((resolve) => {
-        const done = (ok) => { clearTimeout(t); waiters.delete(check); resolve(ok ? { ok: true } : { ok: false, reason: 'The run failed. Press Next to carry on, or Exit.' }); };
-        const check = (ok) => { if (runs.ends > m.ends) done(ok); };
-        const t = setTimeout(() => { waiters.delete(check); resolve({ ok: false, reason: 'The run did not finish in time. Press Next to carry on, or Exit.' }); }, timeoutMs);
+        const finish = (r) => { clearTimeout(t); timers.delete(t); waiters.delete(check); resolve(r); };
+        const done = (ok, reason) => finish(ok ? { ok: true } : { ok: false, reason: reason || 'The run failed. Press Next to carry on, or Exit.' });
+        const check = (ok, reason) => { if (reason || runs.ends > m.ends) done(ok, reason); };
+        const t = setTimeout(() => finish({ ok: false, reason: 'The run did not finish in time. Press Next to carry on, or Exit.' }), timeoutMs);
+        timers.add(t);
         if (runs.ends > m.ends) { done(runs.lastOk); return; }
         waiters.add(check);
       });
@@ -66,7 +72,7 @@ export function createHost({ win = window, doc = document, mode = () => 'mock', 
       if (el && el.getAttribute('aria-selected') !== 'true') el.click();
     },
     assetUrl: () => null,   // no screenshot ships; a slide is text-only
-    dispose() { win.removeEventListener('paad:run-start', onStart); win.removeEventListener('paad:run-end', onEnd); waiters.clear(); },
+    dispose() { win.removeEventListener('paad:run-start', onStart); win.removeEventListener('paad:run-end', onEnd); win.removeEventListener('paad:reset', onReset); timers.forEach(clearTimeout); timers.clear(); waiters.clear(); },
     _sleep: sleep, _settleMs: settleMs,
   };
 }
@@ -76,11 +82,28 @@ const frameByTitle = (doc, root, title) => [...doc.querySelectorAll(`${root} .re
 const lastOf = (doc, sel) => { const all = doc.querySelectorAll(sel); return all.length ? all[all.length - 1] : null; };
 const BLOCKED = /content_blocked|blocked by security policy/i;   // the video's own test for "the gateway blocked it"
 
-function targetFor(doc, t) {
+// The page-state checks take.py makes before it claims a result. Mock skips the sum checks (its stand-in answers in its own words), as the video's sample does.
+function checks(doc, host) {
+  const answer = () => text(doc.getElementById('aws-answer'));
+  const state = (id) => text(doc.getElementById(`aws-s-${id}`));
+  return {
+    sum1: () => host.mode() === 'mock' || answer().replace(/,/g, '').includes(P2_SUM),
+    sum2: () => host.mode() === 'mock' || (answer().replace(/,/g, '').includes(P2_SUM2) && /even/i.test(answer())),
+    refusal: () => answer().startsWith('HTTP 401') && (host.mode() === 'mock' ? state('aws').startsWith('stopped') : state('gateway').startsWith('refused') && state('aws') === 'not reached'),
+  };
+}
+
+function targetFor(doc, t, host) {
   if (!t) return null;
   if (typeof t === 'string') return t;
   if (t.frame) return () => frameByTitle(doc, t.root, t.frame);
-  if (t.selector) return () => { const e = doc.querySelector(t.selector); return e && !(t.unless && e.classList.contains(t.unless)) ? e : null; };
+  if (t.lastMessage) {   // the newest chat message, and only if it is an answer: a failed run leaves an error message there
+    return () => { const e = lastOf(doc, '#messages .message'); return e && e.classList.contains(t.lastMessage) ? e : null; };
+  }
+  if (t.selector) {
+    const check = t.check ? checks(doc, host)[t.check] : null;
+    return () => { const e = doc.querySelector(t.selector); return e && !(t.unless && e.classList.contains(t.unless)) && (!check || check()) ? e : null; };
+  }
   if (t.last) {
     return () => {
       if (t.only === 'blocked' && !BLOCKED.test(text(doc.getElementById('trace')))) return null;   // do not call a failed run a block
@@ -93,15 +116,18 @@ function targetFor(doc, t) {
 // ---- the reel pop-outs: open a frame's detail, point at one section of it, close it again
 function popoutHooks(doc, win, po, host) {
   let scrollTimer = null;
-  const section = () => [...doc.querySelectorAll('.reel-sec')].find((s) => text(s.querySelector('h4')) === po.section) || doc.querySelector('.reel-dialog');
+  // The page's Reel builds its dialog once and only hides it on close, so a dialog in the DOM is not an open one.
+  const openDialog = () => { const d = doc.querySelector('.reel-dialog'); const bd = d && d.closest('.reel-backdrop'); return d && !(bd && bd.hidden) ? d : null; };
+  const section = (dlg) => [...dlg.querySelectorAll('.reel-sec')].find((s) => text(s.querySelector('h4')) === po.section) || dlg;
   return {
-    target: () => section(),
+    // No such frame in this run: null (the step is skipped). Frame there, pop-out not open yet: the frame itself (the engine's wait for the step ends, then before() opens it).
+    target: () => { if (!frameByTitle(doc, po.root, po.frame)) return null; const dlg = openDialog(); return dlg ? section(dlg) : frameByTitle(doc, po.root, po.frame); },
     async before() {
       const frame = frameByTitle(doc, po.root, po.frame);
-      if (!frame) return;   // this run has no such frame: the step is skipped quietly (its target is missing); only a frame that will not open is worth a warning
+      if (!frame) return;   // this run has no such frame: the step is skipped quietly; only a frame that will not open is worth a warning
       frame.scrollIntoView({ block: 'nearest' }); frame.click();
-      for (let i = 0; i < 30 && !doc.querySelector('.reel-dialog'); i += 1) await host._sleep(100);
-      if (!doc.querySelector('.reel-dialog')) throw new Error('the pop-out did not open');
+      for (let i = 0; i < 30 && !openDialog(); i += 1) await host._sleep(100);
+      if (!openDialog()) throw new Error('the pop-out did not open');
       await host._sleep(host._settleMs);
       if (po.scrollAfter) {   // a long table: scroll the pop-out while the bubble is up, so the rest is seen
         scrollTimer = setTimeout(() => { const b = doc.querySelector('.reel-dialog__body'); if (b && b.scrollTo) b.scrollTo({ top: b.scrollHeight, behavior: 'smooth' }); }, po.scrollAfter * 1000);
@@ -113,7 +139,7 @@ function popoutHooks(doc, win, po, host) {
 
 // ---- the live fact lines a bubble shows (what the video's take read from the page)
 function linesFor(doc, step) {
-  const agentAnswer = () => text(lastOf(doc, '#messages .message.agent'));
+  const agentAnswer = () => { const e = lastOf(doc, '#messages .message'); return e && e.classList.contains('agent') ? text(e) : ''; };
   const states = () => ['custodian', 'main', 'gateway', 'aws'].map((id) => `${id}: ${text(doc.getElementById(`aws-s-${id}`))}`).join(' · ');
   if (step.askLine) return () => [step.askLine];
   switch (step.lines) {
@@ -138,13 +164,15 @@ export const NOT_YET = ['observability'];
 
 /** The script as engine steps. `captions` is /api/story; it supplies the Mock closing slide's replacement lines. */
 export function buildSteps({ captions, host, doc = document, win = window, script = STEPS, notYet = NOT_YET }) {
+  let tab;   // a step with no tab of its own belongs to the last tab named before it, so Back always shows the right panel
   return script.filter((s) => !notYet.includes(s.key)).map((s) => {
-    const step = { key: s.key, type: s.type, trigger: s.trigger, modes: s.modes, sampleKey: s.sampleKey, prefer: s.prefer, place: s.place, fixedSecs: s.fixedSecs, frameTimeoutMs: s.frameTimeoutMs, tab: s.tab };
+    if (s.tab) tab = s.tab;
+    const step = { key: s.key, type: s.type, trigger: s.trigger, modes: s.modes, sampleKey: s.sampleKey, prefer: s.prefer, place: s.place, fixedSecs: s.fixedSecs, frameTimeoutMs: s.frameTimeoutMs, tab };
     if (s.prompt) step.prompt = s.prompt;
     if (s.when) step.when = CONDITIONS[s.when](doc);
     if (s.type === 'bubble') {
       if (s.popout) Object.assign(step, popoutHooks(doc, win, s.popout, host));
-      else step.target = targetFor(doc, s.target);
+      else step.target = targetFor(doc, s.target, host);
       const lines = linesFor(doc, s);
       if (lines) step.lines = lines;
     }
