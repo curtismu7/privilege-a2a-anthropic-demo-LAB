@@ -25,6 +25,12 @@ boundary does not carry a browser token, user `sub`, `act`, or an RFC 8693 token
 exchange. Privilege validates each Agent Access key and applies its configured
 policies.
 
+## Watch it
+
+The recorded demo, about seven minutes with numbered pop-ups, is on the repository's [Releases page](https://github.com/curtismu7/privilege-a2a-anthropic-demo-LAB/releases/tag/privilege-a2a-anthropic-demo-lab-video-2026-11-24): a monitor cut (1920x1080) and a laptop cut (1800x1168), with checksums. It is a real run: two of our agents over A2A, then our agent calling an agent in AWS (Bedrock AgentCore), every hop through the PingOne Privilege gateway, ending on a refused call. Hosts, ids and keys on screen are placeholders.
+
+To walk through it yourself in the app, switch **Demo | Story** in the top bar (offline in Mock mode, labelled as a simulated run).
+
 ## Run from a clone
 
 Prerequisites: Node 26. Docker (OrbStack) only for the Docker form.
