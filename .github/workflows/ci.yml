@@ -31,7 +31,7 @@ jobs:
           test -s dist/web/assets/topmenu.js
           test -s dist/web/assets/topmenu.css
       # The vendored shared stylesheet must match the hash pinned when it was last re-vendored.
-      - run: bash scripts/check-ui-standard.sh
+      - run: STANDALONE_UI_CANONICAL_URL=https://raw.githubusercontent.com/curtismu7/AI-DEMO-Standalone/header-standard-2026-11-24/shared/standalone-ui.css bash scripts/check-ui-standard.sh
       # A fresh clone has no .env; Compose must still accept the file (env_file is optional).
       - name: docker compose config with no .env
         run: |
