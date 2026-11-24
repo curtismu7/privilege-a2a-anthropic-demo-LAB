@@ -1,101 +1,32 @@
-"""Loads the video's wording from captions.md (the file to edit) into the shapes take.py imports:
-OPENING_SLIDE, CLOSING_SLIDE and SLIDES (a dict of slide-key -> slide; each slide is a dict with
-title/lead/col_a_heading/col_a_lines/col_b_heading/col_b_lines/verdict and, optionally, image: a file name under
-assets/ shown beside the columns) and STEPS (a dict of step-key -> {title, text}). A "# Slide: <key>" section adds a
-slide between the caption steps. Edit captions.md, not this file.
+"""Loads the video's wording from the lab's GET /api/story into the shapes take.py uses: OPENING_SLIDE, CLOSING_SLIDE, SLIDES (a dict of slide key -> slide with
+title/lead/col_a_heading/col_a_lines/col_b_heading/col_b_lines/verdict and optionally image and wide) and STEPS (a dict of step key -> {title, text}).
 
-Parsing rule, matching the format described at the top of captions.md: the file is a sequence of sections,
-each starting with a top-level heading ("# Opening Slide", "# Closing Slide", or "# Step: <key>"), separated
-by a line containing only "---". Within a section, "## Title" / "## Text" / "## Lead" / "## Verdict" hold one
-paragraph of plain text; "## Column A: <label>" / "## Column B: <label>" hold a bullet list (lines starting
-with "- ") under a heading whose own trailing text after the colon is the column's visible label.
+There is ONE parser of captions.md: the shared Story parser in the lab's server (server/src/story/captions.js, vendored from AI-DEMO-Standalone/shared/story). The live Story
+and this video both read what it serves, so they cannot disagree about the wording. Edit captions.md (the format is described at its top), not this file. The lab must be
+running (take.py runs against it anyway).
 """
-import re
-from pathlib import Path
+import json, urllib.request
 
-_PATH = Path(__file__).parent / "captions.md"
-
-
-def _fail(msg):
-    raise ValueError(f"captions.md: {msg}")
-
-
-def _split_sections(text):
-    # Drop the leading HTML comment (the editing instructions) before splitting.
-    text = re.sub(r"^\s*<!--.*?-->\s*", "", text, count=1, flags=re.S)
-    return [s.strip() for s in text.split("\n---\n") if s.strip()]
-
-
-def _split_fields(section_body):
-    """{field_name: raw_text} for a section's "## Field" subsections, in order."""
-    fields = {}
-    order = []
-    for m in re.finditer(r"^##\s+(.+?)\s*\n(.*?)(?=\n##\s|\Z)", section_body, re.S | re.M):
-        name, body = m.group(1).strip(), m.group(2).strip()
-        fields[name] = body
-        order.append(name)
-    return fields, order
-
-
-def _bullets(raw):
-    lines = [l[2:].strip() for l in raw.splitlines() if l.strip().startswith("- ")]
-    if not lines:
-        _fail(f"a column heading has no '- ' bullet lines under it:\n{raw[:200]!r}")
-    return lines
-
-
-def _slide_fields(fields, which):
-    try:
-        title = fields["Title"]
-        lead = fields["Lead"]
-        verdict = fields["Verdict"]
-    except KeyError as e:
-        _fail(f"{which} is missing a '## {e.args[0]}' section")
-    col_a_name = next((k for k in fields if k.startswith("Column A:")), None)
-    col_b_name = next((k for k in fields if k.startswith("Column B:")), None)
-    if not col_a_name or not col_b_name:
-        _fail(f"{which} needs both a '## Column A: ...' and a '## Column B: ...' heading")
+def _flat(slide):
     return {
-        "image": fields.get("Image", "").strip() or None,
-        "wide": fields.get("Layout", "").strip().lower() == "wide",   # optional "## Layout" = wide: the image runs full width above the two columns
-        "title": title, "lead": lead,
-        "col_a_heading": col_a_name.split(":", 1)[1].strip(), "col_a_lines": _bullets(fields[col_a_name]),
-        "col_b_heading": col_b_name.split(":", 1)[1].strip(), "col_b_lines": _bullets(fields[col_b_name]),
-        "verdict": verdict,
+        "image": slide.get("image"), "wide": bool(slide.get("wide")), "title": slide["title"], "lead": slide["lead"],
+        "col_a_heading": slide["colA"]["heading"], "col_a_lines": list(slide["colA"]["lines"]),
+        "col_b_heading": slide["colB"]["heading"], "col_b_lines": list(slide["colB"]["lines"]),
+        "verdict": slide["verdict"],
     }
 
+def from_story(story):
+    """The /api/story document -> (opening, closing, steps, slides)."""
+    for k in ("opening", "closing", "slides", "steps"):
+        if k not in story:
+            raise ValueError(f"/api/story: the wording has no '{k}'")
+    return (_flat(story["opening"]), _flat(story["closing"]), {k: {"title": v["title"], "text": v["text"]} for k, v in story["steps"].items()},
+            {k: _flat(v) for k, v in story["slides"].items()})
 
-def _load():
-    if not _PATH.exists():
-        _fail(f"not found at {_PATH}")
-    sections = _split_sections(_PATH.read_text())
-    opening = closing = None
-    steps = {}
-    slides = {}
-    for sec in sections:
-        head_m = re.match(r"^#\s+(.+?)\s*\n(.*)", sec, re.S)
-        if not head_m:
-            _fail(f"a section has no '# ' heading on its first line:\n{sec[:200]!r}")
-        heading, body = head_m.group(1).strip(), head_m.group(2)
-        fields, _ = _split_fields(body)
-        if heading == "Opening Slide":
-            opening = _slide_fields(fields, "Opening Slide")
-        elif heading == "Closing Slide":
-            closing = _slide_fields(fields, "Closing Slide")
-        elif heading.startswith("Slide:"):
-            slides[heading.split(":", 1)[1].strip()] = _slide_fields(fields, f"Slide '{heading}'")
-        elif heading.startswith("Step:"):
-            key = heading.split(":", 1)[1].strip()
-            if "Title" not in fields or "Text" not in fields:
-                _fail(f"step '{key}' needs both a '## Title' and a '## Text' section")
-            steps[key] = {"title": fields["Title"], "text": fields["Text"]}
-        else:
-            _fail(f"unrecognised section heading '# {heading}' (expected 'Opening Slide', 'Closing Slide', 'Slide: <key>' or 'Step: <key>')")
-    if opening is None:
-        _fail("no '# Opening Slide' section found")
-    if closing is None:
-        _fail("no '# Closing Slide' section found")
-    return opening, closing, steps, slides
-
-
-OPENING_SLIDE, CLOSING_SLIDE, STEPS, SLIDES = _load()
+def load(app_url, timeout=15):
+    """Fetch and convert the wording from the running lab."""
+    with urllib.request.urlopen(app_url.rstrip("/") + "/api/story", timeout=timeout) as r:
+        story = json.loads(r.read().decode())
+    if "error" in story:
+        raise ValueError(story["error"])
+    return from_story(story)
