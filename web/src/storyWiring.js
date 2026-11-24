@@ -25,10 +25,12 @@ export function createHost({ win = window, doc = document, mode = () => 'mock', 
   const runs = { starts: 0, ends: 0, lastOk: true };
   const waiters = new Set();   // each is (ok, reason) => void
   const timers = new Set();
-  const onStart = () => { runs.starts += 1; };
+  const watchers = new Set();  // onRun subscribers: told when a run starts or ends, so the bar can say whose turn it is
+  const onStart = () => { runs.starts += 1; watchers.forEach((f) => f()); };
   const onEnd = (e) => {
     runs.ends += 1; runs.lastOk = e.detail ? e.detail.ok !== false : true;
     for (const w of [...waiters]) w(runs.lastOk);
+    watchers.forEach((f) => f());
   };
   // A Reset empties the page: a step waiting for a run is told so (and the run's own end, which follows, finds nobody waiting).
   const onReset = () => { for (const w of [...waiters]) w(false, 'The page was reset. Press Next to carry on, or Exit.'); };
@@ -45,6 +47,8 @@ export function createHost({ win = window, doc = document, mode = () => 'mock', 
     query: q,
     mark: () => ({ starts: runs.starts, ends: runs.ends }),
     runStarted: (m) => runs.starts > m.starts,
+    runInFlight: () => runs.starts > runs.ends,
+    onRun: (cb) => { watchers.add(cb); return () => watchers.delete(cb); },
     waitForRun(m, timeoutMs) {
       return new Promise((resolve) => {
         const finish = (r) => { clearTimeout(t); timers.delete(t); waiters.delete(check); resolve(r); };
@@ -72,7 +76,7 @@ export function createHost({ win = window, doc = document, mode = () => 'mock', 
       if (el && el.getAttribute('aria-selected') !== 'true') el.click();
     },
     assetUrl: () => null,   // no screenshot ships; a slide is text-only
-    dispose() { win.removeEventListener('paad:run-start', onStart); win.removeEventListener('paad:run-end', onEnd); win.removeEventListener('paad:reset', onReset); timers.forEach(clearTimeout); timers.clear(); waiters.clear(); },
+    dispose() { win.removeEventListener('paad:run-start', onStart); win.removeEventListener('paad:run-end', onEnd); win.removeEventListener('paad:reset', onReset); timers.forEach(clearTimeout); timers.clear(); waiters.clear(); watchers.clear(); },
     _sleep: sleep, _settleMs: settleMs,
   };
 }
