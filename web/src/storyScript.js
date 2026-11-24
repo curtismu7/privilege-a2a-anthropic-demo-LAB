@@ -7,6 +7,7 @@
 //            | { selector, unless, check } an element unless it has that class (an answer box that holds an error is not an answer) and only when the named check holds on the page
 //            | { lastMessage: 'agent' } the chat's newest message, only when it is an agent answer (a failed run leaves an error message there, not an answer)
 //            check: 'sum1' | 'sum2' (live runs: the answer holds the expected sum, as take.py requires), 'refusal' (the answer is HTTP 401 and the gateway refused it). Mock skips the sum checks.
+//            The Bedrock checks ('bedrockOwn', 'bedrockDenied', 'bedrockFailClosed', 'bedrockUninspected') read the flow nodes, so a result left by an earlier scenario never passes for this one.
 //            A bubble whose target is not there is skipped.
 //   popout   { root, frame, section, scrollAfter }  open that reel frame's pop-out and point the bubble at one section of it
 //   prompt   { text } fill the question and the viewer presses Send | { press } the viewer (or Play) presses that existing button
@@ -24,6 +25,7 @@ export const P2_SUM2 = '58000';
 
 const REVIEW = 'review';
 const AWS = 'aws';
+const BEDROCK = 'bedrock';
 const FRAME_WAIT = 60000;   // an AWS frame appears while the call is in flight: the video waits up to 60 s
 
 export const STEPS = [
@@ -70,6 +72,26 @@ export const STEPS = [
   // Story only (the video shows a captured-evidence slide instead): the lab's live Run observability panel, opened. Skipped when the panel has no record.
   { key: 'observability_panel', type: 'bubble', trigger: 'load', target: { selector: '[data-testid=ro-table]', open: '#run-obs-drawer' }, prefer: 'above', sampleKey: 'sample_observability_panel' },
 
+  // ---- Part 3 (Story only, SIMULATED in every mode): the gateway signs the Bedrock call with an IAM role (the "Gateway to Bedrock (IAM)" tab). Each scenario is a
+  // button the viewer (or Play) presses; each result bubble points at something that exists only when the page shows that result.
+  { key: 'part3_bedrock', type: 'slide', trigger: 'load' },
+  { key: 'b_intro', type: 'bubble', tab: BEDROCK, trigger: 'load', target: '#panel-bedrock h2', prefer: 'below' },
+  { key: 'b_key', type: 'bubble', trigger: 'load', target: '#bedrock-key', prefer: 'below' },
+  { key: 'b_own', type: 'bubble', tab: BEDROCK, trigger: 'load', target: '#bedrock-sc-own', prefer: 'below', prompt: { press: '#bedrock-sc-own' } },
+  { key: 'b_own_done', type: 'bubble', trigger: 'run-done', target: { selector: '#bedrock-n-sts', check: 'bedrockOwn' }, prefer: 'below' },
+  { key: 'b_cross', type: 'bubble', tab: BEDROCK, trigger: 'load', target: '#bedrock-sc-cross', prefer: 'below', prompt: { press: '#bedrock-sc-cross' } },
+  { key: 'b_assume', type: 'bubble', trigger: 'run-done', popout: { root: '#bedrock-reel', frame: 'Assume the role', section: 'The call' }, prefer: 'right' },
+  { key: 'b_wrong', type: 'bubble', tab: BEDROCK, trigger: 'load', target: '#bedrock-sc-wrong-ext', prefer: 'below', prompt: { press: '#bedrock-sc-wrong-ext' } },
+  { key: 'b_wrong_refused', type: 'bubble', trigger: 'run-done', target: '#bedrock-n-sts[data-state=refused]', prefer: 'below' },
+  { key: 'b_wrong_502', type: 'bubble', trigger: 'frame', popout: { root: '#bedrock-reel', frame: 'Refused', section: 'What came back' }, prefer: 'right' },
+  { key: 'b_denied', type: 'bubble', tab: BEDROCK, trigger: 'load', target: '#bedrock-sc-denied', prefer: 'below', prompt: { press: '#bedrock-sc-denied' } },
+  { key: 'b_denied_blocked', type: 'bubble', trigger: 'run-done', target: { selector: '#bedrock-answer.is-blocked', check: 'bedrockDenied' }, prefer: 'below' },
+  { key: 'b_fail_closed', type: 'bubble', tab: BEDROCK, trigger: 'load', target: '#bedrock-sc-fail-closed', prefer: 'below', prompt: { press: '#bedrock-sc-fail-closed' } },
+  { key: 'b_fail_closed_blocked', type: 'bubble', trigger: 'run-done', target: { selector: '#bedrock-n-guard', check: 'bedrockFailClosed' }, prefer: 'below' },
+  { key: 'b_fail_open', type: 'bubble', tab: BEDROCK, trigger: 'load', target: '#bedrock-sc-fail-open', prefer: 'below', prompt: { press: '#bedrock-sc-fail-open' } },
+  { key: 'b_fail_open_passed', type: 'bubble', trigger: 'run-done', target: { selector: '#bedrock-n-guard', check: 'bedrockUninspected' }, prefer: 'below' },
+  { key: 'b_iam', type: 'bubble', tab: BEDROCK, trigger: 'load', target: { selector: '#bedrock-iam', open: '#bedrock-iam' }, prefer: 'above' },
+
   // ---- the end
   { key: 'protect', type: 'slide', trigger: 'load' },
   { key: 'closing', type: 'slide', trigger: 'load' },
@@ -78,8 +100,9 @@ export const STEPS = [
 // Mock wording the script uses that is not a step of its own: the closing slide's two replaced lines (the simulated run never claims a live one).
 export const EXTRA_SAMPLE_KEYS = ['sample_closing_lead', 'sample_closing_bullet'];
 
-// Bubbles only Story has (the video has no such scene): the numbered counts and the order checks against take.py leave them out.
-export const STORY_ONLY = ['observability_panel'];
+// Bubbles only Story has (the video has no such scene): the numbered counts and the order checks against take.py leave them out. The Part 3 Bedrock
+// bubbles (b_*) are all here: the video's Part 3 comes later.
+export const STORY_ONLY = ['observability_panel', ...STEPS.filter((s) => s.type === 'bubble' && s.key.startsWith('b_')).map((s) => s.key)];
 // Wording only the video uses: the captured-evidence slide (Story shows the live panel instead) and an unused intro.
 export const VIDEO_ONLY = ['observability', 'sample_intro'];
 

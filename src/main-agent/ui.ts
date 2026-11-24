@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { WIRING_CSS, WIRING_HTML } from './wiringDiagram.js';
-import { AWS_INTRO, AWS_PANEL_HTML, AWS_TAB_CSS, AWS_TAB_SCRIPT, AWS_TABS_HTML } from './awsTab.js';
+import { AWS_INTRO, AWS_PANEL_HTML, AWS_TAB_CSS, AWS_TAB_SCRIPT, AWS_TABS_HTML, TABS_SCRIPT } from './awsTab.js';
+import { BEDROCK_DATA_SCRIPT, BEDROCK_PANEL_HTML, BEDROCK_TAB_CSS, BEDROCK_TAB_SCRIPT } from './bedrockTab.js';
 import { REEL_CSS, REEL_DATA_SCRIPT, REEL_SCRIPT } from './reelUi.js';
 import { JSON_PANE_CSS } from './jsonPaneCss.js';
 import { jsonPaneSource } from './jsonPaneSource.js';
@@ -336,7 +337,7 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,2fr) minmax
 @media (prefers-reduced-motion:reduce){.dancing-p{animation:none}}
 .return-link--strip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:0;padding:8px 12px;border:1px solid var(--border);border-left:4px solid var(--focus);background:var(--surface);color:var(--text);font-size:13px;overflow-wrap:anywhere}
 ${WIRING_CSS}
-${AWS_TAB_CSS}${REEL_CSS}#tracePane .reel,#tracePane .reel__hint{flex:none;margin-left:.8rem;margin-right:.8rem}#tracePane .reel__hint{margin-top:.6rem;margin-bottom:.3rem;color:#d7dbe5}#tracePane .reel{margin-bottom:.4rem}</style>
+${AWS_TAB_CSS}${BEDROCK_TAB_CSS}${REEL_CSS}#tracePane .reel,#tracePane .reel__hint{flex:none;margin-left:.8rem;margin-right:.8rem}#tracePane .reel__hint{margin-top:.6rem;margin-bottom:.3rem;color:#d7dbe5}#tracePane .reel{margin-bottom:.4rem}</style>
 <style id="jsonpane-css">
 ${jsonPaneCss}
 </style>
@@ -349,6 +350,7 @@ ${WIRING_HTML}
 ${AWS_TABS_HTML}
 <main id="panel-review" role="tabpanel" aria-labelledby="tab-review"><section id="chat"><h2 class="step-h"><span class="step-num">1</span>Ask the main agent</h2><div id="messages"></div><button type="button" class="prompt-toggle" id="prompt-toggle" aria-expanded="false" aria-controls="prompts"><span>Example prompts</span><span class="caret" aria-hidden="true">▾</span></button><div class="prompts" id="prompts" role="group" aria-label="Example questions, each with what it proves" hidden><button type="button" data-q="Review access on prod-db-primary"><span class="p-q">Review access on prod-db-primary</span><span class="p-proves"><b>Proves:</b> the A2A handoff end to end. The concierge hands the question to the analyst agent, which reads the data over MCP. Privilege checks each hop on its own key and shows any refusal in the trace. Expect a refusal on the data call here: the injection demo plants a hostile instruction in a record, and Privilege's AI Guard blocks that tool response (the last card says how to change that).</span></button><button type="button" data-q="List all entitlements for Carol Nguyen"><span class="p-q">List all entitlements for Carol Nguyen</span><span class="p-proves"><b>Proves:</b> Privilege protecting data on the MCP leg. In gateway mode her personal data (her email) comes back redacted, so watch for [REDACTED:pii] in the trace.</span></button><button type="button" data-q="Is Erin Walsh offboarding, and what access does she still hold?"><span class="p-q">Is Erin Walsh offboarding, and what access does she still hold?</span><span class="p-proves"><b>Proves:</b> the analyst, not the concierge, does the data work: it looks up Erin Walsh's entitlements over MCP, and the concierge reports only what the analyst returned. Expect her to be flagged as offboarding but still holding a standing grant on s3-customer-exports.</span></button>${AWS_BUTTON}${HELP_BUTTON}</div><form id="form"><input id="input" autocomplete="off" placeholder="Ask who has access to what"><button id="send" type="submit">Send</button></form></section><aside id="tracePane"><h2 class="step-h"><span class="step-num">2</span>Request trace</h2><div id="who" aria-live="polite" aria-label="Custodian and subagent"></div><ol id="reel-review" aria-label="API calls for the latest prompt"></ol><div id="trace"></div></aside></main>
 ${AWS_PANEL_HTML}
+${BEDROCK_PANEL_HTML}
 <details id="run-obs-drawer" class="run-obs-wrap" data-testid="run-obs-drawer"><summary>What each layer logged for this run</summary><div id="run-obs-root" class="run-obs-body"></div></details>
 <script>${REEL_DATA_SCRIPT}${REEL_SCRIPT}</script>
 <script>
@@ -384,7 +386,9 @@ form.addEventListener('submit',event=>{event.preventDefault();if(inflight)return
 const injectionHelp=${JSON.stringify(INJECTION_HELP_TEXT)};
 const promptToggle=document.getElementById('prompt-toggle');const promptList=document.getElementById('prompts');function setPrompts(open){promptList.hidden=!open;promptToggle.setAttribute('aria-expanded',String(open))}promptToggle.addEventListener('click',()=>setPrompts(promptList.hidden));document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!promptList.hidden){setPrompts(false);promptToggle.focus()}});window.addEventListener('paad:reset',resetAll);
 </script>
+<script>${TABS_SCRIPT}</script>
 <script>${AWS_TAB_SCRIPT}</script>
+<script>${BEDROCK_DATA_SCRIPT}${BEDROCK_TAB_SCRIPT}</script>
 <script>${RETURN_LINK_SCRIPT}</script>
 </body>
 </html>`;

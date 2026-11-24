@@ -45,7 +45,7 @@ test('story: the script has the same number of numbered bubbles as the recorded 
   const bubbles = (mode: string) => steps.filter(s => s.type === 'bubble' && !STORY_ONLY.includes(s.key) && (!s.modes || s.modes.includes(mode))).length;
   assert.equal(bubbles('real'), 27);   // the video's own scenes; Story adds its live observability bubble on top (STORY_ONLY)
   assert.equal(bubbles('mock'), 25);
-  assert.deepEqual(STORY_ONLY, ['observability_panel']);
+  assert.deepEqual(STORY_ONLY, ['observability_panel', ...steps.filter(s => s.key.startsWith('b_')).map(s => s.key)], 'Story only: the live observability bubble and every Part 3 Bedrock bubble');
   const video = readFileSync(`${root}video/take.py`, 'utf8');
   assert.match(video, /TOTAL = 25 if SAMPLE else 27/);
 });
@@ -74,6 +74,24 @@ test('story: the bubbles come in the same order as in take.py, and the mode flag
   assert.deepEqual(steps.filter(s => s.modes?.includes('real') && !s.modes.includes('mock')).map(s => s.key), ['token_frame', 'token_popout', 'refused_metadata']);
   assert.deepEqual(steps.filter(s => s.modes?.includes('mock') && !s.modes.includes('real')).map(s => s.key), ['sample_note', 'live_banner']);
   assert.deepEqual(steps.filter(s => s.when === 'awsLive').map(s => s.key), ['token_frame', 'token_popout', 'refused_metadata']);
+});
+
+test('story: Part 3 (the Bedrock tab) is Story only, simulated, after the video\'s scenes and before the protect slide; take.py does not know it', () => {
+  const keys = steps.map(s => s.key);
+  const part3 = steps.filter(s => s.key === 'part3_bedrock' || s.key.startsWith('b_'));
+  assert.ok(part3.length >= 13, 'the slide and its bubbles');
+  assert.deepEqual(part3.map(s => keys.indexOf(s.key)), part3.map((_, i) => keys.indexOf('part3_bedrock') + i), 'one block, in order');
+  assert.ok(keys.indexOf('part3_bedrock') > keys.indexOf('observability_panel') && keys.indexOf('b_iam') < keys.indexOf('protect'));
+  for (const s of part3.filter(x => x.type === 'bubble')) assert.ok(STORY_ONLY.includes(s.key), `${s.key} is Story only`);
+  const video = readFileSync(`${root}video/take.py`, 'utf8');
+  assert.ok(!/part3_bedrock|"b_[a-z_]+"|bedrock-/.test(video), 'the recorded video has no Part 3 yet');
+  const captions = loadCaptions() as unknown as { slides: Record<string, { verdict: string }>; steps: Record<string, { text: string }> };
+  assert.match(captions.slides.part3_bedrock?.verdict ?? '', /^Simulated/);
+  assert.match(captions.steps.b_intro?.text ?? '', /simulated/);
+  // Press steps name a scenario button the page has, and every result waits for the run.
+  const presses = part3.filter(s => (s.prompt as { press?: string } | undefined)?.press);
+  assert.deepEqual(presses.map(s => (s.prompt as { press: string }).press), ['#bedrock-sc-own', '#bedrock-sc-cross', '#bedrock-sc-wrong-ext', '#bedrock-sc-denied', '#bedrock-sc-fail-closed', '#bedrock-sc-fail-open']);
+  for (const p of presses) assert.equal(steps[keys.indexOf(p.key) + 1]?.trigger, 'run-done', `${p.key} is followed by a step that waits for its run`);
 });
 
 test('story (rule 29): the first page the viewer sees, in Real and in Mock, has a header naming the demo', () => {

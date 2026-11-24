@@ -11,13 +11,15 @@ import { readersFromEnv } from '../server/src/runObservabilityReaders.js';
 export type RunLayer = 'person' | 'agent' | 'authorize' | 'privilege' | 'gateway' | 'resource';
 export type RunOutcome = 'allowed' | 'refused' | 'blocked' | 'info';
 export type RunSource = 'mock' | 'real';
-export type RunKind = 'chat' | 'chain' | 'aws-agent';
+const LAYERS: readonly RunLayer[] = ['person', 'agent', 'authorize', 'privilege', 'gateway', 'resource'];
+const OUTCOMES: readonly RunOutcome[] = ['allowed', 'refused', 'blocked', 'info'];
+export type RunKind = 'chat' | 'chain' | 'aws-agent' | 'bedrock';
 
 /** One thing the lab saw during the run, already placed in a layer. `at` is epoch milliseconds. */
 export interface RunNote { at: number; layer: RunLayer; outcome: RunOutcome; message: string; product?: string }
 
 /** The few fields of a trace event this module reads. Everything else in the event is ignored. */
-export interface TraceLike { kind?: unknown; from?: unknown; to?: unknown; text?: unknown; detail?: unknown; wire?: { status?: unknown } }
+export interface TraceLike { kind?: unknown; from?: unknown; to?: unknown; text?: unknown; detail?: unknown; wire?: { status?: unknown }; obs?: unknown }
 
 /** The product id the lab's own decision lines are read under (ping_product / demo_service / container name). */
 export const LAB_PRODUCT = 'privilege-a2a-lab';
@@ -59,6 +61,12 @@ export function notesFor(e: TraceLike, at: number): RunNote[] {
       if (isBlockedReply(e)) return [note('privilege', 'blocked', `A tool reply was stopped on its way back: the gateway's content check said it was blocked`), note('gateway', 'blocked', `The gateway did not pass the tool reply from ${from} to ${to}`)];
       if (status === 401 || status === 403) return [note('gateway', 'refused', `The gateway refused the call to ${to}, HTTP ${status}`)];
       return [note('gateway', 'info', `${str(e.text, 120) || 'A hop failed'}${status ? `, HTTP ${status}` : ''}`)];
+    case 'bedrock': {
+      // The Bedrock tab's simulated run (src/bedrockSim.ts) says its own row; anything that is not a known layer and outcome is dropped.
+      const o = (e.obs && typeof e.obs === 'object' ? e.obs : {}) as { layer?: unknown; outcome?: unknown; message?: unknown };
+      const layer = LAYERS.find(l => l === o.layer); const outcome = OUTCOMES.find(x => x === o.outcome);
+      return layer && outcome && str(o.message) ? [note(layer, outcome, str(o.message))] : [];
+    }
     default:
       return [];
   }

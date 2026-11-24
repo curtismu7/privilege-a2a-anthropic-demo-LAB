@@ -212,6 +212,32 @@ Excerpts, ids masked. Logs can stream to a SIEM (Ping's docs).
 
 ---
 
+# Slide: part3_bedrock
+
+<!-- Story only, for now: Part 3, the Gateway to Bedrock (IAM) tab. Every run on that tab is SIMULATED, in Mock and in Real. -->
+
+## Title
+Part 3: the gateway signs the Bedrock call
+
+## Lead
+Our agent's model call goes through the Privilege gateway to Amazon Bedrock. Every run in this part is simulated.
+
+## Column A: The AWS identity
+- Sign as this gateway (IAM): SigV4, no stored AWS key
+- Role ARN blank: the gateway host's own role
+- Role ARN set: AssumeRole, same account or another one
+- External ID: the condition the target role trusts
+
+## Column B: AI Guard on Bedrock
+- A Bedrock guardrail screens the prompt
+- A denied topic is blocked before the model
+- Guardrail unreachable: Fail closed decides
+
+## Verdict
+Simulated: nothing in Privilege or AWS is called. A live run needs a gateway with an IAM role.
+
+---
+
 # Slide: protect
 
 ## Title
@@ -726,4 +752,166 @@ The answer (simulated)
 
 ## Text
 In the live demo the concierge answers from what the analyst returned, and nothing the data did not say. This answer is canned: no model and no analyst produced it.
+
+---
+
+# Step: b_intro
+
+<!-- Story only: Part 3 (the Bedrock tab is simulated in every mode). -->
+
+## Title
+Part 3: Gateway to Bedrock (IAM)
+
+## Text
+Our agent holds only its Privilege key. The gateway calls Amazon Bedrock as an AWS identity, so no AWS access key sits in the agent or in the gateway's settings. Every run on this tab is simulated.
+
+---
+
+# Step: b_key
+
+## Title
+The agent key's settings
+
+## Text
+The same labels as the console's Model Access and Limits: Provider, Region, Sign as this gateway (IAM), Role ARN, External ID, Session Name and Upstream URL. The agent still sends its virtual key; the gateway replaces it.
+
+---
+
+# Step: b_own
+
+## Title
+The gateway's own role
+
+## Text
+Role ARN is blank, so the gateway signs with its host's own AWS identity. Press the button to run it (simulated).
+
+---
+
+# Step: b_own_done
+
+## Title
+Signed as itself
+
+## Text
+The STS box says not used: the gateway signed the Bedrock call with its own role, with no AssumeRole and no stored key. The simulated model answered.
+
+---
+
+# Step: b_cross
+
+## Title
+A role in another account
+
+## Text
+Now Role ARN names a role in another AWS account, with the External ID its trust policy expects. Press the button to run it (simulated).
+
+---
+
+# Step: b_assume
+
+## Title
+The AssumeRole call, opened
+
+## Text
+The gateway asks AWS STS for the role, signed with its own identity. The call carries the Role ARN, the External ID and the Session Name, which labels the session in that account's CloudTrail.
+
+---
+
+# Step: b_wrong
+
+## Title
+A wrong External ID
+
+## Text
+The same cross-account role, with a wrong External ID. Press the button to run it (simulated).
+
+---
+
+# Step: b_wrong_refused
+
+## Title
+AssumeRole refused
+
+## Text
+STS refused the role: the External ID does not meet the condition in the role's trust policy. The guardrail and the model were never reached.
+
+---
+
+# Step: b_wrong_502
+
+## Title
+What the caller sees
+
+## Text
+A generic HTTP 502 upstream_unreachable, the same answer as a network failure. The caller cannot tell why: the reason is only in the gateway's log and the target account's CloudTrail.
+
+---
+
+# Step: b_denied
+
+## Title
+A guardrail as AI Guard
+
+## Text
+The guardrail is on, and the prompt asks for investment advice, a topic it denies. Press the button to run it (simulated).
+
+---
+
+# Step: b_denied_blocked
+
+## Title
+Blocked before the model
+
+## Text
+ApplyGuardrail intervened on the denied topic, so the gateway blocked the request. The model was never called.
+
+---
+
+# Step: b_fail_closed
+
+## Title
+The guardrail cannot be reached
+
+## Text
+The guardrail's role is unreachable and Fail closed is on. Press the button to run it (simulated).
+
+---
+
+# Step: b_fail_closed_blocked
+
+## Title
+Fail closed: blocked
+
+## Text
+The prompt could not be inspected, so the gateway blocked it. The model was never called.
+
+---
+
+# Step: b_fail_open
+
+## Title
+The same, with Fail closed off
+
+## Text
+The guardrail is still unreachable, but Fail closed is off. Press the button to run it (simulated).
+
+---
+
+# Step: b_fail_open_passed
+
+## Title
+Passed uninspected
+
+## Text
+With Fail closed off, the prompt went through uninspected and the gateway logged a warning. The simulated model answered. Choose Fail closed when an unscreened prompt is not acceptable.
+
+---
+
+# Step: b_iam
+
+## Title
+What the IAM role needs
+
+## Text
+The permissions follow the Provider: InvokeModel for Runtime, CreateInference and DeleteInference for Mantle, ApplyGuardrail for the guardrail, and AssumeRole with an External ID condition for a role in another account. The common failures are listed too.
 

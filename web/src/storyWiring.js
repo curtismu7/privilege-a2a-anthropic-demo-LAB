@@ -7,7 +7,7 @@
 
 import { STEPS, P2_SUM, P2_SUM2 } from './storyScript.js';
 
-const INPUTS = { review: { input: '#input', send: '#send' }, aws: { input: '#aws-input', send: '#aws-send' } };
+const INPUTS = { review: { input: '#input', send: '#send' }, aws: { input: '#aws-input', send: '#aws-send' }, bedrock: { input: '#bedrock-input', send: '#bedrock-send' } };
 const text = (el) => (el && el.textContent ? el.textContent.trim() : '');
 
 /** The first sentence, never cut mid-word (the video's first_sentence). */
@@ -69,7 +69,7 @@ export function createHost({ win = window, doc = document, mode = () => 'mock', 
     },
     send(step) {
       if (step.prompt && step.prompt.press) { click(q(step.prompt.press)); return; }
-      click(q(INPUTS[step.tab || (q('#panel-aws:not([hidden])') ? 'aws' : 'review')].send));
+      click(q(INPUTS[step.tab || (q('#panel-bedrock:not([hidden])') ? 'bedrock' : q('#panel-aws:not([hidden])') ? 'aws' : 'review')].send));
     },
     switchTab(tab) {
       const el = q(`#tab-${tab}`);
@@ -90,10 +90,16 @@ const BLOCKED = /content_blocked|blocked by security policy/i;   // the video's 
 function checks(doc, host) {
   const answer = () => text(doc.getElementById('aws-answer'));
   const state = (id) => text(doc.getElementById(`aws-s-${id}`));
+  const bk = (id) => { const n = doc.getElementById(`bedrock-n-${id}`); return { state: n ? n.dataset.state : '', word: text(doc.getElementById(`bedrock-s-${id}`)) }; };
   return {
     sum1: () => host.mode() === 'mock' || answer().replace(/,/g, '').includes(P2_SUM),
     sum2: () => host.mode() === 'mock' || (answer().replace(/,/g, '').includes(P2_SUM2) && /even/i.test(answer())),
     refusal: () => answer().startsWith('HTTP 401') && (host.mode() === 'mock' ? state('aws').startsWith('stopped') : state('gateway').startsWith('refused') && state('aws') === 'not reached'),
+    // The Bedrock tab (simulated in every mode): each result is read from the flow nodes the run set, never from a scenario's name.
+    bedrockOwn: () => bk('sts').word === 'not used (own role)' && bk('model').state === 'ok' && bk('guard').word === 'off',
+    bedrockDenied: () => bk('guard').word === 'blocked (denied topic)' && bk('model').state === 'skipped',
+    bedrockFailClosed: () => bk('guard').state === 'blocked' && bk('guard').word.startsWith('unreachable') && bk('model').state === 'skipped',
+    bedrockUninspected: () => bk('guard').state === 'skipped' && bk('guard').word.startsWith('not inspected') && bk('model').state === 'ok',
   };
 }
 
