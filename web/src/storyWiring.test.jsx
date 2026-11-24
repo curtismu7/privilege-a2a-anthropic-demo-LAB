@@ -60,6 +60,15 @@ describe("host: runs", () => {
     expect(vi.getTimerCount()).toBe(1); host.dispose(); expect(vi.getTimerCount()).toBe(0);
   });
 
+  test("the host says when a run is in flight and tells subscribers as runs start and end", () => {
+    const host = createHost({}); const seen = vi.fn(); const off = host.onRun(seen);
+    expect(host.runInFlight()).toBe(false);
+    fire("paad:run-start"); expect(host.runInFlight()).toBe(true);
+    fire("paad:run-end", { ok: true }); expect(host.runInFlight()).toBe(false);
+    expect(seen).toHaveBeenCalledTimes(2); off(); fire("paad:run-start"); expect(seen).toHaveBeenCalledTimes(2);
+    host.dispose();
+  });
+
   test("after dispose the host no longer counts runs", () => {
     const host = createHost({}); host.dispose();
     const m = host.mark(); fire("paad:run-start"); expect(host.runStarted(m)).toBe(false);

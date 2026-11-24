@@ -11,7 +11,7 @@ from pathlib import Path
 def _flat(slide):
     try:
         return {
-            "image": slide.get("image"), "wide": bool(slide.get("wide")), "title": slide["title"], "lead": slide["lead"],
+            "image": slide.get("image"), "wide": bool(slide.get("wide")), "header": slide.get("header"), "title": slide["title"], "lead": slide["lead"],
             "col_a_heading": slide["colA"]["heading"], "col_a_lines": list(slide["colA"]["lines"]),
             "col_b_heading": slide["colB"]["heading"], "col_b_lines": list(slide["colB"]["lines"]),
             "verdict": slide["verdict"],

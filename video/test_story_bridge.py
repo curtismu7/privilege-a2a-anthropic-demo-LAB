@@ -60,7 +60,8 @@ class Payload(unittest.TestCase):
 
     def test_a_captions_slide_in_the_shared_overlays_shape(self):
         p = story_bridge.slide_payload(self.CFG, "/nonexistent")
-        self.assertEqual(p, {"image": None, "title": "T", "lead": "L", "verdict": "V", "wide": False, "colA": {"heading": "A", "lines": ["a1"]}, "colB": {"heading": "B", "lines": ["b1", "b2"]}})
+        self.assertEqual(p, {"image": None, "header": None, "title": "T", "lead": "L", "verdict": "V", "wide": False, "colA": {"heading": "A", "lines": ["a1"]}, "colB": {"heading": "B", "lines": ["b1", "b2"]}})
+        self.assertEqual(story_bridge.slide_payload({**self.CFG, "header": "A2A"}, "/nonexistent")["header"], "A2A")   # rule 29: the first page names the demo
 
     def test_an_image_comes_from_the_local_assets_folder_as_a_data_uri(self):
         with tempfile.TemporaryDirectory() as d:
@@ -70,7 +71,7 @@ class Payload(unittest.TestCase):
 
 class Wording(unittest.TestCase):
     STORY = {
-        "opening": {"title": "O", "lead": "l", "verdict": "v", "colA": {"heading": "a", "lines": ["x"]}, "colB": {"heading": "b", "lines": ["y"]}, "image": None, "wide": False},
+        "opening": {"header": "H", "title": "O", "lead": "l", "verdict": "v", "colA": {"heading": "a", "lines": ["x"]}, "colB": {"heading": "b", "lines": ["y"]}, "image": None, "wide": False},
         "closing": {"title": "C", "lead": "l", "verdict": "v", "colA": {"heading": "a", "lines": ["x"]}, "colB": {"heading": "b", "lines": ["y"]}, "image": None, "wide": False},
         "slides": {"part2": {"title": "P", "lead": "l", "verdict": "v", "colA": {"heading": "a", "lines": ["x", "z"]}, "colB": {"heading": "b", "lines": ["y"]}, "image": "console.jpg", "wide": True}},
         "steps": {"p1_intro": {"title": "Ask", "text": "Type."}},
@@ -79,6 +80,7 @@ class Wording(unittest.TestCase):
     def test_the_story_document_becomes_the_flat_shapes_take_py_uses(self):
         o, c, steps, slides = captions.from_story(self.STORY)
         self.assertEqual(o["col_a_lines"], ["x"]); self.assertEqual(c["title"], "C")
+        self.assertEqual(o["header"], "H"); self.assertIsNone(c["header"])
         self.assertEqual(slides["part2"]["image"], "console.jpg"); self.assertTrue(slides["part2"]["wide"]); self.assertEqual(slides["part2"]["col_a_lines"], ["x", "z"])
         self.assertEqual(steps, {"p1_intro": {"title": "Ask", "text": "Type."}})
 
