@@ -19,9 +19,10 @@ import json, os, re, signal, subprocess, sys, tempfile, time, urllib.request
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 import base64
-import captions
+import captions, onscreen_mask
 from story_bridge import overlay_script, slide_payload as _slide_payload, hold_bubble, hold_slide as _hold_slide
 OPENING_SLIDE = CLOSING_SLIDE = STEPS = SLIDES = None   # filled in main() from the lab's /api/story (the one shared parser)
+MASK_SCRIPT = None   # the on-screen masking script, built in main() from the lab's .env
 
 WORK = Path(sys.argv[1] if len(sys.argv) > 1 else "take-work").resolve()
 # Two videos, one per screen (owner, 2026-11-22): the window is full screen (Chrome --kiosk) so the video fills the display.
@@ -134,7 +135,7 @@ def observability_slide():
         d = json.loads(ev.read_text())
         for k in ("image", "lead", "col_a_heading", "col_a_lines", "col_b_heading", "col_b_lines", "verdict"):
             if k in d: cfg[k] = d[k]
-        cfg["wide"] = True
+        cfg["image"] = None; cfg["wide"] = False   # text only (owner, 2026-11-24): no console screenshot in a public video
     elif not SAMPLE:
         raise RuntimeError("assets/observability.json is missing: capture the logs of the recorded run first (the observability slide is a standard)")
     return cfg
@@ -146,6 +147,17 @@ def main():
         OPENING_SLIDE, CLOSING_SLIDE, STEPS, SLIDES = captions.load(APP, Path(__file__).parent / "captions.md")
     except ValueError as e:
         log("cannot read the wording:", e); raise SystemExit(f"take.py: {e}")
+    # A live take is published: real hosts, the client id and the runtime id are masked on screen, from the lab's own .env (never written here). No masks, no live take.
+    global MASK_SCRIPT
+    env_file = Path(os.environ.get("MASK_ENV", str(Path.home() / "Development/AI-DEMO-Standalone/standalone/privilege-a2a-anthropic-demo-LAB/.env")))
+    try:
+        pairs = onscreen_mask.mask_pairs(env_file)
+    except OSError:
+        pairs = []
+    if not SAMPLE and len(pairs) < 3:
+        log("no on-screen masks: refusing a live take"); raise SystemExit(f"take.py: cannot build the on-screen masks from {env_file} (a public video must not show real hosts); set MASK_ENV to the lab's .env")
+    MASK_SCRIPT = onscreen_mask.mask_script(pairs) if pairs else None
+    log("on-screen masks:", len(pairs), "rules")
     profile = tempfile.mkdtemp(prefix="a2a-take-")
     # No "Save password?" bubble in the recording: switch the password manager off in this throw-away profile.
     (Path(profile) / "Default").mkdir(parents=True, exist_ok=True)
@@ -173,6 +185,7 @@ def main():
             color_scheme="light",
             **({"record_video_dir": str(WORK / "pw-video"), "record_video_size": {"width": _prof["video"][0], "height": _prof["video"][1]}} if RECORD_PW else {}),
             args=[f"--window-position={WIN_X},{WIN_Y}", f"--window-size={WIN_W},{WIN_H}", "--no-first-run", "--no-default-browser-check", *([] if HEADLESS else ["--kiosk"])])
+        if MASK_SCRIPT: ctx.add_init_script(MASK_SCRIPT)   # first, so nothing real is ever drawn
         ctx.add_init_script("window.__cmScale = " + json.dumps(SCALE) + ";")
         ctx.add_init_script("window.__pillText = " + json.dumps("SAMPLE: simulated stand-in, not a live run" if SAMPLE else None) + ";")
         ctx.add_init_script(overlay_script())
@@ -481,6 +494,10 @@ def main():
                 if count["n"] != TOTAL: log("NOTE: %d caption bubbles were shown but the counter says %d; set TOTAL to match" % (count["n"], TOTAL))
                 page.evaluate("() => window.__cm.clear()")
                 result["finished_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+                if MASK_SCRIPT:   # a public video: nothing real may be in the page, shown or hidden
+                    leaks = page.evaluate("() => window.__onscreenMaskLeaks ? window.__onscreenMaskLeaks() : -1")
+                    result["mask_leaks"] = leaks; log("on-screen mask check: leaks =", leaks)
+                    if leaks != 0: result["ok"] = False; log("WARNING: real values reached the page (or the mask did not load): do not publish this take")
                 if ok and SEGMENT == "all":
                     show_slide(SLIDES["protect"], extra=2.0, name="slide-protect", cap=54.0)   # "what else could it stop?"
                     show_slide(observability_slide(), extra=2.0, name="slide-observability", cap=40.0)   # what the run left behind, right before the closing

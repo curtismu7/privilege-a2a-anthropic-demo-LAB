@@ -193,7 +193,7 @@ Each rule is paraphrased at the moment it shows up.
 
 # Slide: observability
 
-<!-- The columns, image and lead are replaced at record time from assets/observability.json (captured from the logs of the recorded run). The text here is the fallback and the standard wording. -->
+<!-- The columns and lead are replaced at record time from assets/observability.json (captured from the logs of the recorded run). The text here is the fallback and the standard wording. -->
 
 ## Title
 What ends up for observability
@@ -201,16 +201,10 @@ What ends up for observability
 ## Lead
 The log entries this run left behind, read straight after the recording.
 
-## Image
-console-activity-logs-crop.jpg
-
-## Layout
-wide
-
-## Column A: Allowed (console Activity Logs, above)
+## Column A: Allowed
 - The Agent Card read and the message send, as aws-agent-caller-identity
 
-## Column B: Refused and blocked (gateway log excerpt)
+## Column B: Refused and blocked
 - The refused call and the blocked data call, with their timestamps
 
 ## Verdict
