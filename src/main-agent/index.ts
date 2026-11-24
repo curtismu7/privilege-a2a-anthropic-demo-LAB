@@ -19,6 +19,7 @@ import { renderPage } from './ui.js';
 import { shelfInfo } from '../shelfLink.js';
 import { labAllowedHosts, sameOriginGuard } from '../originGuard.js';
 import { beginRun, runObservability, type RunKind, type RunRecorder, type TraceLike } from '../runObs.js';
+import { storyResponse } from '../story.js';
 
 /** The token counts a model call reported, for the trace. Absent when the provider sent none. */
 function tokenCounts(message: Anthropic.Message): { input: number; output: number } | undefined {
@@ -90,6 +91,11 @@ app.get('/api/info', (_req: Request, res: Response) => {
   const realAvailable = realModelConfigured();
   res.set('Cache-Control', 'no-store');
   res.json({ mode: uiMode, source: uiMode === 'real' ? 'real' : 'mock', realAvailable });
+});
+// Story mode: the wording (video/captions.md) the guided walk-through and the recorded video both read.
+app.get('/api/story', (_req: Request, res: Response) => {
+  const { status, body } = storyResponse();
+  res.status(status).set('Cache-Control', 'no-cache').json(body);
 });
 // Rule 27: what each layer logged for the latest run (mock: simulated rows; real: responses the lab holds plus the lines the readers find).
 app.get('/api/run-observability', async (_req: Request, res: Response) => {
