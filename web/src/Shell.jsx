@@ -1,5 +1,10 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import TopMenu, { applyFontSize } from "./top-menu/TopMenu.jsx";
+import StoryToggle, { storyKey } from "./story/StoryToggle.jsx";
+
+// Story mode is loaded only when the viewer switches it on, so the page in Demo mode does not pay for it.
+const StoryRoot = lazy(() => import("./StoryRoot.jsx"));
+export const STORY_PREFIX = "a2a";
 
 // The shell bar's controls for the lab page. The page itself stays server-rendered with its own vanilla script; this island
 // renders only the shared TopMenu and talks to that script through three window events and nothing else:
@@ -32,6 +37,8 @@ export default function Shell() {
   const [shelfUrl, setShelfUrl] = useState(null);
   const [theme, setTheme] = useState(() => (THEMES.includes(readStore(THEME_KEY)) ? readStore(THEME_KEY) : "auto"));
   const [fontStep, setFontStep] = useState(() => (FONT_STEPS.includes(readStore(FONT_KEY)) ? readStore(FONT_KEY) : "M"));
+  const [storyOn, setStoryOn] = useState(false);
+  const [toggleKey, setToggleKey] = useState(0);
 
   // Rule 19: the mode shown is the server's current mode (GET /api/info `source`), never the launch mode.
   useEffect(() => {
@@ -83,15 +90,25 @@ export default function Shell() {
   const changeTheme = (next) => { setTheme(next); writeStore(THEME_KEY, next); };
   const changeFont = (next) => { setFontStep(next); writeStore(FONT_KEY, next); };
   const reset = () => window.dispatchEvent(new CustomEvent("paad:reset"));
+  const onView = useCallback((on) => setStoryOn(on), []);
+  // Exit in the Story bar: back to Demo, remembered, and ?story=1 dropped from the address so a reload stays in Demo.
+  const leaveStory = useCallback(() => {
+    writeStore(storyKey(STORY_PREFIX), "demo");
+    try { const u = new URL(window.location.href); if (u.searchParams.has("story")) { u.searchParams.delete("story"); window.history.replaceState(null, "", u); } } catch { /* no address to tidy */ }
+    setToggleKey((k) => k + 1);
+  }, []);
 
   return (
+    <>
     <TopMenu
       mode={{ value: mode, onChange: changeMode, realAvailable, realHint: REAL_HINT }}
       theme={{ value: theme, onChange: changeTheme }}
       fontSize={{ value: fontStep, onChange: changeFont }}
       shelfUrl={shelfUrl || undefined}
       onReset={reset}
-      extra={note ? <span className="shell-note" role="alert" data-testid="mode-note">{note}</span> : undefined}
+      extra={<>{note ? <span className="shell-note" role="alert" data-testid="mode-note">{note}</span> : null}<StoryToggle key={toggleKey} prefix={STORY_PREFIX} onChange={onView} /></>}
     />
+    {storyOn ? <Suspense fallback={null}><StoryRoot mode={mode} onExit={leaveStory} prefix={STORY_PREFIX} /></Suspense> : null}
+    </>
   );
 }

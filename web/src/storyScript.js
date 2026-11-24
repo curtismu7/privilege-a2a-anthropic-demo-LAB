@@ -2,7 +2,8 @@
 // entry into an engine step (a selector, a pop-out, a live line). The wording is in video/captions.md; test/story.test.ts checks the two agree, and that the order,
 // the numbered-bubble counts and the fixed holds equal take.py's.
 //
-//   target   a CSS selector | { frame, root } a reel frame by its title | { last, fallback } the last match of a selector
+//   target   a CSS selector | { frame, root } a reel frame by its title | { last, fallback, only } the last match of a selector (only: 'blocked' = if the trace says blocked)
+//            | { selector, unless } an element unless it has that class (an answer box that holds an error is not an answer). A bubble whose target is not there is skipped.
 //   popout   { root, frame, section, scrollAfter }  open that reel frame's pop-out and point the bubble at one section of it
 //   prompt   { text } fill the question and the viewer presses Send | { press } the viewer (or Play) presses that existing button
 //   lines    the name of a live value the page reads for the bubble's fact lines (the page wiring, slice 2)
@@ -26,13 +27,13 @@ export const STEPS = [
   // ---- Part 1: our two agents (the "A2A with remote agents" tab)
   { key: 'p1_intro', type: 'bubble', tab: REVIEW, trigger: 'load', target: '#chat', prefer: 'right' },
   { key: 'p1_prompt', type: 'bubble', tab: REVIEW, trigger: 'load', target: '#input', prefer: 'above', prompt: { text: P1_Q1 }, fixedSecs: 4.5, askLine: `asks: ${P1_Q1}` },
-  { key: 'p1_handoff', type: 'bubble', trigger: 'run-done', target: '#who', place: 'bl' },
+  { key: 'p1_handoff', type: 'bubble', trigger: 'run-done', target: '#who .who-hop', place: 'bl' },   // only when a handoff happened: a run that failed before it shows no hop
   { key: 'p1_message', type: 'bubble', trigger: 'frame', popout: { root: '#reel-review', frame: 'Send the message', section: 'The call' }, prefer: 'right' },
   { key: 'p1_mcp', type: 'bubble', trigger: 'frame', target: { frame: 'Call the tool', root: '#reel-review' }, prefer: 'below' },
   { key: 'p1_redacted', type: 'bubble', trigger: 'frame', popout: { root: '#reel-review', frame: 'Tool result', section: 'What came back' }, prefer: 'right', lines: 'redacted' },
   { key: 'p1_answer', type: 'bubble', trigger: 'load', target: { last: '#messages .message.agent' }, prefer: 'right', lines: 'answer1' },
   { key: 'p1_refuse_prompt', type: 'bubble', trigger: 'load', target: '#input', prefer: 'above', prompt: { text: P1_Q2 }, fixedSecs: 4.5, askLine: `asks: ${P1_Q2}` },
-  { key: 'p1_blocked', type: 'bubble', trigger: 'run-done', target: { last: '#trace .trace.error', fallback: '#reel-review .reel__frame' }, prefer: 'left' },
+  { key: 'p1_blocked', type: 'bubble', trigger: 'run-done', target: { last: '#trace .trace.error', fallback: '#reel-review .reel__frame', only: 'blocked' }, prefer: 'left' },   // only when the trace says the gateway blocked it (the video's own test)
 
   // ---- Part 2: an agent in AWS (the "Custodian to AWS agent" tab)
   { key: 'part2', type: 'slide', trigger: 'load' },
@@ -53,9 +54,9 @@ export const STEPS = [
   { key: 'card_frame', type: 'bubble', trigger: 'frame', frameTimeoutMs: FRAME_WAIT, target: { frame: 'Read the Agent Card', root: '#aws-reel' }, prefer: 'below' },
   { key: 'message_popout', type: 'bubble', trigger: 'frame', frameTimeoutMs: FRAME_WAIT, popout: { root: '#aws-reel', frame: 'Send the message', section: 'The call' }, prefer: 'right' },
   { key: 'result', type: 'bubble', trigger: 'run-done', target: '#aws-trace li[data-kind=result]', prefer: 'left', lines: 'answeredIn' },
-  { key: 'answer', type: 'bubble', trigger: 'load', target: '#aws-answer', prefer: 'below', lines: 'flowStates' },
+  { key: 'answer', type: 'bubble', trigger: 'load', target: { selector: '#aws-answer', unless: 'is-error' }, prefer: 'below', lines: 'flowStates' },
   { key: 'second_prompt', type: 'bubble', trigger: 'load', target: '#aws-input', prefer: 'below', prompt: { text: P2_Q2 }, fixedSecs: 5.0, askLine: 'asks: add 48,213 and 9,787; even or odd?' },
-  { key: 'second_answer', type: 'bubble', trigger: 'run-done', target: '#aws-answer', prefer: 'below', lines: 'answer2' },
+  { key: 'second_answer', type: 'bubble', trigger: 'run-done', target: { selector: '#aws-answer', unless: 'is-error' }, prefer: 'below', lines: 'answer2' },
   { key: 'refuse_intro', type: 'bubble', trigger: 'load', target: '#aws-refuse', prefer: 'below', prompt: { press: '#aws-refuse' } },   // no fixed hold: the video holds it for its wording (take.py gives it no secs)
   { key: 'refused_states', type: 'bubble', trigger: 'run-done', target: 'ol.aws__flow', prefer: 'below', sampleKey: 'sample_refused_states', lines: 'flowStates' },
   { key: 'refused_popout', type: 'bubble', trigger: 'frame', popout: { root: '#aws-reel', frame: 'Refused', section: 'The challenge' }, prefer: 'right' },
