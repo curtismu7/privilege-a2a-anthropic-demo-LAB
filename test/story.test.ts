@@ -78,15 +78,15 @@ test('story: the bubbles come in the same order as in take.py, and the mode flag
 
 test('story: Part 3 (the Bedrock tab) is Story only, simulated, after the video\'s scenes and before the protect slide; take.py does not know it', () => {
   const keys = steps.map(s => s.key);
-  const part3 = steps.filter(s => s.key === 'part3_bedrock' || s.key.startsWith('b_'));
+  const part3 = steps.filter(s => s.key === 'part3' || s.key.startsWith('b_'));
   assert.ok(part3.length >= 13, 'the slide and its bubbles');
-  assert.deepEqual(part3.map(s => keys.indexOf(s.key)), part3.map((_, i) => keys.indexOf('part3_bedrock') + i), 'one block, in order');
-  assert.ok(keys.indexOf('part3_bedrock') > keys.indexOf('observability_panel') && keys.indexOf('b_iam') < keys.indexOf('protect'));
+  assert.deepEqual(part3.map(s => keys.indexOf(s.key)), part3.map((_, i) => keys.indexOf('part3') + i), 'one block, in order');
+  assert.ok(keys.indexOf('part3') > keys.indexOf('observability_panel') && keys.indexOf('b_iam') < keys.indexOf('protect'));
   for (const s of part3.filter(x => x.type === 'bubble')) assert.ok(STORY_ONLY.includes(s.key), `${s.key} is Story only`);
   const video = readFileSync(`${root}video/take.py`, 'utf8');
-  assert.ok(!/part3_bedrock|"b_[a-z_]+"|bedrock-/.test(video), 'the recorded video has no Part 3 yet');
+  assert.ok(!/\bpart3\b|"b_[a-z_]+"|bedrock-/.test(video), 'the recorded video has no Part 3 yet');
   const captions = loadCaptions() as unknown as { slides: Record<string, { verdict: string }>; steps: Record<string, { text: string }> };
-  assert.match(captions.slides.part3_bedrock?.verdict ?? '', /^Simulated/);
+  assert.match(captions.slides.part3?.verdict ?? '', /^Simulated/);
   assert.match(captions.steps.b_intro?.text ?? '', /simulated/);
   // Review (PR #64): the 502 bubble says only what the source supports.
   assert.equal(captions.steps.b_wrong_502?.text, 'Today the gateway answers with a generic HTTP 502 upstream_unreachable. The caller is not told why.');

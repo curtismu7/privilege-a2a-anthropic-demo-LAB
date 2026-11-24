@@ -40,10 +40,10 @@ describe("Part 3 steps", () => {
 
   test("every Part 3 step is built, on the Bedrock tab, Story only", () => {
     const steps = buildSteps({ captions, host });
-    const part3 = steps.filter((s) => s.key === "part3_bedrock" || s.key.startsWith("b_"));
+    const part3 = steps.filter((s) => s.key === "part3" || s.key.startsWith("b_"));
     expect(part3.filter((s) => s.type === "bubble").every((s) => s.tab === "bedrock" && STORY_ONLY.includes(s.key))).toBe(true);
     expect(part3.filter((s) => s.type === "bubble").every((s) => captions.steps[s.key])).toBe(true);
-    expect(captions.slides.part3_bedrock.title).toMatch(/^Part 3/);
+    expect(captions.slides.part3.title).toMatch(/^Part 3/);
     expect(STEPS.filter((s) => s.key.startsWith("b_")).length).toBe(part3.length - 1);
   });
 
