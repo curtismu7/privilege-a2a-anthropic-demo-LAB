@@ -10,6 +10,8 @@ COPY src ./src
 COPY web ./web
 # The vendored run-observability core and readers (rule 27) are plain JS beside the compiled server: dist/runObs.js imports ../server/src/.
 COPY server ./server
+# The Story wording (GET /api/story) is read from video/captions.md at run time; the rest of video/ stays out of the image.
+COPY video/captions.md ./video/captions.md
 # `npm run build` compiles the server (tsc) and builds the island into dist/web, which the main agent serves at /web/assets/.
 RUN npm run build && npm prune --omit=dev
 
@@ -21,5 +23,6 @@ COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
+COPY --from=build /app/video ./video
 USER node
 CMD ["node", "dist/worker-agent/index.js"]
