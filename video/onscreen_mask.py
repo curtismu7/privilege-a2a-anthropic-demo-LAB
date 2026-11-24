@@ -93,6 +93,9 @@ def mask_rules(env_file, allow_reserved=False):
         if len(client) < 4: raise MaskConfigError("AWS_AGENT_PF_CLIENT_ID is set but too short to mask safely")
         p = r"(?<![A-Za-z0-9_.-])" + re.escape(client) + r"(?![A-Za-z0-9_-])"
         pairs.append((p, CLIENT)); detect.append(p)
+    # a masked key still shows its first characters (the app's own mask keeps the first 13 characters, so 'sk-orion-ab12…' is 4 real characters of a live key): keep the product prefix, hide the rest
+    key = r"(\bsk-[a-z]+-)(?!xxxx(?![A-Za-z0-9]))[A-Za-z0-9]{3,}"
+    pairs.append((key, r"\1xxxx")); detect.append(key)
     cust = env.get("AWS_AGENT_CUSTODIAN", ""); personal = []
     if cust and not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", cust) and cust.lower() != "sample custodian":   # a person's name or email, not an object name
         personal = [cust]

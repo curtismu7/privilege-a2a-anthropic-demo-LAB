@@ -27,9 +27,9 @@ PAGE = ("POST https://gw-lb.corp.invalid/worker/a2a/jsonrpc | iss https://someon
         "| Host box1.priv.invalid not allowed | origin https://b.other.invalid | trace https://gw-node4.corp.invalid/trace "
         "| arn:aws:bedrock-agentcore:us-east-1:xxxxxxxxxxxx:runtime/Real_Runtime-abc123 | esc https:\\/\\/x\\/runtimes\\/Real_Runtime-abc123\\/inv "
         "| enc resource=https%3A%2F%2Fgw-lb.corp.invalid%2Fruntimes%2Farn%253Aaws%253Aruntime%252FReal_Runtime-abc123%2Finv "
-        "| hint=owner.name%40corp.invalid | version 2.1.10 | ip 192.168.1.10")
+        "| hint=owner.name%40corp.invalid | version 2.1.10 | ip 192.168.1.10 | Authorization: Bearer sk-orion-ab12… (masked)")
 REAL = ("corp.invalid", "priv.invalid", "other.invalid", "someone-pf", "gw-lb", "gw-node", "cmuir", "owner.name", "Owner Person", "demo-client-pass",
-        "Real_Runtime-abc123", "box1")
+        "Real_Runtime-abc123", "box1", "sk-orion-ab12")
 
 def build(text, allow=True):
     d = tempfile.TemporaryDirectory(); env = Path(d.name) / ".env"; env.write_text(text)
@@ -54,6 +54,13 @@ class Rules(unittest.TestCase):
             self.assertIn(want, out, want)
         self.assertEqual(leaks(out, self.rules), 0)
         self.assertEqual(apply(out, self.rules), out, 'masking twice changes nothing (the observer may see a node again)')
+
+    def test_a_masked_key_still_shows_real_characters_so_only_its_prefix_is_kept(self):
+        out = apply("Authorization: Bearer sk-orion-ab12… (masked) | also sk-ant-api03abcd and the word task-force-alpha, risk-based-plan, ask-me-anything", self.rules)
+        self.assertEqual(out, "Authorization: Bearer sk-orion-xxxx… (masked) | also sk-ant-xxxx and the word task-force-alpha, risk-based-plan, ask-me-anything")
+        self.assertEqual(apply(out, self.rules), out)        # the placeholder is not masked again
+        self.assertEqual(leaks(out, self.rules), 0)
+        self.assertGreater(leaks("Bearer sk-orion-ab12… (masked)", self.rules), 0)   # and an unmasked one is counted as a leak (also for OCR'd frames and images)
 
     def test_the_env_is_read_like_dotenv(self):
         with tempfile.TemporaryDirectory() as d:
@@ -158,6 +165,33 @@ class PublicImage(unittest.TestCase):
             im = Image.new("RGB", (1400, 120), "white"); ImageDraw.Draw(im).text((20, 30), "Issuer https://someone-pf.corp.invalid", fill="black", font=font)
             im.save(Path(d) / name)
         with self.assertRaises(SystemExit): om.public_image("shot.jpg", d, build(ENV))
+
+
+class TakeClip(unittest.TestCase):
+    """The first page of a published video is its title (owner rule 29): the recording is cut to start on the first slide, and to end just after the closing slide."""
+    def setUp(self):
+        try:
+            import take
+        except ImportError as e:
+            self.skipTest(f"take.py needs {e.name}")
+        self.clip = take.clip_window
+
+    def test_it_starts_just_before_the_first_slide(self):
+        self.assertEqual(self.clip(5.0, None), {"start": 4.85, "end": None})   # the main segment is not cut short: it ends on the page
+        self.assertEqual(self.clip(0.05, None)["start"], 0.0)                 # never before the start of the recording
+
+    def test_it_ends_just_after_the_closing_slide(self):
+        self.assertEqual(self.clip(2.0, 30.0), {"start": 1.85, "end": 30.8})
+
+    def test_a_take_with_no_slide_is_left_whole(self):
+        self.assertEqual(self.clip(None, None), {"start": 0.0, "end": None})
+        self.assertEqual(self.clip(None, 9.0), {"start": 0.0, "end": None})
+
+    def test_take_py_draws_the_first_slide_before_anything_else_is_cut_and_trims_the_final_encode(self):
+        src = (Path(__file__).resolve().parent / "take.py").read_text()
+        self.assertIn('clip["first"] = time.monotonic() - clock0', src)
+        self.assertIn('if name == "closing": clip["last"]', src)
+        self.assertIn('"-ss", str(w["start"])', src)   # the cut is applied to the headless video the release uses
 
 
 class TakeWiring(unittest.TestCase):
