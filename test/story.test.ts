@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -19,7 +20,7 @@ import { EXTRA_SAMPLE_KEYS, P1_Q1, P1_Q2, P2_Q1, P2_Q2, STEPS, scriptKeys } from
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tsxCli = join(dirname(dirname(fileURLToPath(import.meta.url))), 'node_modules/tsx/dist/cli.mjs');
-interface Step { key: string; type: 'bubble' | 'slide'; modes?: string[]; sampleKey?: string; prompt?: unknown; trigger: string; fixedSecs?: number }
+interface Step { key: string; type: 'bubble' | 'slide'; modes?: string[]; sampleKey?: string; prompt?: unknown; trigger: string; fixedSecs?: number; when?: string }
 const steps = STEPS as Step[];
 
 test('story: the vendored Story files match their pin (an edited copy fails CI)', () => {
@@ -47,13 +48,29 @@ test('story: the script has the same number of numbered bubbles as the recorded 
   assert.match(video, /TOTAL = 25 if SAMPLE else 27/);
 });
 
-test('story: the questions are the video\'s own, and the prompt holds are the video\'s fixed seconds', () => {
+test('story: the questions are the video\'s own', () => {
   const video = readFileSync(`${root}video/take.py`, 'utf8');
   for (const [name, text] of [['P1_Q1', P1_Q1], ['P1_Q2', P1_Q2], ['P2_Q1', P2_Q1], ['P2_Q2', P2_Q2]]) {
     assert.ok(video.includes(`${name} = "${text}"`), `${name} matches take.py`);
   }
-  const fixed = Object.fromEntries(steps.filter(s => s.fixedSecs !== undefined).map(s => [s.key, s.fixedSecs]));
-  assert.deepEqual(fixed, { p1_prompt: 4.5, p1_refuse_prompt: 4.5, pick_prompt: 5.0, second_prompt: 5.0, refuse_intro: 5.0 });
+});
+
+test('story: the fixed holds are the video\'s own, read from take.py (a step the video gives no secs has none)', () => {
+  const video = readFileSync(`${root}video/take.py`, 'utf8');
+  const fromVideo: Record<string, number> = {};
+  for (const m of video.matchAll(/bubble\("([a-z0-9_]+)"[^\n]*?\bsecs=([0-9.]+)/g)) fromVideo[m[1] as string] = Number(m[2]);
+  const fromScript = Object.fromEntries(steps.filter(s => s.fixedSecs !== undefined).map(s => [s.key, s.fixedSecs]));
+  assert.deepEqual(fromScript, fromVideo);
+  assert.deepEqual(Object.keys(fromVideo).sort(), ['p1_prompt', 'p1_refuse_prompt', 'pick_prompt', 'second_prompt']);
+});
+
+test('story: the bubbles come in the same order as in take.py, and the mode flags sit on the same steps', () => {
+  const video = readFileSync(`${root}video/take.py`, 'utf8');
+  const order = [...video.matchAll(/(?:\bbubble\("([a-z0-9_]+)"|\bpopout\(frame_sel\([^)]*\), "[^"]*", "([a-z0-9_]+)")/g)].map(m => (m[1] ?? m[2]) as string);
+  assert.deepEqual(steps.filter(s => s.type === 'bubble').map(s => s.key), order);
+  assert.deepEqual(steps.filter(s => s.modes?.includes('real') && !s.modes.includes('mock')).map(s => s.key), ['token_frame', 'token_popout', 'refused_metadata']);
+  assert.deepEqual(steps.filter(s => s.modes?.includes('mock') && !s.modes.includes('real')).map(s => s.key), ['sample_note', 'live_banner']);
+  assert.deepEqual(steps.filter(s => s.when === 'awsLive').map(s => s.key), ['token_frame', 'token_popout', 'refused_metadata']);
 });
 
 test('story: every step is well formed (a known trigger and type, Mock wording that exists, no twin keys)', () => {
@@ -83,8 +100,11 @@ test('story: storyResponse serves the parsed wording, and a broken file is a 500
   writeFileSync(bad, '# Step: x\n\n## Title\nonly a title\n');
   const broken = storyResponse(bad);
   assert.equal(broken.status, 500);
-  assert.match((broken.body as { error: string }).error, /Story wording could not be read: captions\.md: .*no "# Opening Slide"|needs both a "## Title" and a "## Text"/);
-  assert.equal(storyResponse(join(dir, 'missing.md')).status, 500);
+  assert.match((broken.body as { error: string }).error, /^Story wording could not be read: captions\.md: step "x" needs both a "## Title" and a "## Text" section$/);
+  const missing = storyResponse(join(dir, 'missing.md'));
+  assert.equal(missing.status, 500);
+  assert.equal((missing.body as { error: string }).error, 'Story wording could not be read: the wording file is missing or unreadable.');
+  assert.equal(JSON.stringify(missing.body).includes(dir), false, 'the 500 never carries a server path');
   resetCaptionsCache();
 });
 
@@ -130,4 +150,23 @@ test('story: the main agent answers GET /api/story with the wording; the page it
       if (child.exitCode === null) child.kill('SIGKILL');
     }
   }
+});
+
+test('story: a fix to captions.md shows without a restart (the wording is read again when the file changes)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'story-'));
+  const file = join(dir, 'captions.md');
+  const slide = (t: string) => `# Opening Slide\n\n## Title\n${t}\n\n## Lead\nl\n\n## Column A: a\n- x\n\n## Column B: b\n- y\n\n## Verdict\nv\n\n---\n\n`;
+  const doc = (t: string) => slide(t) + slide('c').replace('# Opening Slide', '# Closing Slide');
+  writeFileSync(file, doc('first'));
+  assert.equal(loadCaptions(file).opening.title, 'first');
+  writeFileSync(file, doc('second'));
+  utimesSync(file, new Date(), new Date(Date.now() + 5000));
+  assert.equal(loadCaptions(file).opening.title, 'second');
+});
+
+test('story: no console screenshot is tracked, and the assets folder is ignored (the repo is public)', () => {
+  assert.match(readFileSync(`${root}video/.gitignore`, 'utf8'), /^assets\/$/m);
+  let tracked: string[] | null = null;
+  try { tracked = execFileSync('git', ['ls-files', '--', 'video/assets', '*.jpg', '*.jpeg', '*.png'], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean); } catch { /* no git here (the Air gets tracked files without .git): the ignore rule above still ran */ }
+  if (tracked) assert.deepEqual(tracked, []);
 });

@@ -1,10 +1,12 @@
 // The Story script: one entry per caption key, in the order the recorded video walks the lab (video/take.py). Pure data, no DOM: the page wiring turns each
-// entry into an engine step (a selector, a pop-out, a live line). The wording is in video/captions.md; storyParity.test.ts checks the two agree.
+// entry into an engine step (a selector, a pop-out, a live line). The wording is in video/captions.md; test/story.test.ts checks the two agree, and that the order,
+// the numbered-bubble counts and the fixed holds equal take.py's.
 //
 //   target   a CSS selector | { frame, root } a reel frame by its title | { last, fallback } the last match of a selector
 //   popout   { root, frame, section, scrollAfter }  open that reel frame's pop-out and point the bubble at one section of it
 //   prompt   { text } fill the question and the viewer presses Send | { press } the viewer (or Play) presses that existing button
-//   lines    the name of a live value the page reads for the bubble's fact lines (storyWiring.js)
+//   lines    the name of a live value the page reads for the bubble's fact lines (the page wiring, slice 2)
+//   when     'awsLive': shown only when the Custodian to AWS agent tab says LIVE route (the video's own condition for the token and sign-in-metadata frames)
 //   modes    ['real'] or ['mock']: shown only there. sampleKey: the Mock wording key.
 // Hold times for Play for me are not here: they come from the wording and the shared hold.js (the video's own formulas), except `fixedSecs`.
 
@@ -46,18 +48,18 @@ export const STEPS = [
   { key: 'spec', type: 'slide', trigger: 'load' },
   { key: 'rfcs', type: 'slide', trigger: 'load' },
   { key: 'pick_prompt', type: 'bubble', tab: AWS, trigger: 'load', target: '#aws-input', prefer: 'below', prompt: { text: P2_Q1 }, fixedSecs: 5.0, askLine: 'asks: add 987654321 and 123456789' },
-  { key: 'token_frame', type: 'bubble', trigger: 'frame', frameTimeoutMs: FRAME_WAIT, modes: ['real'], target: { frame: 'Get a token', root: '#aws-reel' }, prefer: 'below' },
-  { key: 'token_popout', type: 'bubble', trigger: 'frame', modes: ['real'], popout: { root: '#aws-reel', frame: 'Get a token', section: 'The token', scrollAfter: 6.0 }, prefer: 'right' },
+  { key: 'token_frame', type: 'bubble', trigger: 'frame', frameTimeoutMs: FRAME_WAIT, modes: ['real'], when: 'awsLive', target: { frame: 'Get a token', root: '#aws-reel' }, prefer: 'below' },
+  { key: 'token_popout', type: 'bubble', trigger: 'frame', modes: ['real'], when: 'awsLive', popout: { root: '#aws-reel', frame: 'Get a token', section: 'The token', scrollAfter: 6.0 }, prefer: 'right' },
   { key: 'card_frame', type: 'bubble', trigger: 'frame', frameTimeoutMs: FRAME_WAIT, target: { frame: 'Read the Agent Card', root: '#aws-reel' }, prefer: 'below' },
   { key: 'message_popout', type: 'bubble', trigger: 'frame', frameTimeoutMs: FRAME_WAIT, popout: { root: '#aws-reel', frame: 'Send the message', section: 'The call' }, prefer: 'right' },
   { key: 'result', type: 'bubble', trigger: 'run-done', target: '#aws-trace li[data-kind=result]', prefer: 'left', lines: 'answeredIn' },
   { key: 'answer', type: 'bubble', trigger: 'load', target: '#aws-answer', prefer: 'below', lines: 'flowStates' },
   { key: 'second_prompt', type: 'bubble', trigger: 'load', target: '#aws-input', prefer: 'below', prompt: { text: P2_Q2 }, fixedSecs: 5.0, askLine: 'asks: add 48,213 and 9,787; even or odd?' },
   { key: 'second_answer', type: 'bubble', trigger: 'run-done', target: '#aws-answer', prefer: 'below', lines: 'answer2' },
-  { key: 'refuse_intro', type: 'bubble', trigger: 'load', target: '#aws-refuse', prefer: 'below', prompt: { press: '#aws-refuse' }, fixedSecs: 5.0 },
+  { key: 'refuse_intro', type: 'bubble', trigger: 'load', target: '#aws-refuse', prefer: 'below', prompt: { press: '#aws-refuse' } },   // no fixed hold: the video holds it for its wording (take.py gives it no secs)
   { key: 'refused_states', type: 'bubble', trigger: 'run-done', target: 'ol.aws__flow', prefer: 'below', sampleKey: 'sample_refused_states', lines: 'flowStates' },
   { key: 'refused_popout', type: 'bubble', trigger: 'frame', popout: { root: '#aws-reel', frame: 'Refused', section: 'The challenge' }, prefer: 'right' },
-  { key: 'refused_metadata', type: 'bubble', trigger: 'frame', modes: ['real'], target: { frame: 'Read the sign-in metadata', root: '#aws-reel' }, prefer: 'below' },
+  { key: 'refused_metadata', type: 'bubble', trigger: 'frame', modes: ['real'], when: 'awsLive', target: { frame: 'Read the sign-in metadata', root: '#aws-reel' }, prefer: 'below' },
 
   // ---- the end
   { key: 'protect', type: 'slide', trigger: 'load' },
