@@ -843,7 +843,7 @@ STS refused the role: the External ID does not meet the condition in the role's 
 What the caller sees
 
 ## Text
-A generic HTTP 502 upstream_unreachable, the same answer as a network failure. The caller cannot tell why: the reason is only in the gateway's log and the target account's CloudTrail.
+Today the gateway answers with a generic HTTP 502 upstream_unreachable. The caller is not told why.
 
 ---
 
@@ -913,5 +913,5 @@ With Fail closed off, the prompt went through uninspected and the gateway logged
 What the IAM role needs
 
 ## Text
-The permissions follow the Provider: InvokeModel for Runtime, CreateInference and DeleteInference for Mantle, ApplyGuardrail for the guardrail, and AssumeRole with an External ID condition for a role in another account. The common failures are listed too.
+This list follows the settings above, so it shows only the permissions they need now (named below). Change the Provider, pick a Role ARN in the same or another account, or turn the guardrail on or off, and the matching rows appear. The common failures are listed under it.
 

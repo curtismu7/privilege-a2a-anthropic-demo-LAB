@@ -42,16 +42,16 @@ order.forEach(function(k){tabs[k]=document.getElementById('tab-'+k);panels[k]=do
 function select(which,focus){
   order.forEach(function(k){var on=k===which;tabs[k].setAttribute('aria-selected',String(on));tabs[k].tabIndex=on?0:-1;panels[k].hidden=!on});
   if(focus)tabs[which].focus();
+  try{tabs[which].scrollIntoView({inline:'nearest',block:'nearest'})}catch(e){}
   try{history.replaceState(null,'',which==='review'?location.pathname+location.search:'#'+which)}catch(e){}
 }
 order.forEach(function(k,i){
   tabs[k].addEventListener('click',function(){select(k)});
   tabs[k].addEventListener('keydown',function(e){
-    var n=order.length;
-    if(e.key==='ArrowRight')select(order[(i+1)%n],true);
-    else if(e.key==='ArrowLeft')select(order[(i+n-1)%n],true);
-    else if(e.key==='Home')select(order[0],true);
-    else if(e.key==='End')select(order[n-1],true);
+    var n=order.length,to=e.key==='ArrowRight'?order[(i+1)%n]:e.key==='ArrowLeft'?order[(i+n-1)%n]:e.key==='Home'?order[0]:e.key==='End'?order[n-1]:null;
+    if(!to)return;
+    e.preventDefault();   /* the key moves between tabs only: without this the page also scrolls (Home and End jump it) */
+    select(to,true);
   });
 });
 if(location.hash==='#aws'||location.hash==='#bedrock')select(location.hash.slice(1));

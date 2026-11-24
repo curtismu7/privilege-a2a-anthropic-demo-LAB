@@ -95,7 +95,10 @@ test('wrong-ext (A3, wrong External ID): AssumeRole denied, then a generic 502 u
   assert.equal(refused?.wire?.status, 502);
   assert.match(refused?.response ?? '', /"error": "upstream_unreachable"/);
   assert.ok(!/ExternalId|AccessDenied|AssumeRole/.test(refused?.response ?? ''), 'the caller\'s answer carries no reason');
-  assert.match(refused?.detail ?? '', /cannot tell/);
+  assert.equal(refused?.detail, 'Today the gateway answers with a generic HTTP 502 upstream_unreachable: the caller is not told why.');
+  // Review (PR #64): only what the source supports. No claim about the gateway's log, where CloudTrail records a refusal, or a network failure.
+  for (const t of [refused?.detail ?? '', r.error ?? '']) assert.ok(!/network failure|gateway's log|CloudTrail/i.test(t), t);
+  assert.match(r.error ?? '', /Today that is all the caller gets: a generic 502, and it is not told why/);
   assert.match(r.error ?? '', /^HTTP 502 · \{"error":"upstream_unreachable"\}/);
   assert.equal(r.answer, undefined);
   assert.deepEqual(finalNodes(r), { main: 'ok:sent', gateway: 'error:502 to the caller', sts: 'refused:refused (AccessDenied)', guard: 'skipped:off', model: 'skipped:not reached' });

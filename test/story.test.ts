@@ -88,6 +88,9 @@ test('story: Part 3 (the Bedrock tab) is Story only, simulated, after the video\
   const captions = loadCaptions() as unknown as { slides: Record<string, { verdict: string }>; steps: Record<string, { text: string }> };
   assert.match(captions.slides.part3_bedrock?.verdict ?? '', /^Simulated/);
   assert.match(captions.steps.b_intro?.text ?? '', /simulated/);
+  // Review (PR #64): the 502 bubble says only what the source supports.
+  assert.equal(captions.steps.b_wrong_502?.text, 'Today the gateway answers with a generic HTTP 502 upstream_unreachable. The caller is not told why.');
+  for (const k of Object.keys(captions.steps).filter(k => k.startsWith('b_'))) assert.ok(!/network failure|gateway's log/i.test(captions.steps[k]?.text ?? ''), k);
   // Press steps name a scenario button the page has, and every result waits for the run.
   const presses = part3.filter(s => (s.prompt as { press?: string } | undefined)?.press);
   assert.deepEqual(presses.map(s => (s.prompt as { press: string }).press), ['#bedrock-sc-own', '#bedrock-sc-cross', '#bedrock-sc-wrong-ext', '#bedrock-sc-denied', '#bedrock-sc-fail-closed', '#bedrock-sc-fail-open']);

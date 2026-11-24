@@ -58,12 +58,12 @@ ${node('model', 'Bedrock model', 'Amazon Bedrock', 'Answers the prompt: Runtime 
 <legend>Model Access &amp; Limits <span class="bedrock__legend-note">(the agent key's settings, as the console shows them)</span></legend>
 <div class="bedrock__fields">
 <label class="bedrock__field"><span>Provider</span><select id="bedrock-provider"><option value="runtime" selected>AWS Bedrock (Runtime)</option><option value="mantle">AWS Bedrock (Mantle)</option></select></label>
-<label class="bedrock__field"><span>Region <abbr title="required">*</abbr></span><input id="bedrock-region" value="us-east-1" required readonly aria-describedby="bedrock-region-hint"><small id="bedrock-region-hint">Required. Fixed in this simulation.</small></label>
-<label class="bedrock__toggle"><input type="checkbox" id="bedrock-sign" checked aria-describedby="bedrock-sign-hint"><span>Sign as this gateway (IAM)</span><small id="bedrock-sign-hint">Authenticate with SigV4 as this gateway's own AWS identity instead of a Bedrock API key</small></label>
-<label class="bedrock__field"><span>Role ARN</span><select id="bedrock-role"><option value="" selected>(blank: this gateway host's own identity)</option><option value="same">arn:aws:iam::111122223333:role/privilege-bedrock</option><option value="cross">arn:aws:iam::444455556666:role/privilege-bedrock</option></select></label>
+<div class="bedrock__field"><label for="bedrock-region">Region <abbr title="required">*</abbr></label><input id="bedrock-region" value="us-east-1" required readonly aria-describedby="bedrock-region-hint"><small id="bedrock-region-hint">Required. Fixed in this simulation.</small></div>
+<div class="bedrock__toggle"><label><input type="checkbox" id="bedrock-sign" checked aria-describedby="bedrock-sign-hint"><span>Sign as this gateway (IAM)</span></label><small id="bedrock-sign-hint">Authenticate with SigV4 as this gateway's own AWS identity instead of a Bedrock API key</small></div>
+<label class="bedrock__field bedrock__field--wide"><span>Role ARN</span><select id="bedrock-role"><option value="" selected>(blank: this gateway host's own identity)</option><option value="same">arn:aws:iam::111122223333:role/privilege-bedrock</option><option value="cross">arn:aws:iam::444455556666:role/privilege-bedrock</option></select></label>
 <label class="bedrock__field"><span>External ID</span><select id="bedrock-ext"><option value="match" selected>matches the role's trust policy</option><option value="wrong">wrong</option><option value="missing">(blank)</option></select></label>
-<label class="bedrock__field"><span>Session Name</span><input id="bedrock-session" value="privilege-ai-gateway" maxlength="64" pattern="[\\w+=,.@\\-]{2,64}" autocomplete="off" aria-describedby="bedrock-session-hint"><small id="bedrock-session-hint">Labels the assumed session in the target account's CloudTrail.</small></label>
-<label class="bedrock__field"><span>Upstream URL</span><input id="bedrock-upstream" autocomplete="off" placeholder="https://bedrock-runtime.us-east-1.aws.example" aria-describedby="bedrock-upstream-hint"><small id="bedrock-upstream-hint">Optional. Display only: the simulation does not use it.</small></label>
+<div class="bedrock__field"><label for="bedrock-session">Session Name</label><input id="bedrock-session" value="privilege-ai-gateway" maxlength="64" pattern="[\\w+=,.@\\-]{2,64}" autocomplete="off" aria-describedby="bedrock-session-hint"><small id="bedrock-session-hint">Labels the assumed session in the target account's CloudTrail.</small></div>
+<div class="bedrock__field"><label for="bedrock-upstream">Upstream URL</label><input id="bedrock-upstream" autocomplete="off" placeholder="https://bedrock-runtime.us-east-1.aws.example" aria-describedby="bedrock-upstream-hint"><small id="bedrock-upstream-hint">Optional. Display only: the simulation does not use it.</small></div>
 </div>
 <p class="bedrock__keynote">As the console says: the agent still sends its virtual key as a bearer token, and the gateway replaces it before the call leaves for AWS.</p>
 </fieldset>
@@ -91,8 +91,10 @@ ${perm('mantle', 'bedrock-mantle:CreateInference')}${perm('mantle', 'bedrock-man
 ${perm('guard', 'bedrock:ApplyGuardrail (when the guardrail is on)')}
 ${perm('role', 'sts:AssumeRole on the Role ARN (on the gateway\'s own role), with a trust policy on the target role that names the gateway role and an sts:ExternalId condition')}
 </ul>
-<ul>
-<li><code>bedrock:CallWithBearerToken</code> is not used: the gateway signs with SigV4. Third-party models also need their AWS Marketplace subscription in that account.</li>
+<ul id="bedrock-notes">
+<li data-for="iam">With Sign as this gateway (IAM) on, <code>bedrock:CallWithBearerToken</code> is not used: the gateway signs with SigV4.</li>
+<li data-for="noiam">With Sign as this gateway (IAM) off, the gateway sends the stored Bedrock API key as a bearer token, so the key's own identity needs <code>bedrock:CallWithBearerToken</code>.</li>
+<li>Third-party models also need their AWS Marketplace subscription in that account.</li>
 <li><b>Common failures.</b> Model access not enabled in that account and region. An account id inside a foundation-model ARN: it must be <code>arn:aws:bedrock:us-east-1::foundation-model/…</code>, with <code>::</code>. A cross-region inference profile without the model ARNs of every destination region. An instance metadata (IMDS) hop limit of 1 when the gateway runs in Docker, so the container cannot reach the instance role.</li>
 </ul></details>
 </section>`;
@@ -111,6 +113,7 @@ export const BEDROCK_TAB_CSS = `
 .bedrock__fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:.6rem .9rem}
 .bedrock__field{display:flex;flex-direction:column;gap:.2rem;min-width:0;font-size:.8rem;font-weight:600;color:var(--text)}
 .bedrock__field--wide{grid-column:1/-1}
+.bedrock__field--wide select{max-width:32rem}
 .bedrock__field small{font-size:.75rem;font-weight:400;color:var(--text-body)}
 .bedrock__field abbr{text-decoration:none;color:var(--danger-text)}
 .bedrock__field select,.bedrock__field input:not([type=checkbox]){width:100%;min-width:0;padding:.4rem .6rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font:inherit;font-size:.8rem;font-weight:400;min-height:2.25rem}
@@ -118,6 +121,7 @@ export const BEDROCK_TAB_CSS = `
 .bedrock__field :disabled{opacity:.6;cursor:not-allowed}
 .bedrock__check{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;font-size:.8rem;color:var(--text-body);cursor:pointer}
 .bedrock__toggle{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:.2rem .5rem;font-size:.8rem;font-weight:600;color:var(--text);cursor:pointer}
+.bedrock__toggle label{display:inline-flex;align-items:center;gap:.5rem;cursor:pointer}
 .bedrock__toggle small{flex-basis:100%;font-size:.75rem;font-weight:400;color:var(--text-body)}
 .bedrock .bedrock__toggle input[type=checkbox]{flex:none;width:1rem;height:1rem;min-height:0;padding:0;margin:0}
 .bedrock .bedrock__check input[type=checkbox]{flex:none;width:1rem;height:1rem;min-height:0;padding:0;margin:0}
@@ -153,7 +157,7 @@ function sync(){
   var iam=c.iam.checked,role=c.role.value,p=c.provider.value;
   c.role.disabled=!iam;c.ext.disabled=!iam||!role;c.session.disabled=!iam||!role;
   c.upstream.placeholder=UPSTREAM[p]||'';
-  document.querySelectorAll('#bedrock-perms li').forEach(function(li){var f=li.getAttribute('data-for');li.hidden=!(f===p||(f==='guard'&&c.guard.checked)||(f==='role'&&iam&&!!role))});
+  document.querySelectorAll('#bedrock-iam li[data-for]').forEach(function(li){var f=li.getAttribute('data-for');li.hidden=!(f===p||(f==='guard'&&c.guard.checked)||(f==='role'&&iam&&!!role)||(f==='iam'&&iam)||(f==='noiam'&&!iam))});
 }
 ['provider','iam','role','guard'].forEach(function(k){c[k].addEventListener('change',sync)});
 sync();
@@ -192,6 +196,8 @@ var inflight=null;
 function busy(on){send.disabled=on;buttons.forEach(function(b){b.disabled=on})}
 async function run(text){
   text=String(text||'').trim();if(!text||inflight)return;
+  /* Keep the keyboard user's place: busy() disables the button they pressed, so focus goes back to it (or to the question box) when the run ends. */
+  var back=document.activeElement;if(!back||!$('panel-bedrock').contains(back))back=null;
   var ctl=new AbortController();inflight=ctl;busy(true);
   var started=false,failed=false;
   window.dispatchEvent(new CustomEvent('paad:run-start'));
@@ -223,7 +229,7 @@ async function run(text){
     failed=true;
     if(!ctl.signal.aborted){answer.className='aws__answer is-error';answer.textContent='Request failed: '+err.message;setState('main','error','stopped')}
   }finally{
-    if(inflight===ctl){inflight=null;busy(false)}
+    if(inflight===ctl){inflight=null;busy(false);var to=back&&document.contains(back)&&!back.disabled?back:input;try{to.focus({preventScroll:true})}catch(e){}}
     window.dispatchEvent(new CustomEvent('paad:run-end',{detail:{ok:!failed}}));
     if(started&&!ctl.signal.aborted)window.dispatchEvent(new CustomEvent('paad:run-done'));
   }

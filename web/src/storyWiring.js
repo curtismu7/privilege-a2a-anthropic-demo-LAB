@@ -159,6 +159,7 @@ function linesFor(doc, step) {
     case 'answeredIn': return () => { const at = text(doc.querySelector('#aws-trace li[data-kind=result] .aws__at')); return at ? [`answered in ${at}`] : []; };
     case 'flowStates': return () => [states()];
     case 'answer2': return () => [firstSentence(text(doc.getElementById('aws-answer')))];
+    case 'bedrockPerms': return () => { const shown = [...doc.querySelectorAll('#bedrock-perms li')].filter((li) => !li.hidden).map((li) => text(li.querySelector('code')).split(' ')[0]); return shown.length ? [`shown now: ${shown.join(', ')}`] : []; };
     default: return undefined;
   }
 }

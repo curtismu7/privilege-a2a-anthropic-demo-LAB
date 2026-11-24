@@ -193,7 +193,7 @@ export function simulateBedrock(input: BedrockInput): BedrockRun {
       });
       events.push({
         kind: 'bedrock', step: 'refused', from: 'gateway', to: 'main', text: 'gateway answers 502 upstream_unreachable',
-        detail: 'The gateway answers with a generic HTTP 502 upstream_unreachable, the same answer as a network failure. The caller cannot tell that the role was refused: the reason is only in the gateway\'s log and in the target account\'s CloudTrail.',
+        detail: 'Today the gateway answers with a generic HTTP 502 upstream_unreachable: the caller is not told why.',
         wire: { status: 502 }, response: ['HTTP 502', '', json({ error: 'upstream_unreachable' })].join('\n'),
         nodes: { gateway: ['error', '502 to the caller'], ...(guard.on ? { guard: ['skipped', 'not reached'] as [NodeState, string] } : {}), model: ['skipped', 'not reached'] },
         reel: { title: 'Refused', status: 'refused', what: 'gateway reply' },
@@ -201,7 +201,7 @@ export function simulateBedrock(input: BedrockInput): BedrockRun {
       });
       return {
         outcome: 'refused', events,
-        error: `HTTP 502 · {"error":"upstream_unreachable"}\nThat is all the caller sees: the same answer as a network failure. The cause (AssumeRole refused: ${why}) is only in the gateway's log and the target account's CloudTrail. (Simulated.)`,
+        error: `HTTP 502 · {"error":"upstream_unreachable"}\nToday that is all the caller gets: a generic 502, and it is not told why. (Simulated. In this run the cause was AssumeRole refused: ${why}.)`,
       };
     }
   }

@@ -80,6 +80,18 @@ describe("Part 3 steps", () => {
     expect(s.b_assume.target().textContent).toBe("Assume the role"); expect(s.b_wrong_502.target()).toBeNull();
   });
 
+  test("the IAM bubble claims only the permission rows the page shows: its wording names none, and its fact line lists the visible rows (review, PR #64)", () => {
+    expect(captions.steps.b_iam.text).not.toMatch(/InvokeModel|CreateInference|DeleteInference|ApplyGuardrail|AssumeRole|CountTokens/);
+    expect(captions.steps.b_iam.text).toMatch(/same or another account/);
+    document.body.innerHTML = BEDROCK_PANEL_HTML;
+    // the settings after b_fail_open: Runtime, Role ARN blank, guardrail on (what the tab script's sync() shows)
+    for (const li of document.querySelectorAll("#bedrock-perms li")) li.hidden = !["runtime", "guard"].includes(li.getAttribute("data-for"));
+    const lines = by().b_iam.lines();
+    expect(lines).toEqual(["shown now: bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream, bedrock:CountTokens, bedrock:ApplyGuardrail"]);
+    for (const li of document.querySelectorAll("#bedrock-perms li")) li.hidden = li.getAttribute("data-for") !== "mantle";
+    expect(by().b_iam.lines()[0]).toBe("shown now: bedrock-mantle:CreateInference, bedrock-mantle:DeleteInference, bedrock-mantle:CountTokens");
+  });
+
   test("the IAM step opens the details first", async () => {
     document.body.innerHTML = BEDROCK_PANEL_HTML;
     const s = by(); expect($("bedrock-iam").open).toBeFalsy();

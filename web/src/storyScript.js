@@ -90,7 +90,7 @@ export const STEPS = [
   { key: 'b_fail_closed_blocked', type: 'bubble', trigger: 'run-done', target: { selector: '#bedrock-n-guard', check: 'bedrockFailClosed' }, prefer: 'below' },
   { key: 'b_fail_open', type: 'bubble', tab: BEDROCK, trigger: 'load', target: '#bedrock-sc-fail-open', prefer: 'below', prompt: { press: '#bedrock-sc-fail-open' } },
   { key: 'b_fail_open_passed', type: 'bubble', trigger: 'run-done', target: { selector: '#bedrock-n-guard', check: 'bedrockUninspected' }, prefer: 'below' },
-  { key: 'b_iam', type: 'bubble', tab: BEDROCK, trigger: 'load', target: { selector: '#bedrock-iam', open: '#bedrock-iam' }, prefer: 'above' },
+  { key: 'b_iam', type: 'bubble', tab: BEDROCK, trigger: 'load', target: { selector: '#bedrock-iam', open: '#bedrock-iam' }, prefer: 'above', lines: 'bedrockPerms' },   // names only the permission rows the page shows
 
   // ---- the end
   { key: 'protect', type: 'slide', trigger: 'load' },

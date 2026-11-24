@@ -75,6 +75,25 @@ describe("the tab bar, over three tabs", () => {
     key("review", "End"); expect(selected()).toEqual(["bedrock"]); expect(window.location.hash).toBe("#bedrock");
   });
 
+  test("the tab keys are the tab bar's own: Arrow, Home and End are prevented from scrolling the page; other keys are not (review, PR #64)", () => {
+    run(TABS_SCRIPT);
+    for (const k of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
+      const e = new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true });
+      $("tab-review").dispatchEvent(e); expect(e.defaultPrevented, k).toBe(true);
+    }
+    const other = new KeyboardEvent("keydown", { key: "a", bubbles: true, cancelable: true });
+    $("tab-review").dispatchEvent(other); expect(other.defaultPrevented).toBe(false);
+  });
+
+  test("the selected tab is scrolled into view, so a page opened at #bedrock on a phone shows its tab (review, PR #64)", () => {
+    const spy = vi.fn(); const had = Element.prototype.scrollIntoView; Element.prototype.scrollIntoView = spy;
+    try {
+      window.history.replaceState(null, "", "/#bedrock"); run(TABS_SCRIPT);
+      expect(spy).toHaveBeenCalledWith({ inline: "nearest", block: "nearest" });
+      expect(spy.mock.contexts.at(-1)).toBe($("tab-bedrock"));
+    } finally { Element.prototype.scrollIntoView = had; }
+  });
+
   test("a page opened at #bedrock or #aws starts on that tab; any other hash stays on the first", () => {
     window.history.replaceState(null, "", "/#bedrock"); run(TABS_SCRIPT); expect(selected()).toEqual(["bedrock"]);
     document.body.innerHTML = document.body.innerHTML.replace(/aria-selected="true"/g, 'aria-selected="false"');
@@ -194,6 +213,28 @@ describe("the Bedrock tab's script", () => {
       .toEqual(["runtime", true, "", "match", "privilege-ai-gateway", false, true, true, ""]);
     $("bedrock-input").value = "a clean question"; $("bedrock-form").dispatchEvent(new Event("submit", { cancelable: true })); await settle();
     expect(node("guard")).toEqual(["skipped", "off"]); expect(node("model")).toEqual(["ok", "answered"]);
+  });
+
+  test("focus comes back after a run: to the scenario button pressed, or the question box; not after Reset (review, PR #64)", async () => {
+    const { fn, release } = sseFetch({ hold: true }); start(fn);
+    const btn = $("bedrock-sc-own"); btn.focus(); expect(document.activeElement).toBe(btn);
+    const toBtn = vi.spyOn(btn, "focus"); const toInput = vi.spyOn($("bedrock-input"), "focus");
+    btn.click(); await settle(); release(); await settle();
+    expect(toBtn).toHaveBeenCalledTimes(1); expect(toInput).not.toHaveBeenCalled();
+    btn.blur(); $("bedrock-sc-cross").click(); await settle();   // a press with nothing of the tab focused (Story's own click)
+    expect(toInput).toHaveBeenCalledTimes(1);
+    const { fn: fn2 } = sseFetch({ hold: true }); vi.stubGlobal("fetch", fn2);
+    $("bedrock-sc-own").click(); await settle();
+    window.dispatchEvent(new CustomEvent("paad:reset")); await settle();
+    expect(toBtn).toHaveBeenCalledTimes(1); expect(toInput).toHaveBeenCalledTimes(1);   // Reset aborted it: no focus is taken
+  });
+
+  test("the IAM notes follow the setting: CallWithBearerToken is 'not used' only with IAM on (review, PR #64)", () => {
+    start(sseFetch().fn);
+    const shown = () => [...document.querySelectorAll("#bedrock-notes li[data-for]")].filter((li) => !li.hidden).map((li) => li.getAttribute("data-for"));
+    expect(shown()).toEqual(["iam"]);
+    $("bedrock-sign").checked = false; $("bedrock-sign").dispatchEvent(new Event("change"));
+    expect(shown()).toEqual(["noiam"]);
   });
 
   test("a refused body shows the server's reason, and the run is announced as failed", async () => {
