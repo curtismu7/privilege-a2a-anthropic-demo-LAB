@@ -115,9 +115,19 @@ P2_Q1 = "Use add_numbers to add 987654321 and 123456789. Show the exact tool cal
 P2_Q2 = "Add 48,213 and 9,787, then say whether the result is even or odd."
 P2_SUM = "1111111110"; P2_SUM2 = "58000"
 
+ASSETS = Path(__file__).parent / "assets"
+PUBLIC_IMAGES = None   # {captured name: redacted name}, checked by OCR in main() before the browser opens (onscreen_mask.public_image)
+
+def public_images(slides, rules, assets=ASSETS):
+    """Every image any slide of this take can show (opening, closing and the rest), mapped to its OCR-checked redacted copy. Refuses before recording."""
+    return {s["image"]: onscreen_mask.public_image(s["image"], assets, rules) for s in slides if s and s.get("image")}
+
 def slide_payload(cfg):
-    """captions.py's flat slide -> the shared overlay's shape (story_bridge.slide_payload). Images come from the local, gitignored assets folder. Edit captions.md, not this."""
-    return _slide_payload(cfg, Path(__file__).parent / "assets")
+    """captions.py's flat slide -> the shared overlay's shape (story_bridge.slide_payload). Images come from the local, gitignored assets folder. Edit captions.md, not this.
+    A masked take shows only the redacted copy that main() checked; an image it did not check is never shown."""
+    if cfg.get("image") and PUBLIC_IMAGES is not None:
+        cfg = {**cfg, "image": PUBLIC_IMAGES.get(cfg["image"])}   # None (no image) if somehow unchecked: fail safe, without stopping the recorder
+    return _slide_payload(cfg, ASSETS)
 
 def first_sentence(s, limit=150):
     """A caption fact line: the text up to its first full stop, never cut mid-word."""
@@ -148,7 +158,7 @@ def main():
     except ValueError as e:
         log("cannot read the wording:", e); raise SystemExit(f"take.py: {e}")
     # A live take is published: real hosts, the client id and the runtime id are masked on screen, from the lab's own .env (never written here). No masks, no live take.
-    global MASK_SCRIPT
+    global MASK_SCRIPT, PUBLIC_IMAGES
     env_file = Path(os.environ.get("MASK_ENV", str(Path.home() / "Development/AI-DEMO-Standalone/standalone/privilege-a2a-anthropic-demo-LAB/.env")))
     try:
         rules = onscreen_mask.mask_rules(env_file)
@@ -156,6 +166,8 @@ def main():
         log("no on-screen masks: refusing the take"); raise SystemExit(f"take.py: cannot build the on-screen masks from {env_file} ({type(e).__name__}): a public video must not show real hosts; set MASK_ENV to the lab's .env")
     MASK_SCRIPT = onscreen_mask.mask_script(rules)
     log("on-screen masks:", len(rules["pairs"]), "rules,", len(rules["detect"]), "leak detectors")
+    PUBLIC_IMAGES = public_images([OPENING_SLIDE, CLOSING_SLIDE, *SLIDES.values()], rules)   # before the browser opens: a bad copy stops the take now
+    log("slide images: redacted copies checked by OCR:", len(PUBLIC_IMAGES))
     profile = tempfile.mkdtemp(prefix="a2a-take-")
     # No "Save password?" bubble in the recording: switch the password manager off in this throw-away profile.
     (Path(profile) / "Default").mkdir(parents=True, exist_ok=True)
