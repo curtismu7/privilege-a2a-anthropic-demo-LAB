@@ -24,3 +24,8 @@ html { font-size: var(--fs, 16px); }
 /* Why a mode switch did not happen, next to the Mode select. */
 .shell-note { max-width: 26rem; font-size: 0.78rem; font-weight: 600; line-height: 1.35; color: var(--on-box); overflow-wrap: anywhere; }
 @media (max-width: 600px) { .shell-bar { gap: 10px; padding: 10px 16px; } }
+
+/* Story mode only (the class is on <html> while Story runs): the reel pop-out sits at the left edge, as in the recorded video, so the caption bubble fits beside it
+   instead of covering the pop-out at laptop width. Demo mode keeps the pop-out centred. */
+.story-on .reel-backdrop{justify-content:flex-start;padding-left:20px}
+

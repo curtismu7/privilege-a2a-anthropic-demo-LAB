@@ -20,6 +20,7 @@ import { shelfInfo } from '../shelfLink.js';
 import { labAllowedHosts, sameOriginGuard } from '../originGuard.js';
 import { beginRun, runObservability, type RunKind, type RunRecorder, type TraceLike } from '../runObs.js';
 import { storyResponse } from '../story.js';
+import { playSimulated, simulatedRun } from '../storyReplay.js';
 
 /** The token counts a model call reported, for the trace. Absent when the provider sent none. */
 function tokenCounts(message: Anthropic.Message): { input: number; output: number } | undefined {
@@ -121,7 +122,7 @@ app.post('/api/mode', (req: Request, res: Response) => {
   res.json({ ok: true, mode: uiMode });
 });
 
-interface ChatRequestBody { message?: unknown; sessionId?: unknown; vertical?: unknown; agentName?: unknown; specialistName?: unknown; tools?: unknown; subtaskHint?: unknown; mode?: unknown }
+interface ChatRequestBody { message?: unknown; sessionId?: unknown; vertical?: unknown; agentName?: unknown; specialistName?: unknown; tools?: unknown; subtaskHint?: unknown; mode?: unknown; story?: unknown }
 const conversations = new Map<string, Anthropic.MessageParam[]>();
 
 // Rule 27: the run each response belongs to; every trace event sent to the page is also noted for the run-observability record.
@@ -340,6 +341,19 @@ app.post('/chat', async (req: Request, res: Response) => {
     Connection: 'keep-alive',
   });
   startRun(res, 'chat');
+
+  // Story mode, offline Mock: no model key means no live run to show, so the two scripted questions get a SIMULATED run (src/storyReplay.ts). Only when the page says Story
+  // is on; anything else, including Demo mode, takes the path below unchanged.
+  if (body.story === true && uiMode === 'mock' && !realModelConfigured() && !heuristic) {
+    const simulated = simulatedRun(message);
+    if (simulated) {
+      let closed = false;
+      res.on('close', () => { closed = true; });
+      await playSimulated(simulated, sessionId, (event, payload) => sendSse(res, event, payload), () => closed || res.destroyed);
+      if (!res.writableEnded) res.end();
+      return;
+    }
+  }
 
   const startedAt = Date.now();
   const at = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;

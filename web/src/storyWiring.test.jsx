@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { createHost, buildSteps, firstSentence, NOT_YET } from "./storyWiring.js";
-import { STEPS } from "./storyScript.js";
+import { STEPS, STORY_ONLY } from "./storyScript.js";
 import { parseCaptions } from "../../server/src/story/captions.js";
 
 import { existsSync } from "node:fs";
@@ -104,16 +104,17 @@ describe("buildSteps", () => {
   test("every step of the script is built except the ones held back for the next slice", () => {
     const steps = buildSteps({ captions, host });
     expect(steps.map((s) => s.key)).toEqual(STEPS.map((s) => s.key).filter((k) => !NOT_YET.includes(k)));
-    expect(NOT_YET).toEqual(["observability"]);
+    expect(NOT_YET).toEqual([]);                                          // nothing is held back any more
   });
 
   test("Real with a live route has the video's 27 bubbles; Mock has its 25; a stand-in AWS route drops the three live-only frames", () => {
     document.body.innerHTML = '<p id="aws-mode">LIVE route: the call goes to your gateway.</p>';
     const steps = buildSteps({ captions, host });
-    expect(steps.filter((s) => s.type === "bubble" && (!s.modes || s.modes.includes("real")) && (!s.when || s.when())).length).toBe(27);
-    expect(steps.filter((s) => s.type === "bubble" && (!s.modes || s.modes.includes("mock"))).length).toBe(25);
+    const count = (mode) => steps.filter((s) => s.type === "bubble" && !STORY_ONLY.includes(s.key) && (!s.modes || s.modes.includes(mode)) && (!s.when || s.when())).length;
+    expect(count("real")).toBe(27); expect(count("mock")).toBe(25);
+    expect(steps.filter((s) => s.type === "bubble" && (!s.modes || s.modes.includes("real")) && (!s.when || s.when())).length).toBe(28);   // Story adds one: the live observability panel
     document.getElementById("aws-mode").textContent = "SIMULATED: no Privilege gateway.";
-    expect(steps.filter((s) => s.type === "bubble" && (!s.modes || s.modes.includes("real")) && (!s.when || s.when())).length).toBe(24);
+    expect(steps.filter((s) => s.type === "bubble" && !STORY_ONLY.includes(s.key) && (!s.modes || s.modes.includes("real")) && (!s.when || s.when())).length).toBe(24);
   });
 
   test("targets: a plain selector, a reel frame by its title, and the last match with a fallback", () => {
@@ -189,6 +190,8 @@ describe("buildSteps", () => {
     expect(by.answer.lines()).toEqual(["custodian: acting · main: sent · gateway: passed · aws: replied"]);
     expect(by.second_answer.lines()).toEqual(["The sum is 58,000, which is even."]);
     expect(by.p1_prompt.lines()).toEqual(["asks: What can Bob Reyes reach?"]);
+    document.getElementById("trace").textContent = "session ab12 · simulated (no model call) email: [REDACTED:pii]";
+    expect(by.p1_redacted.lines()).toEqual(["the recorded shape shows the email as [REDACTED:pii]"]);   // a simulated run never says the email "came back"
     document.body.innerHTML = '<div id="trace">nothing here</div><ul id="aws-trace"></ul>';
     expect(by.p1_redacted.lines()).toEqual([]); expect(by.result.lines()).toEqual([]);
   });
@@ -222,6 +225,19 @@ describe("buildSteps", () => {
     for (const k of ["p1_intro", "p1_handoff", "p1_message", "p1_redacted", "p1_answer", "p1_refuse_prompt", "p1_blocked"]) expect(tab[k]).toBe("review");
     for (const k of ["intro", "custodian", "card_frame", "message_popout", "result", "refuse_intro", "refused_popout"]) expect(tab[k]).toBe("aws");
     expect(tab.sample_note).toBeUndefined(); expect(tab.opening).toBeUndefined();
+  });
+
+  test("the observability bubble opens the panel\'s drawer and points at its table; with no record there is no table, so it is skipped", async () => {
+    document.body.innerHTML = '<details id="run-obs-drawer"><summary>What each layer logged</summary><div id="run-obs-root"><div data-testid="ro-table"></div></div></details>';
+    const h = createHost({ settleMs: 0 });
+    const step = buildSteps({ captions, host: h }).find((s) => s.key === "observability_panel");
+    expect(document.getElementById("run-obs-drawer").open).toBe(false);
+    await step.before(); expect(document.getElementById("run-obs-drawer").open).toBe(true);
+    expect(step.target().getAttribute("data-testid")).toBe("ro-table");
+    document.getElementById("run-obs-root").innerHTML = '<p data-testid="ro-empty">Run the demo</p>';
+    expect(step.target()).toBeNull();                                      // no record: nothing to point at
+    expect(step.sampleKey).toBe("sample_observability_panel");
+    h.dispose();
   });
 
   test("the Mock closing slide swaps in the simulated wording and never claims a live run; Real keeps the slide as written", () => {

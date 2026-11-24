@@ -3,6 +3,7 @@
 // the numbered-bubble counts and the fixed holds equal take.py's.
 //
 //   target   a CSS selector | { frame, root } a reel frame by its title | { last, fallback, only } the last match of a selector (only: 'blocked' = if the trace says blocked)
+//            | { selector, unless, check, open } `open` is a <details> the step opens first (the panel under the run).
 //            | { selector, unless, check } an element unless it has that class (an answer box that holds an error is not an answer) and only when the named check holds on the page
 //            | { lastMessage: 'agent' } the chat's newest message, only when it is an agent answer (a failed run leaves an error message there, not an answer)
 //            check: 'sum1' | 'sum2' (live runs: the answer holds the expected sum, as take.py requires), 'refusal' (the answer is HTTP 401 and the gateway refused it). Mock skips the sum checks.
@@ -30,15 +31,15 @@ export const STEPS = [
   { key: 'opening', type: 'slide', trigger: 'load' },
 
   // ---- Part 1: our two agents (the "A2A with remote agents" tab)
-  { key: 'p1_intro', type: 'bubble', tab: REVIEW, trigger: 'load', target: '#chat', prefer: 'right' },
+  { key: 'p1_intro', type: 'bubble', tab: REVIEW, trigger: 'load', target: '#chat', prefer: 'right', sampleKey: 'sample_p1_intro' },
   { key: 'p1_prompt', type: 'bubble', tab: REVIEW, trigger: 'load', target: '#input', prefer: 'above', prompt: { text: P1_Q1 }, fixedSecs: 4.5, askLine: `asks: ${P1_Q1}` },
-  { key: 'p1_handoff', type: 'bubble', trigger: 'run-done', target: '#who .who-hop', place: 'bl' },   // only when a handoff happened: a run that failed before it shows no hop
-  { key: 'p1_message', type: 'bubble', trigger: 'frame', popout: { root: '#reel-review', frame: 'Send the message', section: 'The call' }, prefer: 'right' },
-  { key: 'p1_mcp', type: 'bubble', trigger: 'frame', target: { frame: 'Call the tool', root: '#reel-review' }, prefer: 'below' },
-  { key: 'p1_redacted', type: 'bubble', trigger: 'frame', popout: { root: '#reel-review', frame: 'Tool result', section: 'What came back' }, prefer: 'right', lines: 'redacted' },
-  { key: 'p1_answer', type: 'bubble', trigger: 'load', target: { lastMessage: 'agent' }, prefer: 'right', lines: 'answer1' },
+  { key: 'p1_handoff', type: 'bubble', trigger: 'run-done', target: '#who .who-hop', place: 'bl', sampleKey: 'sample_p1_handoff' },   // only when a handoff happened: a run that failed before it shows no hop
+  { key: 'p1_message', type: 'bubble', trigger: 'frame', popout: { root: '#reel-review', frame: 'Send the message', section: 'The call' }, prefer: 'right', sampleKey: 'sample_p1_message' },
+  { key: 'p1_mcp', type: 'bubble', trigger: 'frame', target: { frame: 'Call the tool', root: '#reel-review' }, prefer: 'below', sampleKey: 'sample_p1_mcp' },
+  { key: 'p1_redacted', type: 'bubble', trigger: 'frame', popout: { root: '#reel-review', frame: 'Tool result', section: 'What came back' }, prefer: 'right', lines: 'redacted', sampleKey: 'sample_p1_redacted' },
+  { key: 'p1_answer', type: 'bubble', trigger: 'load', target: { lastMessage: 'agent' }, prefer: 'right', lines: 'answer1', sampleKey: 'sample_p1_answer' },
   { key: 'p1_refuse_prompt', type: 'bubble', trigger: 'load', target: '#input', prefer: 'above', prompt: { text: P1_Q2 }, fixedSecs: 4.5, askLine: `asks: ${P1_Q2}` },
-  { key: 'p1_blocked', type: 'bubble', trigger: 'run-done', target: { last: '#trace .trace.error', fallback: '#reel-review .reel__frame', only: 'blocked' }, prefer: 'left' },   // only when the trace says the gateway blocked it (the video's own test)
+  { key: 'p1_blocked', type: 'bubble', trigger: 'run-done', target: { last: '#trace .trace.error', fallback: '#reel-review .reel__frame', only: 'blocked' }, prefer: 'left', sampleKey: 'sample_p1_blocked' },   // only when the trace says the gateway blocked it (the video's own test)
 
   // ---- Part 2: an agent in AWS (the "Custodian to AWS agent" tab)
   { key: 'part2', type: 'slide', trigger: 'load' },
@@ -66,15 +67,21 @@ export const STEPS = [
   { key: 'refused_states', type: 'bubble', trigger: 'run-done', target: { selector: 'ol.aws__flow', check: 'refusal' }, prefer: 'below', sampleKey: 'sample_refused_states', lines: 'flowStates' },
   { key: 'refused_popout', type: 'bubble', trigger: 'frame', popout: { root: '#aws-reel', frame: 'Refused', section: 'The challenge' }, prefer: 'right' },
   { key: 'refused_metadata', type: 'bubble', trigger: 'frame', modes: ['real'], when: 'awsLive', target: { frame: 'Read the sign-in metadata', root: '#aws-reel' }, prefer: 'below' },
+  // Story only (the video shows a captured-evidence slide instead): the lab's live Run observability panel, opened. Skipped when the panel has no record.
+  { key: 'observability_panel', type: 'bubble', trigger: 'load', target: { selector: '[data-testid=ro-table]', open: '#run-obs-drawer' }, prefer: 'above', sampleKey: 'sample_observability_panel' },
 
   // ---- the end
   { key: 'protect', type: 'slide', trigger: 'load' },
-  { key: 'observability', type: 'slide', trigger: 'load' },   // the run's own logs: the lab's live Run Observability panel, not a captured image
   { key: 'closing', type: 'slide', trigger: 'load' },
 ];
 
 // Mock wording the script uses that is not a step of its own: the closing slide's two replaced lines (the simulated run never claims a live one).
 export const EXTRA_SAMPLE_KEYS = ['sample_closing_lead', 'sample_closing_bullet'];
+
+// Bubbles only Story has (the video has no such scene): the numbered counts and the order checks against take.py leave them out.
+export const STORY_ONLY = ['observability_panel'];
+// Wording only the video uses: the captured-evidence slide (Story shows the live panel instead) and an unused intro.
+export const VIDEO_ONLY = ['observability', 'sample_intro'];
 
 // What the parity test hands to captions.js parity(): the caption keys this script needs.
 export function scriptKeys() {

@@ -618,3 +618,111 @@ Sample closing bullet
 
 ## Text
 Ran the tabs in simulated mode: the calls went to local stand-ins, not to the gateway
+
+---
+
+# Step: observability_panel
+
+<!-- Story only: the live Run observability panel under the run. The recorded video shows its own captured-evidence slide ("Slide: observability") instead. -->
+
+## Title
+What each layer logged for this run
+
+## Text
+This panel lists what each layer left for the run you just made: the responses this lab received and any log lines its readers found, each with its own time and a tag that says where it came from. Ids, tokens and addresses are masked. A layer with no line says so; nothing is claimed for it.
+
+---
+
+# Step: sample_observability_panel
+
+<!-- Story only, simulated run: what the panel shows when no product wrote a log. -->
+
+## Title
+What each layer logged for this run
+
+## Text
+In this simulated run no product wrote a log line. The panel lists what this lab itself noted for the run, so you can see how the real panel reads.
+
+---
+
+# Step: sample_p1_handoff
+
+<!-- Story only, simulated run: the live wording says a call happened; this run made none. -->
+
+## Title
+The A2A handoff (simulated)
+
+## Text
+This is the shape of the handoff the live demo shows: the concierge hands the question to the analyst, and every call is one frame on the reel. In this simulated run no A2A call was made.
+
+---
+
+# Step: sample_p1_redacted
+
+<!-- Story only, simulated run: nothing was screened here. -->
+
+## Title
+Where the gateway screens the data (simulated)
+
+## Text
+The email shows as [REDACTED:pii], the way the live demo shows data the gateway screened. In this simulated run nothing was screened; the redaction is part of the recorded shape.
+
+---
+
+# Step: sample_p1_blocked
+
+<!-- Story only, simulated run: no gateway blocked anything here. -->
+
+## Title
+Blocked in flight (simulated)
+
+## Text
+This shows how the live demo reads when the gateway blocks a tool response: no data reaches the analyst. In this simulated run no gateway was involved; the block is part of the recorded shape.
+---
+
+# Step: sample_p1_intro
+
+<!-- Story only, simulated run: the live wording says Privilege sits between the agents -->
+
+## Title
+The A2A with remote agents tab (simulated)
+
+## Text
+The concierge is the agent you talk to; the analyst is a second agent that reads the access data. In the live demo Privilege sits between them. Here the agents are a local simulation, as the banner says.
+
+---
+
+# Step: sample_p1_message
+
+<!-- Story only, simulated run: the live wording says a message is sent -->
+
+## Title
+The message between the agents (simulated)
+
+## Text
+In the live demo one JSON-RPC message goes from the concierge to the analyst with an agent key, shown masked. This frame shows the shape of that message; in this simulated run nothing was sent.
+
+---
+
+# Step: sample_p1_mcp
+
+<!-- Story only, simulated run: the live wording says the analyst uses MCP -->
+
+## Title
+The analyst reads the data (simulated)
+
+## Text
+In the live demo the analyst reads the data over MCP: A2A is how agents talk to each other, MCP is how an agent uses tools (specification, Appendix B). In this simulated run no tool was called.
+
+---
+
+# Step: sample_p1_answer
+
+<!-- Story only, simulated run: the live wording says the answer came from the analyst -->
+
+## Title
+The answer (simulated)
+
+## Text
+In the live demo the concierge answers from what the analyst returned, and nothing the data did not say. This answer is canned: no model and no analyst produced it.
+

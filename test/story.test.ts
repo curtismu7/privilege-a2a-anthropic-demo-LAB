@@ -16,7 +16,7 @@ import { parity } from '../server/src/story/captions.js';
 // @ts-expect-error vendored plain JavaScript
 import { checkPin } from '../scripts/story-checkPin.mjs';
 // @ts-expect-error plain JavaScript data
-import { EXTRA_SAMPLE_KEYS, P1_Q1, P1_Q2, P2_Q1, P2_Q2, P2_SUM, P2_SUM2, STEPS, scriptKeys } from '../web/src/storyScript.js';
+import { EXTRA_SAMPLE_KEYS, P1_Q1, P1_Q2, P2_Q1, P2_Q2, P2_SUM, P2_SUM2, STEPS, STORY_ONLY, VIDEO_ONLY, scriptKeys } from '../web/src/storyScript.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tsxCli = join(dirname(dirname(fileURLToPath(import.meta.url))), 'node_modules/tsx/dist/cli.mjs');
@@ -28,22 +28,23 @@ test('story: the vendored Story files match their pin (an edited copy fails CI)'
 });
 
 test('story: every caption key has a step in the script and every step has wording (the parity test)', () => {
-  const problems = parity(loadCaptions(), scriptKeys(), { allowUnused: ['sample_intro'] });
+  const problems = parity(loadCaptions(), scriptKeys(), { allowUnused: VIDEO_ONLY });
   assert.deepEqual(problems, []);
 });
 
 test('story: the parity check really fails when the wording and the script drift', () => {
   const captions = loadCaptions();
   const missingWording = { ...captions, steps: Object.fromEntries(Object.entries(captions.steps).filter(([k]) => k !== 'p1_answer')) };
-  assert.deepEqual(parity(missingWording, scriptKeys(), { allowUnused: ['sample_intro'] }), ['the demo has step "p1_answer" but captions.md does not']);
+  assert.deepEqual(parity(missingWording, scriptKeys(), { allowUnused: VIDEO_ONLY }), ['the demo has step "p1_answer" but captions.md does not']);
   const extra = { ...scriptKeys(), steps: [...scriptKeys().steps, 'brand_new'] };
-  assert.deepEqual(parity(captions, extra, { allowUnused: ['sample_intro'] }), ['the demo has step "brand_new" but captions.md does not']);
+  assert.deepEqual(parity(captions, extra, { allowUnused: VIDEO_ONLY }), ['the demo has step "brand_new" but captions.md does not']);
 });
 
 test('story: the script has the same number of numbered bubbles as the recorded video (27 live, 25 simulated)', () => {
-  const bubbles = (mode: string) => steps.filter(s => s.type === 'bubble' && (!s.modes || s.modes.includes(mode))).length;
-  assert.equal(bubbles('real'), 27);
+  const bubbles = (mode: string) => steps.filter(s => s.type === 'bubble' && !STORY_ONLY.includes(s.key) && (!s.modes || s.modes.includes(mode))).length;
+  assert.equal(bubbles('real'), 27);   // the video's own scenes; Story adds its live observability bubble on top (STORY_ONLY)
   assert.equal(bubbles('mock'), 25);
+  assert.deepEqual(STORY_ONLY, ['observability_panel']);
   const video = readFileSync(`${root}video/take.py`, 'utf8');
   assert.match(video, /TOTAL = 25 if SAMPLE else 27/);
 });
@@ -68,7 +69,7 @@ test('story: the fixed holds are the video\'s own, read from take.py (a step the
 test('story: the bubbles come in the same order as in take.py, and the mode flags sit on the same steps', () => {
   const video = readFileSync(`${root}video/take.py`, 'utf8');
   const order = [...video.matchAll(/(?:\bbubble\("([a-z0-9_]+)"|\bpopout\(frame_sel\([^)]*\), "[^"]*", "([a-z0-9_]+)")/g)].map(m => (m[1] ?? m[2]) as string);
-  assert.deepEqual(steps.filter(s => s.type === 'bubble').map(s => s.key), order);
+  assert.deepEqual(steps.filter(s => s.type === 'bubble' && !STORY_ONLY.includes(s.key)).map(s => s.key), order);
   assert.deepEqual(steps.filter(s => s.modes?.includes('real') && !s.modes.includes('mock')).map(s => s.key), ['token_frame', 'token_popout', 'refused_metadata']);
   assert.deepEqual(steps.filter(s => s.modes?.includes('mock') && !s.modes.includes('real')).map(s => s.key), ['sample_note', 'live_banner']);
   assert.deepEqual(steps.filter(s => s.when === 'awsLive').map(s => s.key), ['token_frame', 'token_popout', 'refused_metadata']);
