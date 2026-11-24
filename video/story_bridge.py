@@ -56,7 +56,7 @@ def slide_payload(cfg, assets_dir):
     if cfg.get("image"):
         raw = (Path(assets_dir) / cfg["image"]).read_bytes()
         image = "data:image/jpeg;base64," + base64.b64encode(raw).decode()
-    return dict(image=image, title=cfg["title"], lead=cfg["lead"], verdict=cfg["verdict"], wide=bool(cfg.get("wide")),
+    return dict(image=image, header=cfg.get("header"), title=cfg["title"], lead=cfg["lead"], verdict=cfg["verdict"], wide=bool(cfg.get("wide")),
                 colA=dict(heading=cfg["col_a_heading"], lines=cfg["col_a_lines"]), colB=dict(heading=cfg["col_b_heading"], lines=cfg["col_b_lines"]))
 
 def hold_bubble(page, text, lines=None):

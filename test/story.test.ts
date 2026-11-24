@@ -76,6 +76,17 @@ test('story: the bubbles come in the same order as in take.py, and the mode flag
   assert.deepEqual(steps.filter(s => s.when === 'awsLive').map(s => s.key), ['token_frame', 'token_popout', 'refused_metadata']);
 });
 
+test('story (rule 29): the first page the viewer sees, in Real and in Mock, has a header naming the demo', () => {
+  const captions = loadCaptions() as unknown as { opening: { header: string | null }; slides: Record<string, { header: string | null }> };
+  for (const mode of ['real', 'mock']) {
+    const first = steps.find(s => !s.modes || s.modes.includes(mode))!;
+    assert.equal(first.type, 'slide', `${mode}: the first page is a slide`);
+    const slide = first.key === 'opening' ? captions.opening : captions.slides[first.key];
+    assert.ok(slide && slide.header && slide.header.length > 3, `${mode}: "${first.key}" has a header`);
+  }
+  assert.equal(captions.opening.header, 'A2A, and A2A with an AWS agent');
+});
+
 test('story: every step is well formed (a known trigger and type, Mock wording that exists, no twin keys)', () => {
   const captions = loadCaptions();
   const keys = steps.map(s => s.key);
@@ -160,7 +171,7 @@ test('story: the main agent answers GET /api/story with the wording; the page it
 test('story: a fix to captions.md shows without a restart (the wording is read again when the file changes)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'story-'));
   const file = join(dir, 'captions.md');
-  const slide = (t: string) => `# Opening Slide\n\n## Title\n${t}\n\n## Lead\nl\n\n## Column A: a\n- x\n\n## Column B: b\n- y\n\n## Verdict\nv\n\n---\n\n`;
+  const slide = (t: string) => `# Opening Slide\n\n## Header\nh\n\n## Title\n${t}\n\n## Lead\nl\n\n## Column A: a\n- x\n\n## Column B: b\n- y\n\n## Verdict\nv\n\n---\n\n`;
   const doc = (t: string) => slide(t) + slide('c').replace('# Opening Slide', '# Closing Slide');
   writeFileSync(file, doc('first'));
   assert.equal(loadCaptions(file).opening.title, 'first');
@@ -172,7 +183,7 @@ test('story: a fix to captions.md shows without a restart (the wording is read a
 test('story: an edit that keeps the same timestamp still shows, and the served hash always matches the served wording (one read)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'story-'));
   const file = join(dir, 'captions.md');
-  const slide = (t: string) => `# Opening Slide\n\n## Title\n${t}\n\n## Lead\nl\n\n## Column A: a\n- x\n\n## Column B: b\n- y\n\n## Verdict\nv\n\n---\n\n`;
+  const slide = (t: string) => `# Opening Slide\n\n## Header\nh\n\n## Title\n${t}\n\n## Lead\nl\n\n## Column A: a\n- x\n\n## Column B: b\n- y\n\n## Verdict\nv\n\n---\n\n`;
   const doc = (t: string) => slide(t) + slide('c').replace('# Opening Slide', '# Closing Slide');
   writeFileSync(file, doc('first')); const when = new Date(Date.now() - 60_000); utimesSync(file, when, when);
   const a = storyResponse(file).body as unknown as { opening: { title: string }; sourceSha256: string };

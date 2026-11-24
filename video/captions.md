@@ -4,8 +4,9 @@
   a timing, the agent's own answer) around whatever you write here; it never touches this file itself. SCRIPT.md is the source for every claim below.
 
   Rules for editing safely:
+  - The first page has a "## Header" naming what the demo shows (rule 29): keep it on the Opening Slide and on sample_note (the simulated run's first page).
   - Don't rename a "# Opening Slide" / "# Closing Slide" / "# Slide: <key>" / "# Step: <key>" heading, and don't rename
-    a "## Title" / "## Text" / "## Lead" / "## Verdict" / "## Image" / "## Column A: ..." / "## Column B: ..." heading.
+    a "## Header" / "## Title" / "## Text" / "## Lead" / "## Verdict" / "## Image" / "## Column A: ..." / "## Column B: ..." heading.
     Those names are how take.py finds the right piece of text. Editing the WORDS after them is always safe.
   - A "## Column A: <label>" or "## Column B: <label>" heading's <label> IS shown on the slide as that
     column's own heading — edit it freely, just keep "Column A:" / "Column B:" at the start of the line.
@@ -15,6 +16,9 @@
 -->
 
 # Opening Slide
+
+## Header
+A2A, and A2A with an AWS agent
 
 ## Title
 Agents calling agents, through a gateway
@@ -241,6 +245,9 @@ This video showed identity checks, data screening and refusals; the rest is from
 ---
 
 # Slide: sample_note
+
+## Header
+A2A, and A2A with an AWS agent
 
 <!-- Sample take only. Never shown in the final take. -->
 
