@@ -117,6 +117,15 @@ describe("Story and the page", () => {
     fireEvent.click(screen.getByText("Exit")); expect(onExit).toHaveBeenCalled(); spy.mockRestore();
   });
 
+  test("while Story runs the page carries a story-on class (the pop-out layout for captions); Demo mode never has it", async () => {
+    expect(document.documentElement.classList.contains("story-on")).toBe(false);
+    const { unmount } = render(<StoryRoot mode="mock" ready onExit={() => {}} />);
+    await screen.findByTestId("story-bar");
+    expect(document.documentElement.classList.contains("story-on")).toBe(true);
+    unmount();
+    expect(document.documentElement.classList.contains("story-on")).toBe(false);
+  });
+
   test("turning Story off closes an open pop-out and leaves no overlay, bar or listener behind", async () => {
     const closed = vi.fn(); window.Reel = { close: closed };
     const { unmount } = render(<StoryRoot mode="mock" ready onExit={() => {}} />);
