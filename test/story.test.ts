@@ -16,7 +16,7 @@ import { parity } from '../server/src/story/captions.js';
 // @ts-expect-error vendored plain JavaScript
 import { checkPin } from '../scripts/story-checkPin.mjs';
 // @ts-expect-error plain JavaScript data
-import { EXTRA_SAMPLE_KEYS, P1_Q1, P1_Q2, P2_Q1, P2_Q2, STEPS, scriptKeys } from '../web/src/storyScript.js';
+import { EXTRA_SAMPLE_KEYS, P1_Q1, P1_Q2, P2_Q1, P2_Q2, P2_SUM, P2_SUM2, STEPS, scriptKeys } from '../web/src/storyScript.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tsxCli = join(dirname(dirname(fileURLToPath(import.meta.url))), 'node_modules/tsx/dist/cli.mjs');
@@ -53,6 +53,7 @@ test('story: the questions are the video\'s own', () => {
   for (const [name, text] of [['P1_Q1', P1_Q1], ['P1_Q2', P1_Q2], ['P2_Q1', P2_Q1], ['P2_Q2', P2_Q2]]) {
     assert.ok(video.includes(`${name} = "${text}"`), `${name} matches take.py`);
   }
+  assert.ok(video.includes(`P2_SUM = "${P2_SUM}"; P2_SUM2 = "${P2_SUM2}"`), 'the sums the live answers are checked against are take.py\'s own');
 });
 
 test('story: the fixed holds are the video\'s own, read from take.py (a step the video gives no secs has none)', () => {

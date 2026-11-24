@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./top-menu/top-menu.css";
 import "./components/JsonPane.css";
 import "./shell.css";
+import "./story/story.css";
 import Shell from "./Shell.jsx";
 import RunObs from "./RunObs.jsx";
 
