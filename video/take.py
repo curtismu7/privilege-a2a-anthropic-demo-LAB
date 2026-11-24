@@ -141,8 +141,11 @@ def observability_slide():
 
 def main():
     global OPENING_SLIDE, CLOSING_SLIDE, STEPS, SLIDES
-    OPENING_SLIDE, CLOSING_SLIDE, STEPS, SLIDES = captions.load(APP)   # the wording, from the lab's /api/story (the one shared parser)
     WORK.mkdir(parents=True, exist_ok=True)
+    try:   # the wording, from the lab's /api/story (the one shared parser), checked to be this checkout's captions.md
+        OPENING_SLIDE, CLOSING_SLIDE, STEPS, SLIDES = captions.load(APP, Path(__file__).parent / "captions.md")
+    except ValueError as e:
+        log("cannot read the wording:", e); raise SystemExit(f"take.py: {e}")
     profile = tempfile.mkdtemp(prefix="a2a-take-")
     # No "Save password?" bubble in the recording: switch the password manager off in this throw-away profile.
     (Path(profile) / "Default").mkdir(parents=True, exist_ok=True)

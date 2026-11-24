@@ -24,13 +24,14 @@ def classic(name):
 # take.py's own additions around the shared overlay: the SAMPLE pill, the reel pop-out pushed to the left edge (so the caption bubble sits beside it) and widened at the
 # large scale, and the hidden protocolVersion row.
 GLUE = r"""
-;(() => {
   if (window.__cm) return;
   const S = window.__cmScale || 1;
-  const ov = createOverlay({ scale: S });
+  const ov = createOverlay({ scale: S, follow: false });   // follow: false: a caption is drawn once and stays exactly there, as the video always did
   window.__cm = { clear: ov.clear, cap: (o) => ov.cap(o), slide: (o) => ov.slide(o), scrollSlide: ov.scrollSlide };
   window.__storyHold = { bubbleHold: bubbleHold, slideHold: slideHold };
-  const css = `.cm-pill{position:fixed;right:14px;bottom:12px;z-index:${OVERLAY_Z + 6};background:#1d232b;color:#f2f4f7;border:1px solid #3a4350;border-radius:999px;padding:4px 14px;font:700 13px system-ui,sans-serif;pointer-events:none}
+  // Stacking as before: caption bubble < the SAMPLE pill < a slide (the shared overlay's slide is one above its bubble, so the slide is raised one more).
+  const css = `.story-slide{z-index:${OVERLAY_Z + 7} !important}
+  .cm-pill{position:fixed;right:14px;bottom:12px;z-index:${OVERLAY_Z + 6};background:#1d232b;color:#f2f4f7;border:1px solid #3a4350;border-radius:999px;padding:4px 14px;font:700 13px system-ui,sans-serif;pointer-events:none}
   .reel-backdrop{justify-content:flex-start !important;padding-left:20px !important}
   .reel-dialog{width:min(${Math.round(880 * S)}px,100%) !important}`;
   const ensure = () => {
@@ -41,11 +42,13 @@ GLUE = r"""
   document.addEventListener('DOMContentLoaded', ensure); ensure();
   setInterval(() => { document.querySelectorAll('.aws__card dt').forEach((dt) => { if (dt.textContent === 'protocolVersion') { dt.style.display = 'none'; if (dt.nextElementSibling) dt.nextElementSibling.style.display = 'none'; } }); }, 250);
   window.__authUrl = null;
-})();
 """
 
 def overlay_script():
-    return classic("hold.js") + "\n" + classic("overlay.js") + GLUE
+    """One self-contained function: the shared names (words, holdMs, createOverlay ...) stay inside it, so nothing of ours can collide with the page's own scripts, and running it
+    twice in one page is harmless. Only window.__cm and window.__storyHold are visible to take.py."""
+    guard, body = GLUE.split("\n", 2)[1], GLUE.split("\n", 2)[2]
+    return ";(() => {\n" + guard + "\n" + classic("hold.js") + "\n" + classic("overlay.js") + "\n" + body + "})();\n"
 
 def slide_payload(cfg, assets_dir):
     """captions.py's flat slide -> the shared overlay's shape. An image is read from the local, gitignored assets folder (nothing ships in the repo)."""

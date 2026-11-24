@@ -97,6 +97,8 @@ services:
       - "${LOCAL_GATEWAY_HOST:-local-gateway.invalid}:host-gateway"
     volumes:
       - ${LOCAL_GATEWAY_CA:-/dev/null}:/certs/local-gateway-ca.pem:ro
+      # The Story wording (GET /api/story) is the repo's video/captions.md, read-only: an edit shows without rebuilding the image (the image keeps its own copy for k8s).
+      - ./video/captions.md:/app/video/captions.md:ro
     ports:
       - "127.0.0.1:6881:6881"
     depends_on: [worker, aws-agent]

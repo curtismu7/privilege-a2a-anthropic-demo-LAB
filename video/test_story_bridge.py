@@ -84,26 +84,120 @@ class Wording(unittest.TestCase):
     def test_a_document_missing_a_part_is_an_error(self):
         self.assertRaises(ValueError, captions.from_story, {"opening": {}})
 
-    def test_load_reads_the_running_labs_api_story_and_an_error_document_is_an_error(self):
-        body = {"doc": json.dumps(self.STORY)}
+    def _serve(self, status, doc):
         class H(BaseHTTPRequestHandler):
             def do_GET(self):
-                self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers(); self.wfile.write(body["doc"].encode())
+                self.send_response(status["code"]); self.send_header("Content-Type", "application/json"); self.end_headers(); self.wfile.write(json.dumps(doc["doc"]).encode())
             def log_message(self, *a): pass
         srv = HTTPServer(("127.0.0.1", 0), H); threading.Thread(target=srv.serve_forever, daemon=True).start()
+        return srv, f"http://127.0.0.1:{srv.server_address[1]}/"
+
+    def test_load_reads_the_running_labs_api_story(self):
+        status, doc = {"code": 200}, {"doc": self.STORY}
+        srv, url = self._serve(status, doc)
+        try: self.assertEqual(captions.load(url)[1]["title"], "C")
+        finally: srv.shutdown(); srv.server_close()
+
+    def test_a_lab_that_cannot_give_the_wording_is_a_clear_error_naming_the_problem(self):
+        status, doc = {"code": 500}, {"doc": {"error": "Story wording could not be read: captions.md: no \"# Opening Slide\" section found"}}
+        srv, url = self._serve(status, doc)
         try:
-            url = f"http://127.0.0.1:{srv.server_address[1]}/"
-            self.assertEqual(captions.load(url)[1]["title"], "C")
-            body["doc"] = json.dumps({"error": "Story wording could not be read: x"})
-            self.assertRaises(ValueError, captions.load, url)
-        finally: srv.shutdown()
+            with self.assertRaises(ValueError) as cm: captions.load(url)
+            self.assertIn("no \"# Opening Slide\"", str(cm.exception))        # the lab's own message, not a bare 'HTTP Error 500'
+            status["code"] = 200
+            self.assertRaises(ValueError, captions.load, url)                   # an error document with a 200 is an error too
+        finally: srv.shutdown(); srv.server_close()
+        with self.assertRaises(ValueError) as cm: captions.load("http://127.0.0.1:1/")
+        self.assertIn("not reachable", str(cm.exception))
+
+    def test_stale_wording_is_refused_unless_you_say_otherwise(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "captions.md"; f.write_text("the current captions.md")
+            import hashlib, os
+            good = {**self.STORY, "sourceSha256": hashlib.sha256(f.read_bytes()).hexdigest()}
+            srv, url = self._serve({"code": 200}, {"doc": good})
+            try: self.assertEqual(captions.load(url, f)[0]["title"], "O")              # the lab serves this very file
+            finally: srv.shutdown(); srv.server_close()
+            for doc in ({**self.STORY, "sourceSha256": "0" * 64}, self.STORY):          # another file's hash, or no hash at all (an older lab)
+                srv, url = self._serve({"code": 200}, {"doc": doc})
+                try:
+                    with self.assertRaises(ValueError) as cm: captions.load(url, f)
+                    self.assertIn("stale", str(cm.exception))
+                    os.environ["ALLOW_STALE_WORDING"] = "1"
+                    try: self.assertEqual(captions.load(url, f)[0]["title"], "O")
+                    finally: del os.environ["ALLOW_STALE_WORDING"]
+                finally: srv.shutdown(); srv.server_close()
+
+    def test_a_slide_missing_a_part_is_a_value_error_not_a_key_error(self):
+        broken = {**self.STORY, "slides": {"x": {"title": "t"}}}
+        self.assertRaises(ValueError, captions.from_story, broken)
 
 class TakePyHasNoCopyOfSharedLogic(unittest.TestCase):
     def test_take_py_uses_the_bridge_and_defines_no_overlay_or_hold_formula_of_its_own(self):
         src = (Path(__file__).resolve().parent / "take.py").read_text()
-        self.assertIn("from story_bridge import", src); self.assertIn("captions.load(APP)", src)
+        self.assertIn("from story_bridge import", src); self.assertIn("captions.load(APP", src)
         for gone in ('OVERLAY = r"""', "def hold(", "def hold_slide(", "* 0.30 + 2.2", "* 0.25 + 3.0", ".cm-slide .card"):
             self.assertNotIn(gone, src, f"take.py must not carry its own copy of shared logic ({gone!r})")
+
+try:
+    import playwright.sync_api as _pw
+    HAVE_PLAYWRIGHT = True
+except ImportError:
+    HAVE_PLAYWRIGHT = False
+
+@unittest.skipUnless(HAVE_PLAYWRIGHT, "playwright not installed (the browser checks run on a machine that records the video)")
+class InABrowser(unittest.TestCase):
+    """The injected overlay in a real page: what take.py calls is what the shared overlay draws, and nothing of ours leaks into the page."""
+    PAGE = "<!doctype html><html><head><title>p</title></head><body><button id='t' style='position:absolute;left:300px;top:300px'>target</button></body></html>"
+
+    def setUp(self):
+        self.p = _pw.sync_playwright().start(); self.b = self.p.chromium.launch(headless=True)
+        self.page = self.b.new_context(viewport={"width": 1920, "height": 1080}).new_page()
+        self.page.add_init_script("window.__cmScale = 1.3;"); self.page.add_init_script(story_bridge.overlay_script())
+        self.page.goto("data:text/html," + self.PAGE); self.page.wait_for_selector("#t")
+
+    def tearDown(self):
+        self.b.close(); self.p.stop()
+
+    def test_cap_and_slide_draw_what_take_py_sends_and_clear_removes_them(self):
+        self.page.evaluate("o => window.__cm.cap(o)", dict(n=4, total=25, title="Ask", text="Type it.", target="#t", lines=["asks: x"], prefer="right", place=None))
+        self.assertEqual(self.page.inner_text(".story-bub h3"), "Ask"); self.assertEqual(self.page.inner_text(".story-bub .of"), "4 of 25")
+        self.assertEqual(self.page.locator(".story-bub li").count(), 1); self.assertEqual(self.page.locator(".story-hl").count(), 1)
+        cfg = Payload.CFG; payload = story_bridge.slide_payload(cfg, "/nonexistent")
+        self.page.evaluate("o => window.__cm.slide(o)", payload)
+        self.assertEqual(self.page.inner_text(".story-slide h1"), "T"); self.assertEqual(self.page.locator(".story-slide li").count(), 3)
+        self.assertEqual(self.page.inner_text(".story-slide .col.colb h2"), "B")
+        self.page.evaluate("() => window.__cm.clear()")
+        self.assertEqual(self.page.locator(".story-bub, .story-hl, .story-slide").count(), 0)
+
+    def test_a_caption_is_drawn_once_and_never_follows_the_page(self):
+        self.page.evaluate("o => window.__cm.cap(o)", dict(n=1, total=1, title="t", text="x", target="#t", lines=None, prefer="right", place=None))
+        before = self.page.evaluate("() => [document.querySelector('.story-hl').style.top, document.querySelector('.story-bub').style.top]")
+        self.page.evaluate("() => { document.getElementById('t').style.top = '700px'; window.dispatchEvent(new Event('resize')); document.dispatchEvent(new Event('scroll')); }")
+        self.page.wait_for_timeout(120)
+        self.assertEqual(self.page.evaluate("() => [document.querySelector('.story-hl').style.top, document.querySelector('.story-bub').style.top]"), before)
+
+    def test_stacking_is_bubble_then_pill_then_slide_as_before(self):
+        self.page.evaluate("o => window.__cm.cap(o)", dict(n=1, total=1, title="t", text="x", target=None, lines=None, prefer=None, place=None))
+        self.page.evaluate("o => window.__cm.slide(o)", story_bridge.slide_payload(Payload.CFG, "/nonexistent"))
+        z = self.page.evaluate("() => ({ slide: +getComputedStyle(document.querySelector('.story-slide')).zIndex, pill: +getComputedStyle(document.querySelector('.cm-pill')).zIndex })")
+        self.assertGreater(z["slide"], z["pill"])
+        self.page.evaluate("() => window.__cm.clear()")
+        self.page.evaluate("o => window.__cm.cap(o)", dict(n=1, total=1, title="t", text="x", target=None, lines=None, prefer=None, place=None))
+        bub = self.page.evaluate("() => +getComputedStyle(document.querySelector('.story-bub')).zIndex"); self.assertGreater(z["pill"], bub)
+
+    def test_nothing_of_the_shared_code_leaks_into_the_page_and_a_second_injection_is_harmless(self):
+        leaked = self.page.evaluate("() => ['words', 'holdMs', 'createOverlay', 'bubbleHold', 'slideHold', 'OVERLAY_Z', 'SPEEDS'].filter((n) => typeof window[n] !== 'undefined')")
+        self.assertEqual(leaked, [])
+        self.page.evaluate(story_bridge.overlay_script())                       # run it again in the same page
+        self.assertEqual(self.page.evaluate("() => typeof window.__cm.cap"), "function")
+
+    def test_the_hold_of_a_real_captions_slide_is_the_old_formula_and_extra_and_cap_are_gone(self):
+        cfg = {**Payload.CFG, "lead": W(20), "col_a_lines": ["a b c"], "col_b_lines": ["d e"], "verdict": "v w"}
+        payload = story_bridge.slide_payload(cfg, "/nonexistent")
+        words = len((cfg["lead"] + " " + " ".join(cfg["col_a_lines"]) + " " + " ".join(cfg["col_b_lines"]) + " " + cfg["verdict"]).split())
+        self.assertEqual(story_bridge.hold_slide(self.page, payload), min(10.0, max(6.0, words * 0.25 + 3.0)))
+        self.assertEqual(story_bridge.hold_bubble(self.page, W(10), ["asks: a b c"]), max(5.0, len((W(10) + "asks: a b c").split()) * 0.30 + 2.2))
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -26,9 +27,12 @@ export function loadCaptions(path: string = CAPTIONS_PATH): StoryCaptions {
 
 export function resetCaptionsCache(): void { cached = null; }
 
+/** The SHA-256 of the wording file's bytes, served with the wording so a client (the video) can tell it is reading the file it thinks it is, not a stale copy baked into an older image. */
+export const captionsSha256 = (path: string = CAPTIONS_PATH): string => createHash('sha256').update(readFileSync(path)).digest('hex');
+
 /** GET /api/story: the wording only. No tenant, host or key is in captions.md (the repo is public), and nothing else is added. */
-export function storyResponse(path: string = CAPTIONS_PATH): { status: number; body: StoryCaptions | { error: string } } {
-  try { return { status: 200, body: loadCaptions(path) }; }
+export function storyResponse(path: string = CAPTIONS_PATH): { status: number; body: (StoryCaptions & { sourceSha256: string }) | { error: string } } {
+  try { return { status: 200, body: { ...loadCaptions(path), sourceSha256: captionsSha256(path) } }; }
   catch (e) {
     // A wording problem (CaptionsError) names itself so the editor can fix it. Anything else (a missing file) is logged here and never sent: its text holds the server's paths.
     if (e instanceof Error && e.name === 'CaptionsError') return { status: 500, body: { error: `Story wording could not be read: ${e.message}` } };

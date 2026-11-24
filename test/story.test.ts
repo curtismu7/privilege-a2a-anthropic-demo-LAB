@@ -10,7 +10,8 @@ import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
-import { CAPTIONS_PATH, loadCaptions, resetCaptionsCache, storyResponse } from '../src/story.js';
+import { createHash } from 'node:crypto';
+import { CAPTIONS_PATH, captionsSha256, loadCaptions, resetCaptionsCache, storyResponse } from '../src/story.js';
 // @ts-expect-error vendored plain JavaScript
 import { parity } from '../server/src/story/captions.js';
 // @ts-expect-error vendored plain JavaScript
@@ -96,6 +97,8 @@ test('story: storyResponse serves the parsed wording, and a broken file is a 500
   assert.equal(ok.status, 200);
   const body = ok.body as { opening: { title: string }; steps: Record<string, unknown> };
   assert.ok(body.opening.title && body.steps.p1_intro);
+  assert.equal((body as unknown as { sourceSha256: string }).sourceSha256, createHash('sha256').update(readFileSync(CAPTIONS_PATH)).digest('hex'), 'the wording says which bytes it came from');
+  assert.equal(captionsSha256(), (body as unknown as { sourceSha256: string }).sourceSha256);
   const dir = mkdtempSync(join(tmpdir(), 'story-'));
   const bad = join(dir, 'captions.md');
   writeFileSync(bad, '# Step: x\n\n## Title\nonly a title\n');
