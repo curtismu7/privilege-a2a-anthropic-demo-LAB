@@ -122,6 +122,14 @@ def public_images(slides, rules, assets=ASSETS):
     """Every image any slide of this take can show (opening, closing and the rest), mapped to its OCR-checked redacted copy. Refuses before recording."""
     return {s["image"]: onscreen_mask.public_image(s["image"], assets, rules) for s in slides if s and s.get("image")}
 
+def clip_window(first, last, delay=0.05, tail=0.8):
+    """Where to cut the recorded video (seconds from the start of the page's own recording): from just after the first slide is drawn, so the first page
+    of the video is the title (owner rule 29), to just after the closing slide has been held, when there is one. A take with no slide is left whole.
+    Returns {'start': s, 'end': s or None}."""
+    if first is None: return {"start": 0.0, "end": None}
+    start = first + delay   # the slide is painted within a frame of being drawn: the video never shows the page underneath
+    return {"start": round(start, 2), "end": round(last + tail, 2) if last is not None else None}
+
 def slide_payload(cfg):
     """captions.py's flat slide -> the shared overlay's shape (story_bridge.slide_payload). Images come from the local, gitignored assets folder. Edit captions.md, not this.
     A masked take shows only the redacted copy that main() checked; an image it did not check is never shown."""
@@ -201,7 +209,12 @@ def main():
         ctx.add_init_script(overlay_script())
         # The lab's observability drawer opens itself when a run ends and would reflow the page being filmed: keep it out of the picture. The take reads its record instead.
         ctx.add_init_script("document.addEventListener('DOMContentLoaded', () => { const s = document.createElement('style'); s.textContent = '#run-obs-drawer{display:none!important}'; document.head.appendChild(s); });")
-        page = ctx.pages[0] if ctx.pages else ctx.new_page()
+        if RECORD_PW:   # the page's own video starts when the page is created: make it ours, so the clip window below is measured from the same moment
+            initial = list(ctx.pages); page = ctx.new_page(); clock0 = time.monotonic()
+            for p in initial: p.close()
+        else:
+            page = ctx.pages[0] if ctx.pages else ctx.new_page(); clock0 = time.monotonic()
+        clip = {"first": None, "last": None}   # seconds from clock0: when the first slide is drawn and when the closing slide has been held
         page.goto(APP + "/"); page.wait_for_selector("#tab-aws")
         page.select_option("[data-testid=theme-select]", THEME)
         if not HEADLESS:
@@ -268,6 +281,7 @@ def main():
 
         def show_slide(cfg, extra=0.0, name="slide", cap=30.0):
             payload = slide_payload(cfg)
+            if clip["first"] is None: clip["first"] = time.monotonic() - clock0
             page.evaluate("o => window.__cm.slide(o)", payload)
             snap(name)
             total_ms = int(_hold_slide(page, payload) * 1000 * (0.04 if REHEARSE else 1))   # the shared formula (owner rule 2026-11-22: no slide is held longer than 10 s)
@@ -277,6 +291,7 @@ def main():
             page.evaluate("() => window.__cm.scrollSlide()")   # the shared overlay scrolls a tall card to its verdict
             page.wait_for_timeout(max(0, total_ms - pre_ms))
             page.evaluate("() => window.__cm.clear()")
+            if name == "closing": clip["last"] = time.monotonic() - clock0
 
         def tag(selector, ident):
             """Give the first match an id so a caption can point at it (the overlay targets by selector)."""
@@ -518,6 +533,7 @@ def main():
                 except Exception: leaks = -1
                 result["mask_leaks"] = leaks; log("on-screen mask check: leaks =", leaks)
                 if leaks != 0: result["ok"] = False; log("WARNING: real values reached the page (or the mask did not load): do not publish this take")
+            result["clip"] = clip_window(clip["first"], clip["last"]); log("clip window (s):", result["clip"])
             log("stopping recording")
             if ff is not None:
                 try: ff.send_signal(signal.SIGINT)
@@ -530,7 +546,8 @@ def main():
         ctx.close()
         if vpath:
             out = WORK / ("sample.mp4" if SAMPLE else "take-headless.mp4")
-            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(vpath), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", str(out)], check=True)
+            w = result["clip"]; cut = ["-ss", str(w["start"])] + (["-t", str(round(w["end"] - w["start"], 2))] if w["end"] is not None else [])
+            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *cut, "-i", str(vpath), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", str(out)], check=True)
             log("sample video:", out)
 
 if __name__ == "__main__":
