@@ -172,6 +172,30 @@ describe("the Bedrock tab's script", () => {
     expect(events.some((e) => e[0] === "paad:run-done")).toBe(false);
   });
 
+  test("a Session Name in a disabled field is not sent, and a scenario puts the default back (review: a stale bad name failed every run)", async () => {
+    const { fn } = sseFetch(); start(fn);
+    $("bedrock-role").value = "same"; $("bedrock-role").dispatchEvent(new Event("change"));
+    $("bedrock-session").value = "a";   // too short for AWS
+    $("bedrock-role").value = ""; $("bedrock-role").dispatchEvent(new Event("change"));
+    expect($("bedrock-session").disabled).toBe(true);
+    $("bedrock-input").value = "hi"; $("bedrock-form").dispatchEvent(new Event("submit", { cancelable: true })); await settle();
+    expect(JSON.parse(fn.mock.calls[0][1].body).sessionName).toBe(""); expect($("bedrock-answer").className).toBe("aws__answer");
+    $("bedrock-role").value = "same"; $("bedrock-role").dispatchEvent(new Event("change")); $("bedrock-session").value = "has space";
+    $("bedrock-sc-cross").click(); await settle();
+    expect(JSON.parse(fn.mock.calls[1][1].body).sessionName).toBe("privilege-ai-gateway"); expect(node("model")).toEqual(["ok", "answered"]);
+  });
+
+  test("Reset also puts the settings back to their defaults (review: a typed question after Reset ran the last scenario's settings)", async () => {
+    const { fn } = sseFetch(); start(fn);
+    $("bedrock-sc-fail-closed").click(); await settle();
+    $("bedrock-provider").value = "mantle"; $("bedrock-upstream").value = "https://x.example";
+    window.dispatchEvent(new CustomEvent("paad:reset"));
+    expect([$("bedrock-provider").value, $("bedrock-sign").checked, $("bedrock-role").value, $("bedrock-ext").value, $("bedrock-session").value, $("bedrock-guard").checked, $("bedrock-failclosed").checked, $("bedrock-reachable").checked, $("bedrock-upstream").value])
+      .toEqual(["runtime", true, "", "match", "privilege-ai-gateway", false, true, true, ""]);
+    $("bedrock-input").value = "a clean question"; $("bedrock-form").dispatchEvent(new Event("submit", { cancelable: true })); await settle();
+    expect(node("guard")).toEqual(["skipped", "off"]); expect(node("model")).toEqual(["ok", "answered"]);
+  });
+
   test("a refused body shows the server's reason, and the run is announced as failed", async () => {
     const { fn } = sseFetch(); start(fn);
     $("bedrock-role").value = "same"; $("bedrock-role").dispatchEvent(new Event("change"));

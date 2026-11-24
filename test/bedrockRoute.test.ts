@@ -104,6 +104,30 @@ test('every scenario streams its trace events in order, then token and done (ans
   }));
 });
 
+test('in Real mode a Bedrock run is still recorded as Mock: its rows never read as measured ones and no product log is read for it (review)', async () => {
+  const realPort = await reservePort();
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  for (const key of Object.keys(env)) if (/_KEY$|_TOKEN$|_PROVIDER$|BASE_URL$|^AWS_AGENT_/.test(key)) delete env[key];
+  const real = spawn(process.execPath, [tsxCli, 'src/main-agent/index.ts'], {
+    cwd: root, stdio: 'ignore',
+    env: { ...env, MAIN_AGENT_HOST: '127.0.0.1', MAIN_AGENT_PORT: String(realPort), AWS_MOCK_PORT: String(realPort + 1), MAIN_AGENT_PROVIDER: 'anthropic', MAIN_AGENT_KEY: 'test-main-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:9' },
+  });
+  const realBase = `http://127.0.0.1:${realPort}`;
+  try {
+    let info: { source?: string } = {};
+    for (let i = 0; i < 100 && info.source === undefined; i += 1) { try { info = await (await fetch(`${realBase}/api/info`)).json() as { source?: string }; } catch { await delay(200); } }
+    assert.equal(info.source, 'real', 'the lab is in Real');
+    await (await fetch(`${realBase}/bedrock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'hi', guard: { on: true } }) })).text();
+    const body = await (await fetch(`${realBase}/api/run-observability`)).json() as { record?: unknown; message?: string };
+    assert.equal(body.record ?? null, null);
+    assert.match(body.message ?? '', /latest run was in Mock mode/);
+  } finally {
+    const exited = once(real, 'exit').catch(() => undefined);
+    real.kill('SIGTERM'); await Promise.race([exited, delay(3000)]);
+    if (real.exitCode === null) real.kill('SIGKILL');
+  }
+});
+
 test('a Bedrock run is recorded for run observability, as simulated rows', async () => {
   await sse(await post('/bedrock', { message: 'hi', guard: { on: true } }));
   const body = await (await fetch(`${base}/api/run-observability`)).json() as { record?: unknown };

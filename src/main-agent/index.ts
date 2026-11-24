@@ -128,8 +128,8 @@ const conversations = new Map<string, Anthropic.MessageParam[]>();
 
 // Rule 27: the run each response belongs to; every trace event sent to the page is also noted for the run-observability record.
 const recorders = new WeakMap<Response, RunRecorder>();
-function startRun(res: Response, kind: RunKind): RunRecorder {
-  const recorder = beginRun(kind, uiMode);
+function startRun(res: Response, kind: RunKind, source: 'mock' | 'real' = uiMode): RunRecorder {
+  const recorder = beginRun(kind, source);
   recorders.set(res, recorder);
   res.on('close', () => recorder.finish());
   return recorder;
@@ -330,7 +330,8 @@ app.post('/bedrock', async (req: Request, res: Response) => {
     'Cache-Control': 'no-cache, no-transform',
     Connection: 'keep-alive',
   });
-  startRun(res, 'bedrock');
+  // Always a simulated run, so it is recorded as Mock: in Real its rows must never read as measured ones, and no product log is read for it.
+  startRun(res, 'bedrock', 'mock');
   const run = simulateBedrock(parsed.input);
   const startedAt = Date.now();
   const at = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;

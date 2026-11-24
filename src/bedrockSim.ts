@@ -77,7 +77,8 @@ export const PERMISSIONS: Readonly<Record<Provider, readonly string[]>> = {
 };
 
 /** The denied topic the example guardrail blocks: investment advice, found by keyword. */
-const DENIED_TOPIC = /\b(invest(ing|ment|ments|or)?|stocks?|shares|portfolio|crypto(currency)?|bitcoin|retirement savings|mutual funds?|index funds?)\b/i;
+// Investment phrasing only: words this lab's own domain uses ("who shares the account", "take stock of access", an app portfolio) are not a denied topic.
+const DENIED_TOPIC = /\b(invest(ing|ment|ments|or|ors)?|stocks|stock market|(buy|sell|buying|selling) shares|crypto(currency)?|bitcoin|retirement savings|mutual funds?|index funds?)\b/i;
 export const isDeniedTopic = (message: string): boolean => DENIED_TOPIC.test(message);
 
 type Parsed = { ok: true; input: BedrockInput } | { ok: false; error: string };
@@ -124,7 +125,8 @@ export function simulateBedrock(input: BedrockInput): BedrockRun {
   const events: BedrockEvent[] = [];
   const assumes = iam && identity !== 'own';
   const roleArn = ROLE_ARN[identity];
-  const signer = !iam ? 'the stored Bedrock API key' : assumes ? `the assumed role ${roleArn}` : `its own role ${GATEWAY_ROLE}`;
+  const signer = assumes ? `the assumed role ${roleArn}` : `its own role ${GATEWAY_ROLE}`;
+  const how = iam ? `signed with ${signer}` : 'with the stored Bedrock API key injected (no SigV4 signature)';
   const signedWord = !iam ? 'key injected' : 'signed and forwarded';
 
   // 1. The agent sends its prompt to the gateway with its own virtual key; the gateway checks it and replaces it.
@@ -246,7 +248,7 @@ export function simulateBedrock(input: BedrockInput): BedrockRun {
   }
 
   // 4. The model call, signed as the chosen identity (or carrying the stored key).
-  const answer = `SIMULATED answer: no Bedrock model was called. Through ${PROVIDER_LABEL[provider]}, signed with ${signer}, a real model would now answer: "${clip(message, 120)}"`;
+  const answer = `SIMULATED answer: no Bedrock model was called. Through ${PROVIDER_LABEL[provider]}, ${how}, a real model would now answer: "${clip(message, 120)}"`;
   const auth = iam ? sigV4(provider === 'mantle' ? 'bedrock-mantle' : 'bedrock') : 'Authorization: Bearer (the stored Bedrock API key, masked)';
   const body = json({ messages: [{ role: 'user', content: [{ text: message }] }] });
   const reply = { output: { message: { role: 'assistant', content: [{ text: answer }] } }, stopReason: 'end_turn', usage: { inputTokens: 12, outputTokens: 48 } };

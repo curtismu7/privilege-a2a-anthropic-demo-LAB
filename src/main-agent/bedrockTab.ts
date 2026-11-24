@@ -45,7 +45,7 @@ const perm = (forWhat: string, text: string): string => `<li data-for="${forWhat
 
 export const BEDROCK_PANEL_HTML = `<section id="panel-bedrock" class="aws bedrock" role="tabpanel" aria-labelledby="tab-bedrock" hidden data-testid="bedrock-panel">
 <h2 class="aws__h">Gateway to Bedrock, signed with an IAM role</h2>
-<p class="aws__lede">Our agent holds only its Privilege key. No AWS access key exists in the agent or in the gateway's settings: the gateway calls Amazon Bedrock as an IAM role, its own or one it assumes, and a Bedrock guardrail can screen the prompt as AI Guard.</p>
+<p class="aws__lede">Our agent holds only its Privilege key. With Sign as this gateway (IAM) on, no AWS key exists in the agent or in the gateway's settings: the gateway calls Amazon Bedrock as an IAM role, its own or one it assumes. With it off, the gateway injects a stored Bedrock API key instead. A Bedrock guardrail can screen the prompt as AI Guard.</p>
 <p class="aws__note" id="bedrock-mode" role="note">SIMULATED, in Mock and in Real: nothing in Privilege or AWS is called. A live run needs a gateway with an IAM role, which is not set up yet. Every request and reply below is what the simulation produced.</p>
 <ol class="bedrock__flow" id="bedrock-flow" aria-label="Path from the main agent to the Bedrock model">
 ${node('main', 'Main agent', 'Main agent', 'Sends the prompt with its own virtual key, as a bearer token.')}
@@ -181,8 +181,9 @@ function onTrace(t){
   var n=t.nodes||{};
   IDS.forEach(function(id){var v=n[id];if(Array.isArray(v)&&WORDS[v[0]])setState(id,v[0],String(v[1]||''))});
 }
+/* A field the settings turn off is not sent: a Session Name left in a disabled field must not fail a run that does not assume a role. */
 function settings(text){
-  return {message:text,provider:c.provider.value,iam:c.iam.checked,identity:c.role.value||'own',externalId:c.ext.value,sessionName:c.session.value.trim(),
+  return {message:text,provider:c.provider.value,iam:c.iam.checked,identity:c.role.value||'own',externalId:c.ext.value,sessionName:c.session.disabled?'':c.session.value.trim(),
     guard:{on:c.guard.checked,failClosed:c.failClosed.checked,reachable:c.reachable.checked}};
 }
 function clearView(){answer.textContent='';answer.className='aws__answer';trace.textContent='';if(reel)reel.clear();resetFlow()}
@@ -227,13 +228,15 @@ async function run(text){
     if(started&&!ctl.signal.aborted)window.dispatchEvent(new CustomEvent('paad:run-done'));
   }
 }
+/* A scenario sets every setting it depends on, the Session Name back to its default included. Reset puts the defaults back. */
 function apply(s){
-  c.provider.value=s.provider;c.iam.checked=s.iam;c.role.value=s.role;c.ext.value=s.ext;
+  c.provider.value=s.provider;c.iam.checked=s.iam;c.role.value=s.role;c.ext.value=s.ext;c.session.value=c.session.defaultValue;
   c.guard.checked=s.guard;c.failClosed.checked=s.failClosed;c.reachable.checked=s.reachable;sync();
 }
+var DEFAULTS={provider:c.provider.value,iam:c.iam.checked,role:c.role.value,ext:c.ext.value,guard:c.guard.checked,failClosed:c.failClosed.checked,reachable:c.reachable.checked};
 buttons.forEach(function(b){b.addEventListener('click',function(){var s=SCENARIOS[b.getAttribute('data-scenario')];if(!s||inflight)return;apply(s);run(s.q)})});
 form.addEventListener('submit',function(e){e.preventDefault();if(inflight)return;var t=input.value;if(!t.trim())return;input.value='';run(t)});
-window.addEventListener('paad:reset',function(){if(inflight){inflight.abort();inflight=null}busy(false);clearView();var li=document.createElement('li');li.className='aws__empty';li.textContent=EMPTY;trace.appendChild(li);input.value=''});
+window.addEventListener('paad:reset',function(){if(inflight){inflight.abort();inflight=null}busy(false);clearView();apply(DEFAULTS);c.upstream.value='';var li=document.createElement('li');li.className='aws__empty';li.textContent=EMPTY;trace.appendChild(li);input.value=''});
 })();`;
 
 /** The scenarios as page data, read by the script above (window.BEDROCK_SCENARIOS). `<` is escaped so the data cannot close its script element. */

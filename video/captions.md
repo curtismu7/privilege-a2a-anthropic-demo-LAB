@@ -763,7 +763,7 @@ In the live demo the concierge answers from what the analyst returned, and nothi
 Part 3: Gateway to Bedrock (IAM)
 
 ## Text
-Our agent holds only its Privilege key. The gateway calls Amazon Bedrock as an AWS identity, so no AWS access key sits in the agent or in the gateway's settings. Every run on this tab is simulated.
+Our agent holds only its Privilege key. With Sign as this gateway (IAM) on, the gateway calls Amazon Bedrock as an AWS identity, so no AWS key sits in the agent or in the gateway's settings. Every run on this tab is simulated.
 
 ---
 

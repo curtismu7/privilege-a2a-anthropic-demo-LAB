@@ -192,6 +192,16 @@ test('the denied topic is found by keyword, and the two scenario questions fall 
   assert.ok(!isDeniedTopic(CLEAN_Q));
   assert.ok(isDeniedTopic('Is bitcoin a good investment?'));
   assert.ok(!isDeniedTopic('Which roles can invoke the model?'));
+  // Review: bare words from this lab's own domain once tripped the guardrail.
+  for (const q of ['Who shares the prod-db service account?', 'Take stock of who has admin access', 'Which portfolio of apps does finance own?', 'Which stock reports does Bob reach?']) assert.ok(!isDeniedTopic(q), q);
+  for (const q of ['Should I buy shares in a chip maker?', 'Is the stock market a good bet this year?', 'Where should I invest my bonus?']) assert.ok(isDeniedTopic(q), q);
+});
+
+test('with IAM off the answer says the stored key was injected, never that it signed the call (review)', () => {
+  const r = run('apikey');
+  assert.match(r.answer ?? '', /with the stored Bedrock API key injected \(no SigV4 signature\)/);
+  assert.ok(!/signed with the stored/.test(JSON.stringify(r)));
+  assert.match(run('own').answer ?? '', /signed with its own role arn:aws:iam::111122223333:role\/privilege-gateway/);
 });
 
 test('the permissions follow the type', () => {

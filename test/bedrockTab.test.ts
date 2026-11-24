@@ -88,6 +88,12 @@ test('the checkboxes keep their size: the page\'s own input rule (flex:1) once s
   assert.match(BEDROCK_PANEL_HTML, /<label class="bedrock__toggle"><input type="checkbox" id="bedrock-sign"/);
 });
 
+test('the lede limits the no-AWS-key claim to IAM signing, since the stored-key scenario injects a Bedrock API key (review)', () => {
+  assert.match(BEDROCK_PANEL_HTML, /With Sign as this gateway \(IAM\) on, no AWS key exists in the agent or in the gateway's settings/);
+  assert.match(BEDROCK_PANEL_HTML, /With it off, the gateway injects a stored Bedrock API key instead\./);
+  assert.ok(!BEDROCK_PANEL_HTML.includes("holds only its Privilege key. No AWS access key exists"));
+});
+
 test('the Bedrock tab text stays at 12px or more, and the markup has no inline style', () => {
   const sizes = [...BEDROCK_TAB_CSS.matchAll(/font-size:([\d.]+)rem/g)].map((m) => Number(m[1]) * 16);
   assert.ok(sizes.length > 0 && Math.min(...sizes) >= 12, `smallest is ${Math.min(...sizes)}px`);
