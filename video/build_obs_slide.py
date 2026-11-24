@@ -71,7 +71,7 @@ verdict = ("Excerpt, ids masked, times UTC. " +
            (f"Not logged or not readable here: {', '.join(missing)}. " if missing else "") +
            ("" if product_refusal else "No refusal line from the gateway's own log. ") +
            "Logs can stream to a SIEM (Ping's docs).")
-out = {"lead": "Top: the Privilege console's Activity Logs for this app, captured earlier today. Below: this run's own log lines and the replies it recorded.",
+out = {"lead": "This run's own log lines and the replies it recorded, read straight after the recording.",
        "col_a_heading": "Allowed", "col_a_lines": col_a,
        "col_b_heading": "Refused and blocked", "col_b_lines": col_b,
        "verdict": verdict}

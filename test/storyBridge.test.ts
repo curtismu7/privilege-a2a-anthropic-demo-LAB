@@ -13,3 +13,10 @@ test('video: take.py runs on the shared overlay, hold formulas and wording (vide
   if (run.error && (run.error as NodeJS.ErrnoException).code === 'ENOENT') { t.skip('python3 is not available here'); return; }
   assert.equal(run.status, 0, `${run.stdout}\n${run.stderr}`);
 });
+
+test('video: a public take masks real hosts, the client id and the runtime id on screen (video/test_onscreen_mask.py)', t => {
+  const run = spawnSync('python3', ['video/test_onscreen_mask.py'], { cwd: root, encoding: 'utf8', timeout: 120_000 });
+  if (run.error && (run.error as NodeJS.ErrnoException).code === 'ENOENT') { t.skip('python3 is not available here'); return; }
+  assert.equal(run.status, 0, `${run.stdout}\n${run.stderr}`);
+});
+
