@@ -399,7 +399,10 @@ defaults while keeping `ANTHROPIC_BASE_URL` on Privilege.
 ### Provider key registration
 
 Register the Anthropic provider key in Agent Privilege Provider Keys
-and associate it with the `llm/anthropic` route. This provider key stays in
+and associate it with the `llm/anthropic` route. Some consoles have no separate
+screen for this; there the provider and its key are entered in the agent-key
+wizard (UNVERIFIED which applies to your tenant; see
+[docs/PRIVILEGE-SETUP.md](docs/PRIVILEGE-SETUP.md), Step 1). This provider key stays in
 Privilege. The demo sends only the Agent Access keys above to that route.
 
 ## Configuration reference
