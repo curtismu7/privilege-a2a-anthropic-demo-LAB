@@ -17,7 +17,7 @@ test('the fifth card explains the injection demo and sends nothing to an agent',
 test('the help text names the real switches and the real cause', () => {
   assert.match(INJECTION_HELP_TEXT, /mcpdemo/);
   assert.match(INJECTION_HELP_TEXT, /MCP_DEMO_INJECTION=true/);
-  assert.match(INJECTION_HELP_TEXT, /kubectl --context us -n ping-devops-cmuir set env deploy\/mcpdemo MCP_DEMO_INJECTION=false/);
+  assert.match(INJECTION_HELP_TEXT, /kubectl -n <gateway-namespace> set env deploy\/mcpdemo MCP_DEMO_INJECTION=false/);
   assert.match(INJECTION_HELP_TEXT, /worker-agent key/);
   assert.match(INJECTION_HELP_TEXT, /Block to Alert/);
   assert.ok(page.includes('const injectionHelp=' + JSON.stringify(INJECTION_HELP_TEXT) + ';'), 'the page carries exactly that text');
