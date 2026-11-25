@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Setting up PingOne Privilege for this lab - Privilege A2A lab</title>
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('theme') || 'auto';
+      if (t !== 'auto') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { /* storage blocked: follow the OS */ }
+  })();
+</script>
+<link rel="stylesheet" href="assets/site.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<header class="site-header"><div class="wrap-wide">
+  <a class="brand" href="#" data-home><svg class="mark" width="30" height="30" viewBox="0 0 32 32" role="img" aria-label="Privilege A2A lab"><g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="9.5" cy="16" r="5.5" stroke="currentColor"/><circle cx="22.5" cy="16" r="5.5" stroke="currentColor"/><path d="M15 16h2" stroke="#c8202f"/></g></svg>Privilege A2A lab</a>
+  <span class="spacer"></span>
+  <span class="user">
+    <button type="button" class="theme-toggle t-auto" title="Theme: auto (follows your system)" aria-label="Theme: auto (follows your system)">
+      <span class="ms-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>
+      <span class="ms-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
+      <span class="ms-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>
+    </button>
+  </span>
+</div></header>
+
+<main>
+    <div class="wrap-wide doc">
+      <article>
+        <div class="doc-top">
+          <nav class="crumbs"><a href="#" data-home>Privilege A2A lab</a><span class="dot"></span><span>Setup guide</span></nav>
+          <span class="doc-top-actions">
+            <a class="md-dl" href="PRIVILEGE-SETUP.md" title="Download this guide's markdown source"><span class="ms-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 11l5 5 5-5M4 21h16"/></svg></span>Markdown</a>
+          </span>
+        </div>
+<h1>Setting up PingOne Privilege for this lab</h1>
+<p>This is for someone who has the lab and has never used PingOne Privilege. Mock mode and the Demo | Story walk-through need <strong>none of this</strong>. You only need it to run the lab in <strong>Real</strong> mode, where model calls, agent-to-agent hops and tool calls go through a Privilege gateway you control.</p>
+<p>What is verified and what is not: the steps below are the order that worked end to end on one Privilege tenant. The console menus and field names change between releases, so where this guide names a screen, treat it as a pointer, not a promise. Anything marked <strong>UNVERIFIED</strong> is something we have not exercised ourselves.</p>
+<h2 id="pick-your-path-first"><a class="hl" href="#pick-your-path-first" aria-label="Link to this section">#</a>Pick your path first</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Path A: model calls only</th>
+<th>Path B: the full four hops</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>What goes through Privilege</td>
+<td>The model calls</td>
+<td>Model calls, the A2A call to the worker, and the worker&#39;s MCP calls</td>
+</tr>
+<tr>
+<td>What you need</td>
+<td>A gateway and a provider key. Everything else runs on your machine</td>
+<td>The above, plus a place the <strong>gateway can reach</strong> for the worker and the MCP server (a cluster or a VM)</td>
+</tr>
+<tr>
+<td>Steps</td>
+<td>1, 4, 5, 7 (keys only), 8 (the model lines only), 9 (the model-call checks only), then <a href="#running-everything-on-one-machine-path-a">Running everything on one machine</a></td>
+<td>All nine steps</td>
+</tr>
+<tr>
+<td>What you will see</td>
+<td>Model records and policy in the gateway. The A2A and MCP hops stay on your machine and are <strong>not governed</strong></td>
+<td>The whole story: every hop is a governed, recorded call</td>
+</tr>
+</tbody></table></div>
+<p>If you are unsure, start with Path A. You can add Path B later; the keys you made carry over.</p>
+<h2 id="what-you-are-building"><a class="hl" href="#what-you-are-building" aria-label="Link to this section">#</a>What you are building</h2>
+<pre><code class="language-text">browser ──▶ main agent ──A2A──▶ Privilege gateway ──▶ worker agent ──MCP──▶ Privilege gateway ──▶ MCP tool server
+                │                                         │
+                └─ model call ─▶ gateway ─▶ provider       └─ model call ─▶ gateway ─▶ provider
+</code></pre>
+<ul>
+<li><strong>Two agents, two keys.</strong> The main agent holds its own Privilege <em>agent key</em> and uses it for its model calls and for its A2A call to the worker. The worker holds a <em>different</em> key for its model calls and its MCP calls. Neither agent ever holds the model provider&#39;s own key: Privilege keeps it and injects it.</li>
+<li><strong>The key is the whole identity.</strong> There is no sign-in and no token exchange for the agents. Each call carries <code>Authorization: Bearer &lt;agent key&gt;</code>. The key has scopes (what kinds of call it may make), a model allow-list, limits, an expiry, a <strong>custodian</strong>, and the specific apps it may reach.</li>
+<li><strong>Selecting an app on a key is the permission.</strong> There is no separate policy to write for this lab: when you save the key with an app selected, Privilege creates the grant for you.</li>
+</ul>
+<p>Words used below:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Word</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Gateway</strong></td>
+<td>The Privilege AI gateway: the host that proxies every call and records it. Written <code>&lt;gateway&gt;</code> below</td>
+</tr>
+<tr>
+<td><strong>App</strong> (a &quot;door&quot;)</td>
+<td>A backend you register behind the gateway, such as the worker or the MCP server. It gets a path on the gateway</td>
+</tr>
+<tr>
+<td><strong>Agent key</strong> (a &quot;virtual key&quot;)</td>
+<td>The credential an agent holds instead of the provider&#39;s key</td>
+</tr>
+<tr>
+<td><strong>Custodian</strong></td>
+<td>The person the agent acts as. Grants follow the custodian. If that person&#39;s account goes inactive, the key stops working</td>
+</tr>
+<tr>
+<td><strong>AI Guard</strong></td>
+<td>The per-key guardrail that screens the text an agent sends and receives</td>
+</tr>
+<tr>
+<td><strong>Federated identity</strong></td>
+<td>A trusted external token issuer a key can use instead of a stored secret (the console may still call it Non-Human Identity). Only <a href="#the-aws-agent-the-custodian-to-aws-agent-tab">the AWS agent section</a> uses it</td>
+</tr>
+<tr>
+<td><strong>Remote Agent</strong></td>
+<td>The app type for an A2A agent</td>
+</tr>
+</tbody></table></div>
+<h2 id="before-you-begin"><a class="hl" href="#before-you-begin" aria-label="Link to this section">#</a>Before you begin</h2>
+<p>You need:</p>
+<ul>
+<li>A <strong>PingOne Privilege tenant with an AI gateway</strong>, and a console login with rights to create apps and agents (MFA may be required). This is a Ping service, not something you install on your laptop. Ask your Privilege administrator for the console address, <strong>the gateway&#39;s host name</strong> (written <code>&lt;gateway&gt;</code> below, for example <code>gateway.example.invalid</code>) and <strong>which gateway cluster to choose</strong> in Step 3.</li>
+<li><strong>You do not set up PingOne for this lab.</strong> The lab has no PingOne settings. PingOne only hosts the Privilege tenant. If you have no tenant yet, adding Privilege to a PingOne environment, adding PingID, signing in the first time and granting yourself the Privilege administrator role are all console steps that no script does for you. Get them from whoever owns the tenant. PingFederate is a separate product and is needed only for the AWS tab&#39;s token flow (<a href="#the-aws-agent-the-custodian-to-aws-agent-tab">the AWS agent section</a>).</li>
+<li>A <strong>model provider</strong> you can register in Privilege: Anthropic, Google, or an OpenAI-compatible provider such as Groq. You need the provider&#39;s own API key once, to give to Privilege. It never goes in this lab&#39;s <code>.env</code>.</li>
+<li>For Path B only, <strong>somewhere the gateway can reach the worker and the MCP server.</strong> A remote gateway cannot reach <code>localhost</code> on your laptop. Run those two in a cluster or on a VM the gateway can see. For a trial on one machine, see <a href="#running-everything-on-one-machine-path-a">Running everything on one machine</a>; it covers model calls only, not the full four hops.</li>
+<li>A <strong>custodian</strong> for each key: a real user who will stay and who should answer for the agent.</li>
+</ul>
+<p>Names: the lab and its manifests use <code>workeragentdemo</code> and <code>mcpdemo</code> for the two apps. The names are yours to choose, but the URLs in your <code>.env</code> must use the same names. <strong>A key&#39;s name cannot be changed later</strong> (renaming means deleting and recreating it, which changes the key), so pick names you can live with.</p>
+<p>The order matters: register the apps first, start the MCP server, save the app again so its tools are found, then create the keys, and only then deploy the worker, because it needs its key.</p>
+<h2 id="step-1-register-the-model-provider-and-its-route"><a class="hl" href="#step-1-register-the-model-provider-and-its-route" aria-label="Link to this section">#</a>Step 1: Register the model provider and its route</h2>
+<p>Make the provider&#39;s route available. Some consoles have a provider screen (Agent Privilege, Provider Keys) where you register the provider&#39;s own API key and attach it to the route; others take the provider and its key only in the agent-key wizard (see the second bullet below). The routes the lab uses are:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Gateway route the lab uses</th>
+<th>Lab settings</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Anthropic</td>
+<td><code>https://&lt;gateway&gt;/llm/anthropic</code></td>
+<td><code>ANTHROPIC_BASE_URL</code></td>
+</tr>
+<tr>
+<td>Google</td>
+<td><code>https://&lt;gateway&gt;/llm/google</code></td>
+<td><code>GEMINI_BASE_URL</code>, and <code>MAIN_AGENT_PROVIDER</code> / <code>WORKER_AGENT_PROVIDER</code> set to <code>google</code></td>
+</tr>
+<tr>
+<td>Groq or another OpenAI-compatible provider</td>
+<td><code>https://&lt;gateway&gt;/llm/custom/v1</code> (an &quot;OpenAI-Compatible (Custom)&quot; connection)</td>
+<td><code>GROQ_BASE_URL</code>, <code>MAIN_AGENT_PROVIDER</code> / <code>WORKER_AGENT_PROVIDER</code> set to <code>groq</code>, and the Groq-bound agent key in <code>GROQ_API_KEY</code></td>
+</tr>
+</tbody></table></div>
+<ul>
+<li>A Privilege agent key is tied to <strong>one</strong> provider, so two providers means two keys. The Anthropic SDK appends <code>/v1/messages</code> itself; do not add it.</li>
+<li><strong>Where the provider&#39;s real key goes is UNVERIFIED.</strong> In the console&#39;s API the provider and its real key are fields of each <code>llm</code>-scoped agent key, and we found no separate &quot;Provider Keys&quot; object. So your console may have no separate screen for this step, and the real key may be entered only in the key wizard (Step 4 and Step 5). If you do find a provider screen, register the provider there; if you do not, go on to the next step on your path and enter the real key when the key wizard (Step 4 and Step 5) asks for it. Either way you do not paste it anywhere in the lab, and the API never returns it afterwards.</li>
+<li>The real key is yours: you have to type it into the console. Nothing can fetch it for you.</li>
+<li>The first real test of the provider and route is Step 9.</li>
+</ul>
+<h2 id="step-2-prepare-the-host-and-start-the-mcp-server"><a class="hl" href="#step-2-prepare-the-host-and-start-the-mcp-server" aria-label="Link to this section">#</a>Step 2: Prepare the host and start the MCP server</h2>
+<p>For Path B, <code>k8s/deployment.yaml</code> holds <strong>three</strong> Deployments and their Services: <code>mcpdemo</code>, <code>workeragentdemo</code> and <code>mainagentdemo</code>. It was written for one cluster, so edit its placeholders (namespace, image, secret names) first. Build the image for your cluster&#39;s CPU architecture.</p>
+<ul>
+<li>Apply only the <code>mcpdemo</code> documents now. Skip or delete <code>mainagentdemo</code>: the main agent runs on your machine in this layout, and that pod needs <code>MAIN_AGENT_KEY</code> and <code>A2A_BFF_SHARED_SECRET</code> in its Secret, so left in it fails to start.</li>
+<li><code>MCP_DEMO_INJECTION=true</code> is set on the <code>mcpdemo</code> Deployment already. It is what makes the poisoned record for the &quot;blocked&quot; demo.</li>
+<li>Hold the worker (<code>workeragentdemo</code>) back until Step 7.</li>
+</ul>
+<p>A VM running <code>npm run worker</code> and <code>npm run mcp</code>, reachable by the gateway, works too.</p>
+<h2 id="step-3-register-two-apps"><a class="hl" href="#step-3-register-two-apps" aria-label="Link to this section">#</a>Step 3: Register two apps</h2>
+<p>Console: <strong>Agentic Apps, Add Application</strong>, on the gateway cluster your administrator named.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>App</th>
+<th>Type</th>
+<th>Backend URL</th>
+<th>Entry path</th>
+<th>Auth mode</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>workeragentdemo</code></td>
+<td><strong>Remote Agent</strong></td>
+<td><code>http://workeragentdemo.&lt;namespace&gt;.svc.cluster.local</code> (or wherever the worker listens)</td>
+<td><code>/a2a</code></td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>mcpdemo</code></td>
+<td><strong>MCP</strong></td>
+<td><code>http://mcpdemo.&lt;namespace&gt;.svc.cluster.local</code> (or wherever the MCP server listens)</td>
+<td><code>/mcp</code></td>
+<td>None</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li>Register the worker as a <strong>Remote Agent</strong>, not as an HTTP or MCP app. Only Remote Agent apps appear in a key&#39;s Remote Agents list, and an app registered as MCP gets an MCP <code>initialize</code> sent to its <code>/a2a</code> path.</li>
+<li>&quot;Auth mode None&quot; is right here: the gateway has already authenticated the caller&#39;s agent key before it proxies the request.</li>
+<li>Once the MCP server is up, <strong>save the <code>mcpdemo</code> app again</strong> so the gateway discovers its tools. An empty tool list in Step 4 means this was skipped, or the gateway cannot reach the MCP server (a remote gateway cannot see <code>localhost</code>). Wait for the change to reach the gateway (see Step 9), then check the app&#39;s tool list before you go on.</li>
+<li>When the worker is running (Step 7), turn on <strong>Discover A2A agent card</strong> for it. The worker serves its card at <code>/.well-known/agent-card.json</code> and advertises <code>WORKER_PUBLIC_URL</code>, which should be <code>https://&lt;gateway&gt;/&lt;worker app name&gt;/a2a/jsonrpc</code>.</li>
+<li>The lab also reads the worker&#39;s trace at <code>/&lt;worker app name&gt;/trace</code>. That is a second path on the worker, separate from the entry path <code>/a2a</code>. UNVERIFIED: whether your gateway route serves it without a second app; if the trace panel stays empty, that is why.</li>
+</ul>
+<h2 id="step-4-create-the-worker-s-agent-key"><a class="hl" href="#step-4-create-the-worker-s-agent-key" aria-label="Link to this section">#</a>Step 4: Create the worker&#39;s agent key</h2>
+<p>Console: <strong>Agent Privilege, Agent Registry, Add Agent</strong> (older versions call it Agent Config). It is a four-step wizard.</p>
+<ol>
+<li><strong>Identity and access.</strong> Name, custodian, expiry, scopes. Give the worker only <code>llm</code> and <code>mcp</code>. A three-scope key is one secret that reaches models, tools and agents. (Path A: give it only <code>llm</code>; the apps below do not exist yet.)</li>
+<li><strong>Gateway and apps.</strong><ul>
+<li><code>llm</code>: choose the provider, <strong>one allowed model</strong>, and the rate and budget limits. Creating a key with the <code>llm</code> scope asks for the provider&#39;s real key; Privilege stores it and hands the agent only the virtual key.</li>
+<li><code>mcp</code>: select <code>mcpdemo</code>, then <strong>Configure Tools</strong> and allow each tool by name (other tools are hidden and refused). Do not leave the list blank and assume that means &quot;all&quot;.</li>
+</ul>
+</li>
+<li><strong>Runtime protection.</strong> The per-key guardrail (AI Guard). See Step 6.</li>
+<li><strong>Review and create.</strong> Shows the key (a long string with a vendor prefix; the exact prefix varies) and ready-made calling code. <strong>Copy it now and treat it as a secret.</strong></li>
+</ol>
+<h2 id="step-5-create-the-main-agent-s-key"><a class="hl" href="#step-5-create-the-main-agent-s-key" aria-label="Link to this section">#</a>Step 5: Create the main agent&#39;s key</h2>
+<p>Same wizard. Scopes <code>llm</code> and <code>a2a</code>. A <strong>different</strong> allowed model from the worker, so the two agents show up separately in the records. Under Remote Agents, select <code>workeragentdemo</code> (Path A: skip this, and give the main key only <code>llm</code>). The provider you pick for this key must match <code>MAIN_AGENT_PROVIDER</code> in <code>.env</code> (and the worker&#39;s key must match <code>WORKER_AGENT_PROVIDER</code>).</p>
+<p>Use Auth Mode None (or Static Token) on the worker app for these key callers: a key cannot satisfy Pass Agent Token.</p>
+<p>For the optional three-deep chain, a middle agent needs its own key with scope <code>a2a</code>, its specialists selected, and a <strong>different custodian</strong> from the main agent: remote-agent grants follow the custodian, so two agents under one custodian can reach each other&#39;s agents. The middle agent is a separate agent that is <strong>not in this repo or in the manifest</strong>, so you must bring your own. Then set <code>CHAIN_A2A_URL=https://&lt;gateway&gt;/&lt;middle app&gt;/a2a/jsonrpc</code>; blank disables the chain.</p>
+<h2 id="step-6-decide-how-the-guardrail-behaves"><a class="hl" href="#step-6-decide-how-the-guardrail-behaves" aria-label="Link to this section">#</a>Step 6: Decide how the guardrail behaves</h2>
+<p>AI Guard is per key. On our tenant its defaults mostly <strong>alert rather than block</strong>, but this is UNVERIFIED for yours, and the lab&#39;s README treats the poisoned-record demo as blocked. Check the worker key&#39;s AI Guard settings and set it to block if you want the refusal. If it does not block, the poisoned text reaches the model and the model may ask to open a ticket (the MCP server prints a <code>[mcp] ticket</code> line when that happens). You will still see the call and an alert in the gateway log. The console&#39;s API also has an AI Guard field on the app itself. We have not checked whether it matters here, so set the key&#39;s, and look at the app&#39;s if the block does not happen.</p>
+<h2 id="step-7-put-the-keys-where-each-agent-runs-and-deploy-the-worker"><a class="hl" href="#step-7-put-the-keys-where-each-agent-runs-and-deploy-the-worker" aria-label="Link to this section">#</a>Step 7: Put the keys where each agent runs, and deploy the worker</h2>
+<ul>
+<li><strong>Main agent key:</strong> <code>.env</code>, as <code>MAIN_AGENT_KEY</code>.</li>
+<li><strong>Worker key:</strong> the Secret the worker&#39;s Deployment reads (<code>privilege-a2a-demo</code> in the manifest), as <code>WORKER_AGENT_KEY</code>. Create it in your namespace with <code>kubectl create secret generic</code>, then continue below.</li>
+<li><strong>Paste a key once.</strong> A doubled key is refused as <code>invalid virtual key</code>.</li>
+<li>Keep <code>.env</code> mode 600. Never paste a key into a chat, a ticket or a screenshot. The console shows keys unredacted and the gateway log can contain them, so restrict who can read those.</li>
+</ul>
+<p>Before you apply the worker, edit these values in its Deployment (they hold placeholders, and it is easy to miss one):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Set it to</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>WORKER_PUBLIC_URL</code></td>
+<td><code>https://&lt;gateway&gt;/&lt;worker app name&gt;/a2a/jsonrpc</code></td>
+</tr>
+<tr>
+<td><code>ANTHROPIC_BASE_URL</code> (or <code>GEMINI_BASE_URL</code>)</td>
+<td>Your gateway route from Step 1</td>
+</tr>
+<tr>
+<td><code>WORKER_AGENT_PROVIDER</code></td>
+<td><code>anthropic</code>, <code>google</code> or <code>groq</code></td>
+</tr>
+<tr>
+<td><code>WORKER_AGENT_MODEL</code></td>
+<td>Exactly the model the worker key allows</td>
+</tr>
+<tr>
+<td><code>MCP_URL</code></td>
+<td><code>https://&lt;gateway&gt;/&lt;mcp app name&gt;/mcp</code></td>
+</tr>
+<tr>
+<td>ANTHROPIC_AUTH_TOKEN (read from a Secret called <code>ai-demo-secrets</code>)</td>
+<td>Change it to read the worker key from your Secret, or remove it. As shipped it points at a different Secret and may override <code>WORKER_AGENT_KEY</code>, so the worker&#39;s model calls would use the wrong key</td>
+</tr>
+</tbody></table></div>
+<p>Then <code>kubectl apply</code> the worker&#39;s Deployment and Service.</p>
+<h2 id="step-8-point-the-lab-at-the-gateway"><a class="hl" href="#step-8-point-the-lab-at-the-gateway" aria-label="Link to this section">#</a>Step 8: Point the lab at the gateway</h2>
+<p>Copy <code>config.example</code> to <code>.env</code> (it sets the provider names for you; a hand-written <code>.env</code> falls back to a different default provider) and set:</p>
+<pre><code class="language-dotenv">ANTHROPIC_BASE_URL=https://&lt;gateway&gt;/llm/anthropic
+MAIN_AGENT_KEY=&lt;the main agent key&gt;
+WORKER_AGENT_KEY=&lt;the worker key, if the worker runs on this machine&gt;
+MAIN_AGENT_MODEL=&lt;exactly a model the main key allows&gt;
+WORKER_AGENT_MODEL=&lt;exactly a model the worker key allows&gt;
+WORKER_A2A_URL=https://&lt;gateway&gt;/&lt;worker app name&gt;/a2a
+WORKER_TRACE_URL=https://&lt;gateway&gt;/&lt;worker app name&gt;/trace
+MCP_URL=https://&lt;gateway&gt;/&lt;mcp app name&gt;/mcp
+</code></pre>
+<ul>
+<li>The model ID must match what the key allows <strong>exactly</strong>. A <code>-latest</code> alias or a near miss gives <code>403 model &quot;x&quot; not allowed for this key</code>.</li>
+<li>The provider&#39;s real key is never in <code>.env</code>.</li>
+<li><code>WORKER_A2A_URL</code> ends in <code>/a2a</code> because the lab adds <code>/jsonrpc</code> itself. The smoke test in Step 9 calls the full path, <code>/a2a/jsonrpc</code>. Both are right.</li>
+<li><strong>Docker Compose caveat.</strong> <code>docker-compose.yml</code> pins the worker&#39;s <code>MCP_URL</code> and <code>WORKER_PUBLIC_URL</code> to local values, and those beat <code>.env</code>. With Compose, the worker&#39;s MCP calls stay local and ungoverned. To govern them, run the worker with <code>npm run worker</code>, or edit the worker service in the Compose file.</li>
+</ul>
+<h2 id="step-9-wait-then-verify"><a class="hl" href="#step-9-wait-then-verify" aria-label="Link to this section">#</a>Step 9: Wait, then verify</h2>
+<p>App and policy changes take about <strong>four minutes</strong> to reach the gateway; allow up to six. Do not conclude it failed before then, and read the <strong>response body</strong>, not just the status: a <code>200</code> can carry a JSON-RPC error.</p>
+<p><code>npm run doctor</code> checks only your own machine (Node, <code>.env</code> permissions, the build, the lab&#39;s <code>/api/health</code>). It never calls the gateway, and it can pass with nothing configured. The checks that tell you Privilege is set up are these:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Path</th>
+<th>How</th>
+<th>Expect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Worker key reaches its model</td>
+<td>A and B</td>
+<td>A one-line model call to the route you set up in Step 1 for your provider, with the worker key and the exact allowed model. The request shape depends on the provider (Anthropic Messages, Gemini generateContent, OpenAI-compatible)</td>
+<td><code>200</code></td>
+</tr>
+<tr>
+<td>Main key reaches its model</td>
+<td>A and B</td>
+<td>The same, with the main key and its own model</td>
+<td><code>200</code></td>
+</tr>
+<tr>
+<td>Worker&#39;s tools are discovered</td>
+<td>B only</td>
+<td>An MCP session on <code>&lt;gateway&gt;/&lt;mcp app name&gt;/mcp</code> with the worker key: <code>initialize</code> first, then <code>tools/list</code>. UNVERIFIED: the exact calls your gateway accepts, so use any MCP client you have</td>
+<td>The tools you allowed in Step 4, and no others</td>
+</tr>
+<tr>
+<td>Main key reaches the worker</td>
+<td>B only</td>
+<td>The smoke test below</td>
+<td><code>200</code>, and a <code>result</code> (not an <code>error</code>) in the body</td>
+</tr>
+<tr>
+<td>A missing scope is refused</td>
+<td>B only</td>
+<td>Call <code>&lt;gateway&gt;/&lt;mcp app name&gt;/mcp</code> with the <strong>main</strong> key (it has no <code>mcp</code> scope)</td>
+<td><code>403 key not scoped for mcp access</code></td>
+</tr>
+<tr>
+<td>An unknown key is refused</td>
+<td>A and B</td>
+<td>Any call with a made-up key</td>
+<td><code>401</code></td>
+</tr>
+</tbody></table></div>
+<p>Smoke-test the worker through the gateway with the main key (swap the path for any scope). It prints the body, then the status code on its own line:</p>
+<pre><code class="language-bash">curl -s -w &#39;\n%{http_code}\n&#39; -X POST &quot;https://&lt;gateway&gt;/&lt;worker app name&gt;/a2a/jsonrpc&quot; \
+  -H &quot;Authorization: Bearer $MAIN_AGENT_KEY&quot; -H &#39;Content-Type: application/json&#39; \
+  -d &#39;{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;message/send&quot;,&quot;params&quot;:{&quot;message&quot;:{&quot;role&quot;:&quot;user&quot;,&quot;messageId&quot;:&quot;m1&quot;,&quot;parts&quot;:[{&quot;kind&quot;:&quot;text&quot;,&quot;text&quot;:&quot;Hello&quot;}]}}}&#39;
+</code></pre>
+<p>Expect <code>200</code> and a JSON body with a <code>result</code>; an <code>error</code> object inside a <code>200</code> is a failure. <code>401</code> means the key; a bare <code>403</code> see <a href="#troubleshooting">Troubleshooting</a>; <code>404</code> means the app name or path is wrong.</p>
+<p>Then start the lab (<code>npm run dev</code>, or <code>docker compose up --build -d</code>), switch the Mode menu to <strong>Real</strong>, and ask:</p>
+<ul>
+<li><code>Review Carol Nguyen&#39;s access</code>: allowed; the trace shows each hop.</li>
+<li>With <code>MCP_DEMO_INJECTION=true</code> on the MCP server, <code>What access does Dave hold?</code>: comes back <strong>blocked</strong> only if the worker key&#39;s AI Guard is set to block (Step 6). Either way, the check is the MCP server&#39;s log: with a block, no <code>[mcp] ticket</code> line appears for Dave.</li>
+</ul>
+<p>The Mode menu offers Real only when a model provider is configured; otherwise the option is disabled and says why.</p>
+<h2 id="the-aws-agent-the-custodian-to-aws-agent-tab"><a class="hl" href="#the-aws-agent-the-custodian-to-aws-agent-tab" aria-label="Link to this section">#</a>The AWS agent (the &quot;Custodian to AWS agent&quot; tab)</h2>
+<p>Only if you want that tab live. Everything before this section comes first. The lab never calls AWS itself: it calls a gateway route that fronts your AWS agent.</p>
+<p>Pick one:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>I want</th>
+<th>Auth mode</th>
+<th>You also need</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>The tab to work</td>
+<td><strong>Static Token</strong></td>
+<td>Nothing beyond the app below. Set only <code>AWS_AGENT_A2A_URL</code></td>
+</tr>
+<tr>
+<td>To reproduce the video&#39;s token flow</td>
+<td><strong>Pass Agent Token</strong></td>
+<td>PingFederate and a federated identity (below)</td>
+</tr>
+</tbody></table></div>
+<p>You also need, and the lab does <strong>not</strong> include:</p>
+<ul>
+<li>An <strong>AWS account</strong> and an agent on <strong>Amazon Bedrock AgentCore</strong> that serves A2A with <strong>OAuth/JWT inbound authorization</strong>. A runtime that accepts only AWS SigV4 cannot sit behind a Privilege Remote Agent app.</li>
+<li>A <strong>Remote Agent app</strong> in Privilege for that runtime, with the auth mode from the table. Select the app on the main agent&#39;s key; that selection is the grant, as in <a href="#what-you-are-building">What you are building</a>.</li>
+<li><code>AWS_AGENT_A2A_URL=https://&lt;gateway&gt;/&lt;aws agent app&gt;/a2a</code>. The call carries <code>MAIN_AGENT_KEY</code>. <code>AWS_AGENT_CUSTODIAN</code> is only the name the page shows.</li>
+</ul>
+<p><strong>The token flow shown in the video</strong> (Pass Agent Token). A key alone cannot satisfy that mode, because it carries no workload assertion to forward. So the AWS agent&#39;s key must be one whose custodian is a federated identity:</p>
+<ol>
+<li>Create the <strong>federated identity</strong> for the PingFederate client, with the <strong>issuer</strong> your token endpoint signs as, a <strong>JWKS</strong> the gateway can fetch, the <strong>audience</strong> bound to the route (an unbound token could be replayed elsewhere), and required claims <strong><code>client_id</code></strong> and <strong><code>act.sub</code></strong>, where <code>act</code> is a JSON object, not text.</li>
+<li>Create an <strong>agent key whose custodian is that federated identity</strong>. It has no stored secret, no workload identity of its own and no human user. An identity with no key behind it authenticates nobody (the gateway log shows <code>rebuilding 0 key(s)</code>).</li>
+<li>Add the AWS agent&#39;s app to <strong>that key&#39;s</strong> grant, <strong>in the console</strong>. Do not create this grant through the API: in our tests a grant created by API for a key with a federated-identity custodian was deleted by the gateway within about 80 seconds in our tests (cause unknown, and we tried it on one tenant). The route we have seen survive is to add the app to the grant the console made when you saved the key.</li>
+<li>In <code>.env</code>, set <code>AWS_AGENT_PF_TOKEN_URL</code>, <code>AWS_AGENT_PF_CLIENT_ID</code> and <code>AWS_AGENT_PF_CLIENT_SECRET</code>: all three or none, or the main agent stops at startup.</li>
+</ol>
+<p>PingFederate needs:</p>
+<ul>
+<li>version 13.1 or later, licensed, and <strong>reachable from the gateway</strong> (not <code>127.0.0.1</code>, not a laptop address);</li>
+<li>a client-credentials client for the lab;</li>
+<li>a JWT token manager that signs with its own published key and emits <code>client_id</code>, <code>sub</code> and an <code>act</code> claim that is an object (<code>act.sub</code>).</li>
+</ul>
+<p>The issuer, the JWKS address and the audience in the federated identity are your PingFederate&#39;s own values. The lab asks for its token with a plain client-credentials request (no <code>resource</code> and no <code>scope</code>); whether your token manager answers that request is <strong>UNVERIFIED</strong>, so test the token endpoint with a <code>curl</code> first. The rest of the PingFederate setup is <strong>UNVERIFIED</strong> here: this repo does not document it.</p>
+<p>AWS-side traps: the runtime id goes in the URL path as <code>/runtimes/&lt;id&gt;/invocations/?accountId=&lt;id&gt;</code> (an ARN in the path gives a misleading &quot;anonymous is not authorized&quot; error); the JWT discovery URL must be reachable from the internet and have no path; <code>allowedClients</code> must list the client id that is inside the token.</p>
+<p>The &quot;Gateway to Bedrock (IAM)&quot; tab is simulated and needs nothing.</p>
+<h2 id="troubleshooting"><a class="hl" href="#troubleshooting" aria-label="Link to this section">#</a>Troubleshooting</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>What you see</th>
+<th>Usual cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>401</code>, or <code>401 invalid virtual key</code> on a model call</td>
+<td>Wrong, mistyped, doubled, revoked or expired key</td>
+<td>Check the key exists, is not revoked, is not past its expiry</td>
+</tr>
+<tr>
+<td><code>403 key not scoped for mcp access</code></td>
+<td>The key lacks that scope (the only self-describing refusal)</td>
+<td>Add the scope</td>
+</tr>
+<tr>
+<td>bare <code>403 Forbidden</code></td>
+<td>The app is not selected on the key, <strong>or</strong> the remote agent&#39;s Auth Mode cannot be satisfied by a key</td>
+<td>Rule out those two first. To tell them apart you need the gateway log: <code>policy denied</code> means a missing grant; <code>requires token-pass</code> means the auth mode</td>
+</tr>
+<tr>
+<td><code>403 model &quot;x&quot; not allowed for this key</code></td>
+<td>Model not on the key&#39;s allow-list</td>
+<td>Use the exact allowed ID</td>
+</tr>
+<tr>
+<td><code>403 wrong_provider</code></td>
+<td>The key belongs to a different provider</td>
+<td>Use the matching key</td>
+</tr>
+<tr>
+<td><code>429</code> with <code>retry-after</code></td>
+<td>Rate or budget cap</td>
+<td>Wait or raise the cap</td>
+</tr>
+<tr>
+<td><code>400 content_blocked</code>, or JSON-RPC <code>-32600 request blocked by security policy</code></td>
+<td>AI Guard blocked the text</td>
+<td>Working as designed</td>
+</tr>
+<tr>
+<td><code>200</code> with an <strong>empty body</strong></td>
+<td>A gateway node with stale routing, not an auth problem</td>
+<td>Restart that gateway node. If you do not run the gateway, ask its administrator to restart it</td>
+</tr>
+</tbody></table></div>
+<p>Order to check things: what exactly the caller sees, whether the key is alive, the scope, the provider and the model, whether the app is <strong>selected</strong> on the key (and whether you waited four minutes), the remote agent&#39;s Auth Mode, and then the <strong>gateway log</strong>. The bare <code>403</code> is explained only there. If you do not run the gateway, ask its administrator to read the log lines for you. Gateway probes can mislead you: the gateway answers metadata and <code>401</code> for any door path, including apps that do not exist, so a <code>401</code> proves nothing.</p>
+<h2 id="running-everything-on-one-machine-path-a"><a class="hl" href="#running-everything-on-one-machine-path-a" aria-label="Link to this section">#</a>Running everything on one machine (Path A)</h2>
+<p>Leave <code>WORKER_A2A_URL</code>, <code>WORKER_TRACE_URL</code> and <code>MCP_URL</code> on their loopback defaults and keep only <code>ANTHROPIC_BASE_URL</code> (and the keys) pointing at the gateway. Then only the model calls go through Privilege; the A2A and MCP hops stay local and are not governed. That is enough to see model records and policy, but it is not the full four-hop story. You still need the gateway to be reachable from your machine, and the worker key must be the one the worker process reads (<code>WORKER_AGENT_KEY</code> in <code>.env</code>).</p>
+<h2 id="what-a-script-can-and-cannot-do-for-you"><a class="hl" href="#what-a-script-can-and-cannot-do-for-you" aria-label="Link to this section">#</a>What a script can and cannot do for you</h2>
+<p>This section is for people who want to automate setup; you can skip it. There is <strong>no setup script</strong> for this lab yet: every Privilege object in the steps (Steps 1 and 3 to 6) is created by hand in the console. What a script could do, from what we found (&quot;Yes&quot; means possible, not available):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Can a script do it?</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Fill in <code>.env</code> from <code>config.example</code> (mode 600, keys typed without echo)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>The checks in the table in Step 9</td>
+<td>Yes, read-only</td>
+</tr>
+<tr>
+<td>Create the two apps, the two keys and their grants through the console API</td>
+<td>Partly. The API supports it, but no working body has been proven on an empty tenant, and signing in to the API for a cloud console is a 60-minute browser cookie</td>
+</tr>
+<tr>
+<td>AI Guard thresholds on the key</td>
+<td>Partly. The values that make the &quot;blocked&quot; demo block are unverified</td>
+</tr>
+<tr>
+<td>The federated identity and its key</td>
+<td>Partly. The grant must stay in the console (<a href="#the-aws-agent-the-custodian-to-aws-agent-tab">the AWS agent section</a>)</td>
+</tr>
+<tr>
+<td>The PingFederate client and token manager</td>
+<td>Partly, through PingFederate&#39;s admin API, with a script written for this lab</td>
+</tr>
+<tr>
+<td>Console sign-in and MFA, the provider&#39;s real key, the Privilege tenant, the AWS role and runtime, the desktop agent</td>
+<td>No</td>
+</tr>
+</tbody></table></div>
+<p>Never let a script print a key. The console&#39;s API, the gateway log and the audit feed all show agent keys unredacted.</p>
+<h2 id="what-this-guide-does-not-cover"><a class="hl" href="#what-this-guide-does-not-cover" aria-label="Link to this section">#</a>What this guide does not cover</h2>
+<ul>
+<li>Installing or licensing a Privilege tenant or gateway itself.</li>
+<li>Whether the Privilege desktop agent is needed when you only use a hosted gateway: the lab documents it only for one failure (an &quot;unregistered&quot; agent), see the main README.</li>
+<li>Elasticsearch and log shipping for the live rows in &quot;Run observability&quot; (see the main README).</li>
+<li>Exact AI Guard settings and policy object names: they depend on your tenant.</li>
+</ul>
+<p>Keys expire. Put each key&#39;s expiry on a calendar. To rotate one you recreate it with the same name (its grants follow the name); snapshot its settings first and keep the provider&#39;s real key at hand, because an <code>llm</code>-scoped key cannot be recreated without it.</p>
+
+      </article>
+
+      <nav class="toc" aria-label="In this guide">
+        <p class="toc-title">In this guide</p>
+    <a href="#pick-your-path-first" class="toc-h2">Pick your path first</a>
+    <a href="#what-you-are-building" class="toc-h2">What you are building</a>
+    <a href="#before-you-begin" class="toc-h2">Before you begin</a>
+    <a href="#step-1-register-the-model-provider-and-its-route" class="toc-h2">Step 1: Register the model provider and its route</a>
+    <a href="#step-2-prepare-the-host-and-start-the-mcp-server" class="toc-h2">Step 2: Prepare the host and start the MCP server</a>
+    <a href="#step-3-register-two-apps" class="toc-h2">Step 3: Register two apps</a>
+    <a href="#step-4-create-the-worker-s-agent-key" class="toc-h2">Step 4: Create the worker&#39;s agent key</a>
+    <a href="#step-5-create-the-main-agent-s-key" class="toc-h2">Step 5: Create the main agent&#39;s key</a>
+    <a href="#step-6-decide-how-the-guardrail-behaves" class="toc-h2">Step 6: Decide how the guardrail behaves</a>
+    <a href="#step-7-put-the-keys-where-each-agent-runs-and-deploy-the-worker" class="toc-h2">Step 7: Put the keys where each agent runs, and deploy the worker</a>
+    <a href="#step-8-point-the-lab-at-the-gateway" class="toc-h2">Step 8: Point the lab at the gateway</a>
+    <a href="#step-9-wait-then-verify" class="toc-h2">Step 9: Wait, then verify</a>
+    <a href="#the-aws-agent-the-custodian-to-aws-agent-tab" class="toc-h2">The AWS agent (the &quot;Custodian to AWS agent&quot; tab)</a>
+    <a href="#troubleshooting" class="toc-h2">Troubleshooting</a>
+    <a href="#running-everything-on-one-machine-path-a" class="toc-h2">Running everything on one machine (Path A)</a>
+    <a href="#what-a-script-can-and-cannot-do-for-you" class="toc-h2">What a script can and cannot do for you</a>
+    <a href="#what-this-guide-does-not-cover" class="toc-h2">What this guide does not cover</a>
+      </nav>
+    </div>
+</main>
+<footer class="site-footer"><div class="wrap-wide">
+  <span>Privilege A2A lab</span>
+  <span>Setup guide</span>
+</div></footer>
+<script src="assets/site.js" defer></script>
+<script src="assets/lab.js" defer></script>
+</body></html>

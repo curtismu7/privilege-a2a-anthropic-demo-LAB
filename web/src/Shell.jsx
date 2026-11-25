@@ -29,6 +29,7 @@ export class StoryBoundary extends React.Component {
 
 export const THEME_KEY = "paad.theme"; // the keys the page already used
 export const FONT_KEY = "pa2a.font";
+export const SETUP_URL = "/setup/"; // the Privilege setup guide page, served by the main agent (src/main-agent/index.ts)
 export const REAL_HINT = "Real needs a model provider: set ANTHROPIC_API_KEY (or a Groq/llama.cpp config) and restart. Mock (heuristics) works offline.";
 
 const FONT_STEPS = ["S", "M", "L"];
@@ -123,7 +124,7 @@ export default function Shell() {
       fontSize={{ value: fontStep, onChange: changeFont }}
       shelfUrl={shelfUrl || undefined}
       onReset={reset}
-      extra={<>{note ? <span className="shell-note" role="alert" data-testid="mode-note">{note}</span> : null}<StoryToggle key={toggleKey} prefix={STORY_PREFIX} onChange={onView} /></>}
+      extra={<>{realAvailable === false ? <a className="shell-setup-link" href={SETUP_URL} target="_blank" rel="noopener" data-testid="setup-link">How to set up Real</a> : null}{note ? <span className="shell-note" role="alert" data-testid="mode-note">{note}</span> : null}<StoryToggle key={toggleKey} prefix={STORY_PREFIX} onChange={onView} /></>}
     />
     {storyOn ? <StoryBoundary onExit={leaveStory}><Suspense fallback={null}><StoryRoot mode={mode} ready={modeKnown} onExit={leaveStory} prefix={STORY_PREFIX} /></Suspense></StoryBoundary> : null}
     </>

@@ -22,6 +22,7 @@ html { font-size: var(--fs, 16px); }
 .shell-bar .shell-right { margin-left: auto; order: 2; }
 .shell-bar .top-menu { max-width: 100%; }
 /* Why a mode switch did not happen, next to the Mode select. */
+.shell-setup-link { font-size: 0.78rem; font-weight: 600; line-height: 1.35; color: var(--on-box); text-decoration: underline; text-underline-offset: 3px; }
 .shell-note { max-width: 26rem; font-size: 0.78rem; font-weight: 600; line-height: 1.35; color: var(--on-box); overflow-wrap: anywhere; }
 @media (max-width: 600px) { .shell-bar { gap: 10px; padding: 10px 16px; } }
 
