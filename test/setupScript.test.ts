@@ -175,7 +175,8 @@ test('the checklist matches the repo: app names, entry paths and the tool names 
   for (const name of Object.values(lib.DEFAULT_APPS)) assert.match(k8s, new RegExp(`^  name: ${name}$`, 'm'), `${name} is a Deployment in the manifest`);
   assert.match(k8s, /workeragentdemo\s+Remote Agent\s+http:\/\/workeragentdemo\.\S+\s+entry path \/a2a/);
   assert.match(k8s, /mcpdemo\s+MCP\s+http:\/\/mcpdemo\.\S+\s+entry path \/mcp/);
-  const registered = [...read('src/mcp-server/index.ts').matchAll(/server\.registerTool\(\s*'([a-z_]+)'/g)].map(m => m[1]);
+  // Only the tools registered unconditionally (two-space indent). Flag-gated extras such as transfer_funds sit inside an `if` and are not in the checklist.
+  const registered = [...read('src/mcp-server/index.ts').matchAll(/^ {2}server\.registerTool\(\s*'([a-z_]+)'/gm)].map(m => m[1]);
   assert.deepEqual(registered, lib.CORE_TOOLS, 'the checklist names exactly the four tools the server registers by name');
   const both = lib.checklist({});
   for (const needle of ['workeragentdemo', 'mcpdemo', '/a2a', '/mcp', 'llm, mcp', 'llm, a2a', ...lib.CORE_TOOLS]) assert.ok(both.includes(needle), `checklist names ${needle}`);
