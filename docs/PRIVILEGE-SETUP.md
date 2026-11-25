@@ -140,7 +140,9 @@ Then `kubectl apply` the worker's Deployment and Service.
 
 ### Step 8. Point the lab at the gateway
 
-Copy `config.example` to `.env` (it sets the provider names for you; a hand-written `.env` falls back to a different default provider) and set:
+The quick way: `npm run setup -- --gateway <gateway> --main-model <id> --worker-model <id>` shows what it would write and prints the console checklist (it writes nothing; the `--` is needed so npm passes the options on); add `--apply` to write `.env` (mode 600, the old file backed up first). It asks for the two agent keys without echo, or reads them from `MAIN_AGENT_KEY` and `WORKER_AGENT_KEY` in your shell, and never prints one. **On Path A add `--path a` to every command**: the default is Path B, which also points the worker, trace and MCP URLs at the gateway. It supports Anthropic and Google; for Groq or llama.cpp edit `.env` by hand (Step 1). It wants both keys in this `.env`, even if the worker runs in a cluster, because `--verify` uses them; that is an extra copy of a credential, so skip it (and those checks) if you prefer. See section 7.
+
+By hand: copy `config.example` to `.env` (it sets the provider names for you; a hand-written `.env` falls back to a different default provider) and set:
 
 ```dotenv
 ANTHROPIC_BASE_URL=https://<gateway>/llm/anthropic
@@ -162,7 +164,7 @@ MCP_URL=https://<gateway>/<mcp app name>/mcp
 
 App and policy changes take about **four minutes** to reach the gateway; allow up to six. Do not conclude it failed before then, and read the **response body**, not just the status: a `200` can carry a JSON-RPC error.
 
-`npm run doctor` checks only your own machine (Node, `.env` permissions, the build, the lab's `/api/health`). It never calls the gateway, and it can pass with nothing configured. The checks that tell you Privilege is set up are these:
+`npm run doctor` checks only your own machine (Node, `.env` permissions, the build, the lab's `/api/health`). It never calls the gateway, and it can pass with nothing configured. The checks that tell you Privilege is set up are these, and `npm run setup -- --verify --wait 6` runs them for you (add `--path a` for Path A):
 
 | Check | Path | How | Expect |
 |---|---|---|---|
@@ -170,7 +172,7 @@ App and policy changes take about **four minutes** to reach the gateway; allow u
 | Main key reaches its model | A and B | The same, with the main key and its own model | `200` |
 | Worker's tools are discovered | B only | An MCP session on `<gateway>/<mcp app name>/mcp` with the worker key: `initialize` first, then `tools/list`. UNVERIFIED: the exact calls your gateway accepts, so use any MCP client you have | The tools you allowed in Step 4, and no others |
 | Main key reaches the worker | B only | The smoke test below | `200`, and a `result` (not an `error`) in the body |
-| A missing scope is refused | B only | Call `<gateway>/<mcp app name>/mcp` with the **main** key (it has no `mcp` scope) | `403 key not scoped for mcp access` |
+| A missing scope is refused | B only | Call `<gateway>/<mcp app name>/mcp` with the **main** key (it has no `mcp` scope) | `403` (or `401`) with a "not scoped" message |
 | An unknown key is refused | A and B | Any call with a made-up key | `401` |
 
 Smoke-test the worker through the gateway with the main key (swap the path for any scope). It prints the body, then the status code on its own line:
@@ -231,7 +233,8 @@ The "Gateway to Bedrock (IAM)" tab is simulated and needs nothing.
 | What you see | Usual cause | Fix |
 |---|---|---|
 | `401`, or `401 invalid virtual key` on a model call | Wrong, mistyped, doubled, revoked or expired key | Check the key exists, is not revoked, is not past its expiry |
-| `403 key not scoped for mcp access` | The key lacks that scope (the only self-describing refusal) | Add the scope |
+| `401 virtual key not scoped for llm access` (seen on a real gateway, 2026-11-25) | The key was created without the `llm` scope, or the route is for another provider | Add the scope on the key in the console (Steps 4 and 5), or use the key made for that provider; wait for the change to reach the gateway |
+| `403 key not scoped for mcp access` | The key lacks that scope (self-describing refusals like this and the 401 above are the exceptions) | Add the scope |
 | bare `403 Forbidden` | The app is not selected on the key, **or** the remote agent's Auth Mode cannot be satisfied by a key | Rule out those two first. To tell them apart you need the gateway log: `policy denied` means a missing grant; `requires token-pass` means the auth mode |
 | `403 model "x" not allowed for this key` | Model not on the key's allow-list | Use the exact allowed ID |
 | `403 wrong_provider` | The key belongs to a different provider | Use the matching key |
@@ -247,12 +250,20 @@ Leave `WORKER_A2A_URL`, `WORKER_TRACE_URL` and `MCP_URL` on their loopback defau
 
 ## 7. What a script can and cannot do for you
 
-This section is for people who want to automate setup; you can skip it. There is **no setup script** for this lab yet: every Privilege object in section 3 (Steps 1 and 3 to 6) is created by hand in the console. What a script could do, from what we found ("Yes" means possible, not available):
+This section is for people who want to automate setup; you can skip it. `npm run setup` does the part that needs no console credentials, and it never creates a Privilege object: every one in the steps (Steps 1 and 3 to 6) is still made by hand in the console. It has three modes:
+
+| Command | What it does |
+|---|---|
+| `npm run setup -- --gateway <host> --main-model <id> --worker-model <id>` | The plan (the default): shows the `.env` lines it would write and prints the console checklist (the apps, scopes, models and tool names to enter). Writes nothing (`--checklist` prints only the checklist). The `--` after `npm run setup` is required, and on Path A every command also needs `--path a` |
+| `npm run setup -- --apply` | Writes `.env` from `config.example` (mode 600), changing only the lines it names. An existing `.env` is backed up first, and running it twice changes nothing. Keys come from a hidden prompt or from `MAIN_AGENT_KEY` and `WORKER_AGENT_KEY` in your shell. Refuses a doubled or too-short key, a key or value the `.env` loader would misread, a partial PingFederate trio, a missing model, a gateway with a path, a provider other than Anthropic or Google, or a linked `.env`, before writing anything |
+| `npm run setup -- --verify` | The six checks in Step 9, each PASS or FAIL with the status and the reason; exits 1 if any fail. It changes nothing in `.env` or Privilege, but it makes real model and agent calls (a few tokens, and records in the gateway log). It refuses to send a key to any address that is not the gateway's own, or that is not https. `--wait <minutes>` keeps retrying checks that can clear on their own, up to that long in total across all the checks (the gateway takes about four, up to six, minutes). A `200` with an empty body or a JSON-RPC error is a FAIL |
+
+It never prints a key, not even in an error. When it writes keys it reminds you to save them in your password manager; it cannot read your vault. `npm run setup -- --help` lists every option.
+
+What more could be automated, from what we found ("Partly" means possible but not built):
 
 | Task | Can a script do it? |
 |---|---|
-| Fill in `.env` from `config.example` (mode 600, keys typed without echo) | Yes |
-| The checks in the table in Step 9 | Yes, read-only |
 | Create the two apps, the two keys and their grants through the console API | Partly. The API supports it, but no working body has been proven on an empty tenant, and signing in to the API for a cloud console is a 60-minute browser cookie |
 | AI Guard thresholds on the key | Partly. The values that make the "blocked" demo block are unverified |
 | The federated identity and its key | Partly. The grant must stay in the console (section 4) |

@@ -22,7 +22,8 @@
     "build:web": "npm run build -w web",
     "build:guide": "node scripts/build-setup-guide.mjs",
     "test": "npm run build:web && tsx --test test/*.test.ts && npm test -w web",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "setup": "node scripts/setup.mjs"
   },
   "dependencies": {
     "@a2a-js/sdk": "^0.3.14",

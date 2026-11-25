@@ -89,7 +89,6 @@ export function buildGuide(md) {
   body = must(body, 'Everything in sections 1 to 3 comes first.', 'Everything before this section comes first.');
   body = must(body, 'All of section 3', 'All nine steps');
   body = must(body, 'as in section 1', `as in <a href="#${idFor('What you are building')}">What you are building</a>`);
-  body = must(body, 'every Privilege object in section 3 (', 'every Privilege object in the steps (');
   body = body.replace(/\b[Ss]ection (\d)\b/g, (m, n) => {
     const ref = REF[n];
     return ref ? `<a href="#${idFor(ref[0])}">${ref[1]}</a>` : m;
