@@ -12,6 +12,8 @@ COPY web ./web
 COPY server ./server
 # The Story wording (GET /api/story) is read from video/captions.md at run time; the rest of video/ stays out of the image.
 COPY video/captions.md ./video/captions.md
+# The setup guide page (/setup/) is plain static files built from docs/PRIVILEGE-SETUP.md; the rest of docs/ stays out of the image.
+COPY docs/setup-guide ./docs/setup-guide
 # `npm run build` compiles the server (tsc) and builds the island into dist/web, which the main agent serves at /web/assets/.
 RUN npm run build && npm prune --omit=dev
 
@@ -24,5 +26,6 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
 COPY --from=build /app/video ./video
+COPY --from=build /app/docs ./docs
 USER node
 CMD ["node", "dist/worker-agent/index.js"]

@@ -1,0 +1,1899 @@
+@import url('./tokens.css');
+
+:root {
+}
+
+body>* {
+        position: relative;
+        z-index: 1;
+}
+
+a {
+        color: inherit;
+}
+
+.wrap {
+        max-width: 52rem;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+}
+
+.wrap-wide {
+        max-width: 72rem;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+}
+
+/* ---------- Header ---------- */
+/* Fixed, out of the body's flow: content scrolls beneath it and shows through
+   the translucent glass. Body padding-top keeps page content clear of it. */
+.site-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        border-bottom: 1px solid var(--line);
+        background: var(--header-bg);
+        backdrop-filter: saturate(1.8) blur(20px);
+        z-index: 10;
+}
+
+body {
+        padding-top: 3.4rem;
+}
+
+.site-header .wrap-wide {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        height: 3.4rem;
+        max-width: 72rem;
+}
+
+.brand {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        text-decoration: none;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+        font-size: 1.02rem;
+}
+
+.brand .mark {
+        flex: none;
+}
+
+.site-header .spacer {
+        flex: 1;
+}
+
+.user {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+}
+
+/* Role pill: the viewer's access tier from their sign-on groups. Quiet chip
+   in the accent family - visible when it applies, absent for general users. */
+.role-pill-link {
+        text-decoration: none;
+        transition: color .12s, border-color .12s;
+}
+
+.role-pill-link:hover {
+        color: var(--accent-ink);
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.role-pill {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        line-height: 1;
+        padding: 0.34rem 0.6rem;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-ink);
+        border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.user form {
+        margin: 0;
+}
+
+.user button {
+        display: grid;
+        place-items: center;
+        width: 2rem;
+        height: 2rem;
+        padding: 0;
+        background: transparent;
+        color: var(--muted);
+        border: 0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: color .12s, background .12s;
+}
+
+.user button:hover {
+        background: var(--accent-soft);
+        color: var(--accent-ink);
+}
+
+/* Theme toggle: one icon shows at a time for the active state. The icons are
+   Material Symbols spans (.ms-icon); .ic-* is the state marker. */
+.theme-toggle .ms-icon {
+        display: none;
+}
+
+.theme-toggle.t-light .ms-icon:nth-child(2),
+.theme-toggle.t-dark .ms-icon:nth-child(3),
+.theme-toggle.t-auto .ms-icon:nth-child(1) {
+        display: inline-block;
+}
+
+/* ---------- Landing hero panel ---------- */
+/* Light, matching the reading surfaces: white with a quiet dot grid that
+   fades out leftward so the headline sits on clean ground. A hairline
+   separates the band from the cards below. */
+.hero-panel {
+        position: relative;
+        overflow: hidden;
+        background: var(--paper);
+        color: var(--ink);
+        border-bottom: 1px solid var(--line);
+}
+
+.hero-panel::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(var(--dot) 1px, transparent 1.4px);
+        background-size: 22px 22px;
+        -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 38%);
+        mask-image: linear-gradient(90deg, transparent 0, #000 38%);
+}
+
+.hero-panel>* {
+        position: relative;
+        z-index: 1;
+}
+
+/* Oversized brand mark, anchored to the content shell's right edge: the
+   hero's "photo" is the product mark itself, quiet enough to read as
+   texture. Sits just inside the 72rem content column, so it stays near the
+   copy on any screen width instead of drifting toward the viewport edge.
+   The .hero-panel position:relative makes it the containing block; the art
+   resolves against the panel, but the offset is computed from the centered
+   content shell: right: calc(50% - 36rem + 1.5rem). */
+.hero-art {
+        position: absolute;
+        right: calc(50% - 36rem + 1.5rem);
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 0;
+        line-height: 0;
+        width: 24rem;
+}
+
+.hero-art img {
+        display: block;
+        width: 100%;
+        height: auto;
+}
+
+/* The orbit only clears the 34rem copy column above ~950px (its left edge is
+   the content shell's right edge minus 24rem); below that it overlaps the
+   text - drop it. */
+@media (max-width: 950px) {
+        .hero-art {
+                display: none;
+        }
+}
+
+.hp-inner {
+        padding-top: 4.6rem;
+        padding-bottom: 4.2rem;
+}
+
+.hp-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--faint);
+        margin: 0 0 1.4rem;
+}
+
+.hp-eyebrow::before {
+        content: '';
+        width: 1.6rem;
+        height: 1px;
+        background: var(--accent);
+}
+
+.hero-panel h1 {
+        font-size: clamp(3rem, 7vw, 4.8rem);
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        line-height: 0.98;
+        margin: 0 0 1.3rem;
+        color: var(--ink);
+}
+
+.hero-panel h1 em {
+        font-style: normal;
+        color: var(--accent);
+}
+
+.hp-sub {
+        margin: 0;
+        max-width: 34rem;
+        color: var(--muted);
+        font-size: 1.08rem;
+        line-height: 1.65;
+}
+
+.hp-cta {
+        margin: 1.2rem 0 0;
+        max-width: 34rem;
+        color: var(--muted);
+        font-size: 0.95rem;
+        line-height: 1.6;
+}
+
+.hp-cta a {
+        color: var(--accent);
+}
+
+/* ---------- Landing: series cards ---------- */
+.card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(24rem, 1fr));
+        gap: 1.6rem;
+        padding: 3.2rem 0 4.4rem;
+}
+
+.series-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        min-height: 12.5rem;
+        text-decoration: none;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 1.7rem 1.8rem 1.5rem;
+        transition: border-color .14s, box-shadow .14s;
+}
+
+.series-card:hover {
+        border-color: var(--ink);
+}
+
+.sc-icon {
+        flex: none;
+        color: var(--ink);
+        align-self: flex-start;
+        display: grid;
+        place-items: center start;
+        margin-bottom: 0.45rem;
+        line-height: 1;
+}
+
+.series-card h2 {
+        font-size: 1.45rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0 0 0.45rem;
+        color: var(--ink-2);
+}
+
+.sc-desc {
+        margin: 0 0 1.2rem;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.55;
+}
+
+
+.sc-meta {
+        margin-top: auto;
+        padding-top: 1rem;
+        border-top: 1px solid var(--line);
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        color: var(--faint);
+}
+
+/* ---------- Series ToC ---------- */
+.series-toc {
+        padding-top: 2.6rem;
+        padding-bottom: 4rem;
+        max-width: 72rem;
+}
+
+.toc-head {
+        margin: 1.2rem 0 1.8rem;
+}
+
+.toc-head h1 {
+        margin-bottom: 1.4rem;
+}
+
+.toc-head h1 {
+        font-size: 2.1rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        margin: 0 0 0.4rem;
+        color: var(--ink-2);
+}
+
+.toc-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+}
+
+.path {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        position: relative;
+}
+
+.path li {
+        position: relative;
+}
+
+.step {
+        display: grid;
+        grid-template-columns: 2.7rem 1fr auto;
+        gap: 1.2rem;
+        align-items: start;
+        text-decoration: none;
+        padding: 0.95rem 1rem;
+        border: 1px solid transparent;
+        border-radius: 14px;
+        position: relative;
+        transition: border-color .14s;
+}
+
+.step:hover {
+        border-color: transparent;
+}
+
+.node {
+        width: 2.7rem;
+        height: 2.7rem;
+        border-radius: 50%;
+        background: var(--paper);
+        border: 1px solid var(--line-strong);
+        display: grid;
+        place-items: center;
+        font-family: var(--mono);
+        font-size: 0.82rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--ink-2);
+        transition: background .14s, color .14s, border-color .14s;
+}
+
+.step:hover .node {
+        background: var(--accent-soft);
+        border-color: var(--accent);
+        color: var(--accent-ink);
+}
+
+.step-title {
+        font-size: 1.08rem;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+        line-height: 1.35;
+        margin-top: 0.15rem;
+        display: block;
+}
+
+.step-title .badge {
+        margin-left: 0.5rem;
+        vertical-align: 0.12em;
+}
+
+.step:hover .step-title {
+        color: var(--accent-ink);
+}
+
+.step-focus {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin-top: 0.15rem;
+}
+
+.step-meta {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        color: var(--faint);
+        margin-top: 0.45rem;
+        white-space: nowrap;
+}
+
+.badge {
+        font-family: var(--sans);
+        font-size: 0.64rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: var(--amber-bg);
+        color: var(--amber-fg);
+        border-radius: 999px;
+        padding: 0.12rem 0.6rem;
+}
+
+/* ---------- Guide layout: article + ToC rail ---------- */
+.doc {
+        display: grid;
+        /* Article column capped at the reading measure; the leftover width
+           flows to the right of the ToC instead of opening a gap between
+           the two. */
+        grid-template-columns: minmax(0, 50rem) 13rem;
+        justify-content: space-between;
+        column-gap: 3.5rem;
+        padding-top: 2.6rem;
+        padding-bottom: 4rem;
+}
+
+/* The reading layout shares the site's standard 72rem container; the
+   article column inside is capped at the 50rem reading measure. */
+.wrap-wide.doc {
+        max-width: 72rem;
+}
+
+/* ---------- Article typography ---------- */
+article {
+        min-width: 0;
+        /* ~800px of body text: the classic 45-75 character measure, past
+           which reading gets tiring. Wide elements (code blocks, tables)
+           still have the container's headroom. */
+        max-width: 50rem;
+}
+
+/* Right-hand "In this guide" ToC - mirrors the left sidebar's language */
+.toc {
+        position: sticky;
+        top: 5.2rem;
+        align-self: start;
+        max-height: calc(100vh - 6rem);
+        overflow: auto;
+        font-size: 0.8rem;
+}
+
+.toc-title {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--faint);
+        margin: 0 0 0.6rem;
+        padding-left: 0.9rem;
+}
+
+.toc a {
+        display: block;
+        text-decoration: none;
+        color: var(--muted);
+        line-height: 1.4;
+        padding: 0.3rem 0.9rem;
+        border-left: 2px solid var(--line);
+        transition: color .12s, border-color .12s;
+}
+
+.toc a.toc-h3 {
+        padding-left: 1.6rem;
+        font-size: 0.76rem;
+}
+
+.toc a:hover {
+        color: var(--ink);
+        border-left-color: var(--line-strong);
+}
+
+.toc a.current {
+        color: var(--ink);
+        font-weight: 600;
+        border-left-color: var(--accent);
+}
+
+.crumbs {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--faint);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+}
+
+.crumbs .dot {
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: var(--faint);
+}
+
+.crumbs a {
+        color: var(--ink-2);
+        text-decoration: none;
+}
+
+.crumbs a:hover {
+        color: var(--accent);
+}
+
+/* Guide top row: breadcrumb left, markdown download right. The download
+   link takes the crumb's own 1rem bottom margin, so the row IS the crumb
+   line - same baseline, no doubled spacing. */
+.doc-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+}
+
+.doc-top .crumbs {
+        margin-bottom: 0;
+}
+
+.md-dl {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        text-decoration: none;
+        white-space: nowrap;
+        transition: color .12s;
+}
+
+.md-dl:hover {
+        color: var(--accent);
+}
+
+article h1 {
+        font-size: 2.35rem;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        line-height: 1.12;
+        margin: 0 0 1.2rem;
+        color: var(--ink-2);
+}
+
+article h2 {
+        font-size: 1.45rem;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        margin: 2.1em 0 0.6em;
+        padding-top: 1.3rem;
+        border-top: 1px solid var(--line);
+        line-height: 1.25;
+        scroll-margin-top: 4.6rem;
+        color: var(--ink-2);
+        position: relative;
+}
+
+/* Hover-reveal anchor: copy the section link without cluttering the page */
+article h2 a.hl,
+article h3 a.hl {
+        position: absolute;
+        left: -1.4rem;
+        color: var(--faint);
+        text-decoration: none;
+        opacity: 0;
+        transition: opacity .12s;
+}
+
+article h2:hover a.hl,
+article h3:hover a.hl {
+        opacity: 1;
+}
+
+article h2 a.hl:hover,
+article h3 a.hl:hover {
+        color: var(--accent);
+}
+
+article h3 {
+        font-size: 1.08rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        margin: 2em 0 0.5em;
+        position: relative;
+        scroll-margin-top: 4.6rem;
+}
+
+article p,
+article li {
+        color: var(--ink-2);
+}
+
+article p {
+        margin: 0.9em 0;
+}
+
+article a {
+        color: var(--accent-ink);
+        text-decoration: underline;
+        text-decoration-color: var(--link-line);
+        text-underline-offset: 3px;
+        text-decoration-thickness: 1px;
+        transition: text-decoration-color .12s;
+}
+
+article a:hover {
+        text-decoration-color: var(--accent);
+}
+
+article strong {
+        color: var(--ink);
+        font-weight: 700;
+}
+
+article ul,
+article ol {
+        padding-left: 1.4rem;
+}
+
+article li {
+        margin: 0.45em 0;
+        padding-left: 0.2rem;
+}
+
+article li::marker {
+        color: var(--faint);
+}
+
+article ol li::marker {
+        font-family: var(--mono);
+        font-size: 0.85em;
+        color: var(--accent);
+        font-weight: 500;
+}
+
+article code,
+article pre {
+        font-variant-ligatures: none;
+        font-feature-settings: 'liga' 0, 'calt' 0;
+}
+
+article code {
+        font-family: var(--mono);
+        font-size: 0.82em;
+        background: var(--code-inline-bg);
+        color: var(--ink);
+        border-radius: 5px;
+        padding: 0.1em 0.32em;
+}
+
+.codewrap {
+        position: relative;
+        margin: 1.3em 0;
+}
+
+article pre {
+        background: var(--code-bg);
+        color: var(--code-fg);
+        border-radius: 12px;
+        padding: 1.15rem 1.3rem;
+        overflow-x: auto;
+        line-height: 1.6;
+        margin: 0;
+}
+
+article pre code {
+        background: none;
+        color: inherit;
+        padding: 0;
+        font-size: 0.8rem;
+        border-radius: 0;
+        border: 0;
+}
+
+.copy {
+        position: absolute;
+        top: 0.6rem;
+        right: 0.6rem;
+        font: 600 0.68rem var(--sans);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #98989d;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        padding: 0.28rem 0.6rem;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity .12s, color .12s;
+}
+
+.codewrap:hover .copy,
+.copy:focus {
+        opacity: 1;
+}
+
+.copy:hover {
+        color: #fff;
+}
+
+article table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+        font-size: 0.86rem;
+        margin: 1.6em 0;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+}
+
+article th {
+        text-align: left;
+        font-size: 0.68rem;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--muted);
+        background: var(--th-bg);
+        padding: 0.7rem 0.9rem;
+        border-bottom: 1px solid var(--line);
+}
+
+article td {
+        padding: 0.7rem 0.9rem;
+        vertical-align: top;
+        border-bottom: 1px solid var(--line);
+        color: var(--ink-2);
+}
+
+article tr:last-child td {
+        border-bottom: 0;
+}
+
+article td code {
+        white-space: normal;
+        overflow-wrap: anywhere;
+}
+
+article img {
+        display: block;
+        max-width: 100%;
+        width: auto;
+        max-height: 26rem;
+        height: auto;
+        margin: 1.4rem 0;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        cursor: zoom-in;
+}
+
+.lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        display: none;
+        place-items: center;
+        padding: 2.2rem;
+        background: rgba(23, 23, 26, 0.84);
+        backdrop-filter: blur(6px);
+}
+
+.lightbox.open {
+        display: grid;
+}
+
+.lightbox figure {
+        margin: 0;
+        max-width: min(1100px, 94vw);
+}
+
+.lightbox img {
+        display: block;
+        max-width: 100%;
+        max-height: 76vh;
+        margin: 0 auto;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: #fff;
+        cursor: zoom-out;
+}
+
+.lightbox figcaption {
+        margin-top: 0.95rem;
+        text-align: center;
+        font-size: 0.84rem;
+        line-height: 1.55;
+        color: rgba(255, 255, 255, 0.78);
+}
+
+.lb-close {
+        position: absolute;
+        top: 1.1rem;
+        right: 1.3rem;
+        width: 2.3rem;
+        height: 2.3rem;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        color: #fff;
+        font: 400 1.15rem var(--sans);
+        cursor: pointer;
+        transition: background .12s;
+}
+
+.lb-close:hover {
+        background: rgba(255, 255, 255, 0.17);
+}
+
+article blockquote {
+        margin: 1.5em 0;
+        padding: 0.95rem 1.3rem;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--accent);
+        border-radius: 4px 12px 12px 4px;
+}
+
+article blockquote p {
+        margin: 0.25em 0;
+}
+
+article hr {
+        border: 0;
+        border-top: 1px solid var(--line);
+        margin: 2.4rem 0;
+}
+
+.mermaid {
+        margin: 1.6rem 0;
+        padding: 1.6rem 1rem;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow-x: auto;
+        text-align: center;
+        font-size: 0.85rem;
+        color: var(--muted);
+}
+
+.mermaid svg {
+        max-width: 100%;
+        height: auto;
+}
+
+/* Prev / next */
+.pager {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-top: 4rem;
+}
+
+.pager a {
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        transition: color .14s;
+}
+
+.pager a:hover b {
+        color: var(--accent);
+}
+
+.pager small {
+        font-family: var(--mono);
+        font-size: 0.66rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--faint);
+}
+
+.pager b {
+        font-size: 0.95rem;
+        letter-spacing: -0.01em;
+        line-height: 1.35;
+}
+
+.pager a.next {
+        text-align: right;
+        grid-column: 2;
+}
+
+.pager a.prev {
+        grid-column: 1;
+}
+
+/* ---------- Feedback ---------- */
+.doc-top-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 1.1rem;
+}
+
+.fb-open {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        transition: color .12s;
+}
+
+.fb-open:hover {
+        color: var(--accent);
+}
+
+/* Bottom placement: bordered, larger, centered after the pager. */
+.doc-end {
+        display: flex;
+        justify-content: center;
+        margin: 2.2rem 0 0;
+}
+
+.fb-open-bottom {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0.5rem 1.2rem;
+        font-size: 0.78rem;
+}
+
+.fb-open-bottom:hover {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 7%, transparent);
+        color: var(--accent);
+}
+
+.fb-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+}
+
+.fb-modal[hidden] {
+        display: none;
+}
+
+.fb-backdrop {
+        position: absolute;
+        inset: 0;
+        background: color-mix(in srgb, var(--ink) 35%, transparent);
+}
+
+.fb-dialog {
+        position: relative;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 1.4rem 1.5rem 1.2rem;
+        width: min(40rem, 100%);
+        box-shadow: 0 12px 40px color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
+.fb-dialog h3 {
+        margin: 0 0 1rem;
+        font-size: 1.02rem;
+}
+
+.fb-dialog label {
+        display: block;
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin: 0.75rem 0 0.3rem;
+        font-family: var(--mono);
+}
+
+.fb-dialog input,
+.fb-dialog select,
+.fb-dialog textarea {
+        display: block;
+        width: 100%;
+        margin-top: 0.3rem;
+        font: inherit;
+        font-size: 0.9rem;
+        color: var(--ink);
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 0.45rem 0.6rem;
+}
+
+/* Custom chevron on the select, placed near the text, not the far edge. */
+.fb-dialog select {
+        appearance: none;
+        -webkit-appearance: none;
+        padding-right: 2rem;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23701c23' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.6rem center;
+}
+
+.fb-dialog textarea {
+        resize: vertical;
+        min-height: 12rem;
+        line-height: 1.5;
+}
+
+.fb-optional {
+        color: var(--faint);
+        font-size: 0.72rem;
+}
+
+.fb-status {
+        min-height: 1.1rem;
+        margin: 0.5rem 0 0;
+        font-size: 0.8rem;
+        color: var(--danger, #b3261e);
+}
+
+.fb-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.6rem;
+        margin-top: 0.9rem;
+}
+
+.fb-actions button {
+        font: inherit;
+        font-size: 0.85rem;
+        border-radius: 6px;
+        padding: 0.4rem 0.9rem;
+        cursor: pointer;
+        border: 1px solid var(--line);
+        background: none;
+        color: var(--ink);
+}
+
+.fb-actions .fb-send {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+}
+
+.fb-actions button:disabled {
+        opacity: 0.55;
+        cursor: default;
+}
+
+.fb-done {
+        font-size: 0.88rem;
+        color: var(--muted);
+}
+
+/* ---------- Admin (feedback + activity) ---------- */
+.admin {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 72rem;
+}
+
+.admin-tabs {
+        display: flex;
+        gap: 0.4rem;
+        border-bottom: 1px solid var(--line);
+        margin-bottom: 1.4rem;
+}
+
+.admin-tabs a {
+        padding: 0.5rem 0.9rem;
+        font-size: 0.88rem;
+        color: var(--muted);
+        text-decoration: none;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+}
+
+.admin-tabs a.active {
+        color: var(--ink);
+        border-bottom-color: var(--accent);
+}
+
+.admin h2 {
+        margin-top: 0;
+}
+
+.admin h3 {
+        margin: 1.6rem 0 0.6rem;
+        font-size: 0.95rem;
+}
+
+.admin-note {
+        font-size: 0.82rem;
+        color: var(--faint);
+        font-family: var(--mono);
+}
+
+.admin-empty {
+        font-size: 0.88rem;
+        color: var(--faint);
+        font-style: italic;
+}
+
+.admin-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+}
+
+.admin-table th,
+.admin-table td {
+        text-align: left;
+        vertical-align: top;
+        padding: 0.55rem 0.75rem;
+        border-bottom: 1px solid var(--line);
+}
+
+
+
+.admin-table th[scope="col"] {
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        color: var(--faint);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+}
+
+.admin-table .fb-type-label {
+        font-size: 0.8rem;
+        color: var(--muted);
+}
+
+.admin-table .fb-type-label::before {
+        content: "Type: ";
+        color: var(--faint);
+}
+
+.admin-table .fb-where {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+}
+
+.admin-table .fb-anchor {
+        display: block;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--accent);
+}
+
+.admin-table .fb-comment {
+        white-space: pre-wrap;
+        max-width: 34rem;
+        display: inline-block;
+}
+
+.admin-table .fb-email {
+        display: block;
+        font-size: 0.8rem;
+}
+
+.admin-table .fb-ts {
+        display: block;
+        font-size: 0.74rem;
+        color: var(--faint);
+        font-family: var(--mono);
+}
+
+.inline-form {
+        display: inline;
+}
+
+.fb-action {
+        font: inherit;
+        font-size: 0.78rem;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: none;
+        color: var(--ink);
+        padding: 0.25rem 0.7rem;
+        cursor: pointer;
+}
+
+.fb-action:hover {
+        border-color: var(--accent);
+}
+
+/* ---------- Footer ---------- */
+.site-footer {
+        border-top: 1px solid var(--line);
+        margin-top: auto;
+        padding: 0.9rem 0 1rem;
+        color: var(--faint);
+        font-size: 0.78rem;
+}
+
+.site-footer .wrap-wide {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+        .doc {
+                grid-template-columns: 1fr;
+                gap: 1.2rem;
+        }
+
+        .toc {
+                display: none;
+        }
+
+        .step {
+                grid-template-columns: 2.7rem 1fr;
+        }
+
+        .step-meta {
+                grid-column: 2;
+                margin-top: 0;
+        }
+
+        .hp-inner {
+                padding-top: 3.2rem;
+                padding-bottom: 3rem;
+        }
+
+        .card-grid {
+                grid-template-columns: 1fr;
+        }
+}
+/* ---------- Values builder (K8s guide) ---------- */
+.values-builder {
+        margin: 1.6rem 0;
+        padding: 1.3rem 1.4rem;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+}
+
+.values-builder label {
+        display: block;
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0.9rem 0 0.35rem;
+}
+
+.values-builder textarea,
+.values-builder input {
+        width: 100%;
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        color: var(--ink);
+        background: var(--paper);
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        padding: 0.55rem 0.7rem;
+        line-height: 1.5;
+}
+
+.values-builder textarea {
+        resize: vertical;
+        word-break: break-all;
+}
+
+.values-builder .vb-generate {
+        padding: 0.5rem 1.2rem;
+        font: 700 0.85rem var(--sans);
+        color: #fff;
+        background: var(--accent);
+        border: 0;
+        border-radius: 8px;
+        cursor: pointer;
+}
+
+.values-builder .vb-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+}
+
+.values-builder .vb-clear {
+        padding: 0.5rem 1.2rem;
+        font: 700 0.85rem var(--sans);
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        cursor: pointer;
+}
+
+.values-builder .vb-clear:hover {
+        color: var(--ink);
+        border-color: var(--ink);
+}
+
+.values-builder .vb-status {
+        margin: 0.9rem 0 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+}
+
+.values-builder .vb-output {
+        margin-top: 1.1rem;
+}
+
+.values-builder pre {
+        background: var(--code-bg);
+        color: var(--code-fg);
+        border-radius: 10px;
+        padding: 1rem 1.1rem;
+        overflow-x: auto;
+        font-size: 0.78rem;
+        line-height: 1.55;
+}
+
+/* Filename left, Download button right */
+.values-builder .vb-values-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+}
+
+.values-builder .vb-download {
+        margin-left: 0;
+        padding: 0.3rem 0.85rem;
+        font: 600 0.8rem var(--sans);
+        letter-spacing: 0.02em;
+        color: var(--accent-ink);
+        background: var(--accent-soft);
+        border: 1px solid var(--accent);
+        border-radius: 6px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        vertical-align: middle;
+}
+
+.values-builder .vb-download .ms-icon {
+        line-height: 1;
+}
+
+.values-builder .vb-download:hover {
+        background: var(--accent);
+        color: #fff;
+}
+
+/* ---------- Docker command adapter (Docker guide) ---------- */
+.docker-command-builder {
+        margin: 1.6rem 0;
+        padding: 1.3rem 1.4rem;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+}
+
+.docker-command-builder label {
+        display: block;
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0.9rem 0 0.35rem;
+}
+
+.docker-command-builder textarea {
+        width: 100%;
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        color: var(--ink);
+        background: var(--paper);
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        padding: 0.55rem 0.7rem;
+        line-height: 1.5;
+        resize: vertical;
+        word-break: break-all;
+}
+
+.docker-command-builder .dcb-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+}
+
+.docker-command-builder .dcb-clear {
+        padding: 0.5rem 1.2rem;
+        font: 700 0.85rem var(--sans);
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        cursor: pointer;
+}
+
+.docker-command-builder .dcb-clear:hover {
+        color: var(--ink);
+        border-color: var(--ink);
+}
+
+.docker-command-builder .dcb-generate {
+        padding: 0.5rem 1.2rem;
+        font: 700 0.85rem var(--sans);
+        color: #fff;
+        background: var(--accent);
+        border: 0;
+        border-radius: 8px;
+        cursor: pointer;
+}
+
+.docker-command-builder .dcb-status {
+        margin: 0.9rem 0 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+}
+
+.docker-command-builder .dcb-output {
+        margin-top: 1.1rem;
+}
+
+.docker-command-builder pre {
+        background: var(--code-bg);
+        color: var(--code-fg);
+        border-radius: 10px;
+        padding: 1rem 1.1rem;
+        overflow-x: auto;
+        font-size: 0.78rem;
+        line-height: 1.55;
+}
+
+/* ---------- Lab values personalization strip ---------- */
+.lab-values {
+        padding: 0.9rem 1rem;
+        margin-bottom: 1.4rem;
+        background: var(--surface);
+        border: 1px solid var(--accent);
+        border-radius: 10px;
+}
+
+.lab-values .lv-head {
+        display: flex;
+        align-items: baseline;
+        gap: 0.6rem;
+}
+
+.lab-values .lv-title {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--faint);
+}
+
+.lab-values .lv-note {
+        font-size: 0.78rem;
+        color: var(--muted);
+}
+
+.lab-values .lv-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+}
+
+.lab-values .lv-label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--ink-2);
+        width: 7rem;
+        flex: none;
+}
+
+.lab-values .lv-note-row {
+        font-size: 0.78rem;
+        color: var(--muted);
+        flex: 1;
+}
+
+.lab-values input {
+        width: 20rem;
+        padding: 0.3rem 0.55rem;
+        font: 600 0.8rem var(--mono);
+        color: var(--ink);
+        background: var(--paper);
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        flex: none;
+        margin-left: auto;
+}
+
+.lab-values .lv-reset {
+        padding: 0.32rem 0.85rem;
+        font: 700 0.72rem var(--sans);
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        cursor: pointer;
+}
+
+.lab-values .lv-reset:hover {
+        color: var(--ink);
+        border-color: var(--ink);
+}
+
+
+
+/* Readers table: chevron on the user row, detail row beneath. */
+.readers-table th[scope="row"] {
+        cursor: pointer;
+        font-weight: 400;
+        white-space: nowrap;
+}
+
+/* Row-end chevron cell: the action control sits at the physical end. */
+.readers-table .reader-toggle {
+        width: 2.5rem;
+        text-align: right;
+        white-space: nowrap;
+}
+
+.readers-table .reader-toggle .ms-icon {
+        color: var(--faint);
+        transition: transform 0.15s ease;
+}
+
+.reader-row.open .reader-toggle .ms-icon {
+        transform: rotate(180deg);
+}
+
+.visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+}
+
+.readers-table tbody tr.reader-row:hover th,
+.readers-table tbody tr.reader-row:hover td {
+        background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.readers-table tbody tr.reader-row:hover th {
+        color: var(--accent);
+}
+
+/* Numeric columns: right-aligned counts. */
+.admin-table td.num,
+.admin-table th.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+}
+
+.reader-detail td {
+        border-bottom: 1px solid var(--line);
+        padding-top: 0;
+        padding-bottom: 0.75rem;
+}
+
+.reader-detail ul {
+        margin: 0.55rem 0 0;
+        padding-left: 2rem;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        line-height: 1.5;
+        color: var(--muted);
+}
+
+.reader-detail li + li {
+        margin-top: 0.3rem;
+}
+
+.reader-detail li {
+        margin: 0.15rem 0;
+}
+
+/* ----------
+   Focus convention (site-wide): focused inputs/selects/textareas show an
+   accent border - no outline ring, no shadow. The border color change IS
+   the focus indicator, everywhere, mouse and keyboard alike.
+   ---------- */
+input:focus,
+select:focus,
+textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+}
+
+/* Feedback preview column in the summary row. */
+.admin-table .fb-preview {
+        color: var(--faint);
+        max-width: 26rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+}
+
+/* Admin issue modal meta: one field per row, label + value columns. */
+.afb-meta {
+        display: grid;
+        grid-template-columns: 5rem 1fr;
+        row-gap: 0.4rem;
+        font-size: 0.85rem;
+        margin: 0.2rem 0 1.1rem;
+}
+
+.afb-row {
+        display: contents;
+}
+
+.afb-k {
+        color: var(--faint);
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding-top: 0.1rem;
+}
+
+.afb-comment {
+        white-space: pre-wrap;
+        line-height: 1.55;
+        font-size: 0.92rem;
+        margin: 0 0 1rem;
+}
+
+.afb-guide {
+        font-size: 0.8rem;
+        margin: 0;
+}
+
+/* Admin notes: definition-grid continuation, note cards under the comment. */
+.afb-notes {
+        border-top: 1px solid var(--line);
+        padding-top: 0.9rem;
+        margin-bottom: 1rem;
+}
+
+.afb-note {
+        margin: 0 0 0.8rem;
+}
+
+.afb-note-head {
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        color: var(--faint);
+        margin: 0 0 0.15rem;
+}
+
+.afb-note-text {
+        margin: 0;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+}
+
+.afb-note-form {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+}
+
+.afb-note-form input {
+        flex: 1;
+        font: inherit;
+        font-size: 0.88rem;
+        color: var(--ink);
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 0.45rem 0.6rem;
+}
+
+.afb-note-form input:focus {
+        outline: none;
+        border-color: var(--accent);
+}
+
+.afb-note-actions {
+        margin-top: 0;
+}
+
+.afb-note-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 0.4rem;
+}
+
+.afb-closed {
+        color: var(--faint);
+}
+
+/* Modal X (close dialog): absolute top-right of the dialog. */
+.fb-x {
+        position: absolute;
+        top: 0.9rem;
+        right: 0.9rem;
+        display: grid;
+        place-items: center;
+        width: 2rem;
+        height: 2rem;
+        border: none;
+        border-radius: 6px;
+        background: none;
+        color: var(--muted);
+        cursor: pointer;
+        transition: color .12s, background .12s;
+}
+
+.fb-x:hover {
+        color: var(--ink);
+        background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.fb-empty td {
+        color: var(--faint);
+        font-style: italic;
+}
+
+/* Destructive modal action: outline red, no fill - visually distinct from
+   the primary Close/Reopen. */
+.fb-actions .fb-delete {
+        margin-right: auto;
+        border: 1px solid var(--line);
+        color: var(--accent);
+        background: none;
+}
+
+.fb-actions .fb-delete:hover {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+}
+
+/* In-modal delete confirmation: a typed-DELETE row instead of a second
+   modal on top of the first. */
+.afb-confirm-delete {
+        border-top: 1px solid var(--line);
+        padding-top: 0.9rem;
+        margin-top: 0.9rem;
+}
+
+.afb-confirm-text {
+        margin: 0 0 0.6rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+}
+
+.afb-confirm-text code {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        color: var(--accent);
+        background: var(--accent-soft);
+        border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+        border-radius: 4px;
+        padding: 0.05rem 0.35rem;
+}
+
+.afb-confirm-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+}
+
+.afb-confirm-row input {
+        flex: 1;
+        font: 600 0.85rem var(--mono);
+        color: var(--ink);
+        background: var(--paper);
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        padding: 0.45rem 0.6rem;
+}
+
+.afb-confirm-row input:focus {
+        outline: none;
+        border-color: var(--accent);
+}
+
+.afb-confirm-row .fb-delete-send {
+        font: inherit;
+        font-size: 0.78rem;
+        border: 1px solid var(--accent);
+        border-radius: 6px;
+        padding: 0.25rem 0.7rem;
+        background: var(--accent);
+        color: #fff;
+        cursor: pointer;
+}
+
+.afb-confirm-row .fb-delete-send:not(:disabled):hover {
+        background: var(--accent-bright);
+        border-color: var(--accent-bright);
+}
+
+.fb-delete-send:disabled {
+        opacity: 0.5;
+        cursor: default;
+        background: var(--paper);
+        border-color: var(--line);
+        color: var(--muted);
+}
+
+/* Landing hero "Get in touch" feedback trigger. */
+.hp-feedback {
+        font: inherit;
+        color: var(--accent);
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        text-transform: none;
+        letter-spacing: normal;
+        display: inline;
+}
+
+.hp-feedback:hover {
+        color: var(--accent-bright);
+}
+
+/* Heading total badge on the admin views tabs. */
+.tab-total {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        font-weight: 400;
+        color: var(--muted);
+        margin-left: 0.6rem;
+}
+
+/* Series overview paragraphs: capped measure so the three-sentence
+   description reads as set prose, not a full-width wall. */
+.toc-head .toc-desc {
+        max-width: 52rem;
+        margin: 0 0 1.1rem;
+        line-height: 1.6;
+        color: var(--muted);
+        font-size: 0.95rem;
+}
+
+.toc-head .toc-desc:last-child {
+        margin-bottom: 0;
+}
+
+.toc-head h1 + .toc-desc:last-child {
+        margin-bottom: 0;
+}

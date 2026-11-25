@@ -1,0 +1,76 @@
+/* Design tokens for the setup guide page. Colours are ESTIMATES: the reference
+   guide pages' own token file was not available, so these are reconstructed. EXACT (read from the reference's own fallbacks in site.js):
+     --surface #ffffff  --line-strong #d2d2d7  --ink #1c1c1e
+     --th-bg #f5f5f7
+   (the reference's light --faint was #86868b, 3.6:1 on white; ours is darkened to
+   #6e6e73 for small text, 5.1:1)
+   EXACT (read from the reference's markup/CSS): accent family is red (#c8202f in
+   the mark), the select chevron uses #701c23, code-block copy button #98989d,
+   danger #b3261e, fonts Open Sans + JetBrains Mono (system fonts when offline); icons are inline SVG.
+   ESTIMATED: everything else. Replace this whole file with the reference's
+   tokens.css to make the colours exact; site.css needs no change. */
+
+:root {
+  color-scheme: light dark;
+  --sans: 'Open Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --paper: light-dark(#ffffff, #161618);
+  --surface: light-dark(#ffffff, #1f1f22);
+  --ink: light-dark(#1c1c1e, #f5f5f7);
+  --ink-2: light-dark(#2c2c2e, #e5e5ea);
+  --muted: light-dark(#6e6e73, #a1a1a6);
+  --faint: light-dark(#6e6e73, #8e8e93);
+  --line: light-dark(#e5e5ea, #2e2e32);
+  --line-strong: light-dark(#d2d2d7, #3a3a3f);
+  --th-bg: light-dark(#f5f5f7, #232326);
+  --dot: light-dark(#d2d2d7, #3a3a3f);
+
+  --accent: light-dark(#c8202f, #ef5360);
+  --accent-bright: light-dark(#e0303f, #ff6b77);
+  --accent-ink: light-dark(#a3182a, #ff8a93);
+  --accent-soft: light-dark(rgba(200, 32, 47, 0.08), rgba(239, 83, 96, 0.14));
+  --link-line: light-dark(rgba(163, 24, 42, 0.35), rgba(255, 138, 147, 0.4));
+
+  --amber-bg: light-dark(#fff1d6, #3b2d10);
+  --amber-fg: light-dark(#8a5a00, #f2c36b);
+  --danger: #b3261e;
+
+  --code-bg: light-dark(#1c1c1e, #0e0e10);
+  --code-fg: #e5e5ea;
+  --code-inline-bg: light-dark(#f2f2f5, #2a2a2e);
+
+  --header-bg: light-dark(rgba(255, 255, 255, 0.72), rgba(22, 22, 24, 0.72));
+}
+
+:root[data-theme='light'] { color-scheme: light; }
+:root[data-theme='dark'] { color-scheme: dark; }
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+main { flex: 1; }
+
+.ms-icon {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+/* A wide table scrolls inside its own box instead of widening the page on a phone. */
+.table-wrap { overflow-x: auto; margin: 1.6em 0; border-radius: 12px; }
+.table-wrap > table { margin: 0; }

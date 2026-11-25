@@ -31,7 +31,7 @@ The recorded demo, about seven minutes with numbered pop-ups, is on the reposito
 
 To walk through it yourself in the app, switch **Demo | Story** in the top bar (offline in Mock mode, labelled as a simulated run).
 
-**Want to run it for real?** Mock mode and the Demo | Story walk-through need nothing: no accounts, no keys, no Privilege. Real mode needs a PingOne Privilege tenant with an AI gateway, two apps and two agent keys: the step-by-step guide is [docs/PRIVILEGE-SETUP.md](docs/PRIVILEGE-SETUP.md).
+**Want to run it for real?** Mock mode and the Demo | Story walk-through need nothing: no accounts, no keys, no Privilege. Real mode needs a PingOne Privilege tenant with an AI gateway, two apps and two agent keys: the step-by-step guide is [docs/PRIVILEGE-SETUP.md](docs/PRIVILEGE-SETUP.md). With the lab running, the same guide is a styled page at `/setup/` (the shell bar links to it while Real is unavailable); open `docs/setup-guide/index.html` to read it from the repo. After you edit the guide, run `npm run build:guide`.
 
 ## Run from a clone
 
@@ -399,7 +399,10 @@ defaults while keeping `ANTHROPIC_BASE_URL` on Privilege.
 ### Provider key registration
 
 Register the Anthropic provider key in Agent Privilege Provider Keys
-and associate it with the `llm/anthropic` route. This provider key stays in
+and associate it with the `llm/anthropic` route. Some consoles have no separate
+screen for this; there the provider and its key are entered in the agent-key
+wizard (UNVERIFIED which applies to your tenant; see
+[docs/PRIVILEGE-SETUP.md](docs/PRIVILEGE-SETUP.md), Step 1). This provider key stays in
 Privilege. The demo sends only the Agent Access keys above to that route.
 
 ## Configuration reference

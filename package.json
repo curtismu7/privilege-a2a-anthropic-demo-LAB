@@ -20,6 +20,7 @@
     "dev": "concurrently -n mcp,worker,aws,main -c blue,magenta,yellow,green \"npm:mcp\" \"npm:worker\" \"npm:aws-mock\" \"npm:main\"",
     "build": "tsc && cp -R src/vendor dist/ && cp src/main-agent/jsonPaneSource.browser.js src/main-agent/jsonPaneCss.css dist/main-agent/ && npm run build:web",
     "build:web": "npm run build -w web",
+    "build:guide": "node scripts/build-setup-guide.mjs",
     "test": "npm run build:web && tsx --test test/*.test.ts && npm test -w web",
     "doctor": "node scripts/doctor.mjs"
   },
@@ -34,6 +35,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "^24.0.0",
     "concurrently": "^9.2.5",
+    "marked": "18.2.0",
     "tsx": "^4.22.4",
     "typescript": "^5.9.0"
   },

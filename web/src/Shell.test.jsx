@@ -2,7 +2,7 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import Shell, { FONT_KEY, REAL_HINT, THEME_KEY } from "./Shell.jsx";
+import Shell, { FONT_KEY, REAL_HINT, SETUP_URL, THEME_KEY } from "./Shell.jsx";
 
 // Node can expose a half-working global localStorage that shadows jsdom's; a plain in-memory one keeps the tests honest.
 const store = new Map();
@@ -70,6 +70,24 @@ describe("mode dropdown (rule 19)", () => {
     await waitFor(() => expect(real.disabled).toBe(true));
     expect(real.title).toBe(REAL_HINT);
     expect(screen.getByTestId("mode-select").value).toBe("mock");
+  });
+
+  it("links to the setup guide exactly while Real is unavailable (never while it is available or not yet known)", async () => {
+    serve({ info: { source: "mock", realAvailable: false } });
+    render(<Shell />);
+    const link = await screen.findByTestId("setup-link");
+    expect(link.getAttribute("href")).toBe(SETUP_URL);
+    expect(link.textContent).toBe("How to set up Real");
+    expect(link.getAttribute("rel")).toBe("noopener");
+    cleanup();
+    serve({ info: { source: "mock", realAvailable: true } });
+    render(<Shell />);
+    await waitFor(() => expect(modeEvents.length).toBeGreaterThan(0));
+    expect(screen.queryByTestId("setup-link")).toBeNull();
+    cleanup();
+    globalThis.fetch = vi.fn(() => new Promise(() => {})); // /api/info never answers: availability unknown
+    render(<Shell />);
+    expect(screen.queryByTestId("setup-link")).toBeNull();
   });
 
   it("on a 409 keeps the old value, shows the server's reason, and does not announce a change", async () => {
