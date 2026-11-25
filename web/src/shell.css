@@ -11,7 +11,7 @@ html { font-size: var(--fs, 16px); }
    position: relative anchors the TopMenu sign-in slot (this lab has no sign-in, but the slot's CSS expects it). */
 .shell-bar { position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 20px; margin: 0 -16px; padding: 10px 20px;
   background: var(--box-dark); color: var(--on-box); border-bottom: 3px solid transparent; border-image: var(--accent-gradient) 1; }
-.shell-bar h1 { margin: 0; color: var(--on-box); font-size: 1.15rem; }
+.shell-bar h1 { margin: 0; color: var(--on-box); font-size: 1.4rem; }
 /* Brand and nav sit on the bar's top line (shared/top-menu-mock.html): min-height matches the TopMenu's first row. */
 .shell-brand  { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; min-height: 40px; font-weight: 700; letter-spacing: 0.02em; }
 .shell-logo { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 4px; border-radius: 6px;
