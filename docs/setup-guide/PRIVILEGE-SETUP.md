@@ -248,6 +248,8 @@ Order to check things: what exactly the caller sees, whether the key is alive, t
 
 Leave `WORKER_A2A_URL`, `WORKER_TRACE_URL` and `MCP_URL` on their loopback defaults and keep only `ANTHROPIC_BASE_URL` (and the keys) pointing at the gateway. Then only the model calls go through Privilege; the A2A and MCP hops stay local and are not governed. That is enough to see model records and policy, but it is not the full four-hop story. You still need the gateway to be reachable from your machine, and the worker key must be the one the worker process reads (`WORKER_AGENT_KEY` in `.env`).
 
+**A middle layout: the MCP server stays on your machine.** You can also send the model calls and the A2A call to the worker through the gateway while the tool server stays local (`MCP_URL` on its loopback default). The tool calls are then not governed, but the agent-to-agent hop is. Use `--path a` on every `npm run setup` command in this layout: Path B would point `MCP_URL` at the gateway and overwrite your local address, and `--verify` on Path B refuses to run while `MCP_URL` is not on the gateway, because it never sends a key to another address. `--path a` checks only the model calls, so test the A2A hop by hand with the `curl` smoke test in Step 9, using the worker app's real name in the URL.
+
 ## 7. What a script can and cannot do for you
 
 This section is for people who want to automate setup; you can skip it. `npm run setup` does the part that needs no console credentials, and it never creates a Privilege object: every one in the steps (Steps 1 and 3 to 6) is still made by hand in the console. It has three modes:
