@@ -31,6 +31,8 @@ The recorded demo, about seven minutes with numbered pop-ups, is on the reposito
 
 To walk through it yourself in the app, switch **Demo | Story** in the top bar (offline in Mock mode, labelled as a simulated run).
 
+**Want to run it for real?** Mock mode and the Demo | Story walk-through need nothing: no accounts, no keys, no Privilege. Real mode needs a PingOne Privilege tenant with an AI gateway, two apps and two agent keys: the step-by-step guide is [docs/PRIVILEGE-SETUP.md](docs/PRIVILEGE-SETUP.md).
+
 ## Run from a clone
 
 Prerequisites: Node 26. Docker (OrbStack) only for the Docker form.
@@ -141,6 +143,8 @@ on the left, and the family's shared `TopMenu` on the right (Mode Mock/Real drop
   build it first. The Dockerfile and CI build it as part of `npm run build`.
 
 ## Set up on Privilege, in order
+
+New to Privilege? The full walk-through, with what to have first, the checks and the usual refusals, is [docs/PRIVILEGE-SETUP.md](docs/PRIVILEGE-SETUP.md); this section is the short version.
 
 This is the order that worked end to end. Apps first, because an agent can only
 select apps that already exist.
