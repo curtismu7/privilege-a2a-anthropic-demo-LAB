@@ -34,6 +34,9 @@ import { VERTICALS } from './verticals.js';
 
 const config = mcpServerConfig();
 
+/** In-memory ids for the mock transfer_funds tool; a restart resets it. */
+let transferCounter = 0;
+
 const json = (value: unknown) => ({
   content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
 });
@@ -141,6 +144,36 @@ function buildServer(): McpServer {
       return json({ ticket, openTickets: allTickets().length });
     },
   );
+
+  // The HITL MFA Lab's held tool. A mock: no money moves, nothing is stored. Off unless
+  // MCP_ENABLE_TRANSFER_FUNDS is set, so other doors on this server see no new tool.
+  if (config.enableTransferFunds) {
+    server.registerTool(
+      'transfer_funds',
+      {
+        title: 'Transfer funds',
+        description:
+          'Move money between two accounts. This changes state — only call it when the user ' +
+          'has asked for a transfer. Demo only: no money actually moves.',
+        inputSchema: {
+          // The gateway records held-call fields as strings, so accept "150" as well as 150.
+          amount: z.coerce.number().positive().max(1_000_000).describe('Amount in USD, above 0 and at most 1,000,000'),
+          from: z.string().min(1).max(64).describe('Source account id, e.g. "ACC-1001"'),
+          to: z.string().min(1).max(64).describe('Destination account id, e.g. "ACC-2002"'),
+        },
+        annotations: { readOnlyHint: false, destructiveHint: true },
+      },
+      async ({ amount, from, to }) => {
+        if (from === to) {
+          return { isError: true, content: [{ type: 'text' as const, text: 'from and to must be different accounts' }] };
+        }
+        transferCounter += 1;
+        const transferId = `TRF-${String(transferCounter).padStart(4, '0')}`;
+        console.log(`[mcp] transfer ${transferId}: ${amount} ${from} -> ${to}`);
+        return json({ status: 'completed', transferId, amount, from, to, note: 'Demo only: no money moved.' });
+      },
+    );
+  }
 
   // Per-vertical specialist tools (static fixtures); offered to the model only when
   // the worker is handed a vertical profile.

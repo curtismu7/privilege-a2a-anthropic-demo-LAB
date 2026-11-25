@@ -231,6 +231,8 @@ export interface McpServerConfig {
   port: number;
   requireBearer: boolean;
   demoInjection: boolean;
+  /** Registers the mock transfer_funds tool. Off by default so every other user of this server is unchanged. */
+  enableTransferFunds: boolean;
   jsonResponse: boolean;
   stateful: boolean;
   sessionTtlMs: number;
@@ -242,6 +244,7 @@ export function mcpServerConfig(): McpServerConfig {
     port: numberValue('MCP_SERVER_PORT', 6883),
     requireBearer: booleanValue('MCP_REQUIRE_BEARER', false),
     demoInjection: booleanValue('MCP_DEMO_INJECTION', false),
+    enableTransferFunds: booleanValue('MCP_ENABLE_TRANSFER_FUNDS', false),
     jsonResponse: booleanValue('MCP_JSON_RESPONSE', false),
     stateful: booleanValue('MCP_STATEFUL', true),
     sessionTtlMs: numberValue('MCP_SESSION_TTL_MS', 300_000),
