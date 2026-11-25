@@ -263,7 +263,8 @@
 </tbody></table></div>
 <p>Then <code>kubectl apply</code> the worker&#39;s Deployment and Service.</p>
 <h2 id="step-8-point-the-lab-at-the-gateway"><a class="hl" href="#step-8-point-the-lab-at-the-gateway" aria-label="Link to this section">#</a>Step 8: Point the lab at the gateway</h2>
-<p>Copy <code>config.example</code> to <code>.env</code> (it sets the provider names for you; a hand-written <code>.env</code> falls back to a different default provider) and set:</p>
+<p>The quick way: <code>npm run setup -- --gateway &lt;gateway&gt; --main-model &lt;id&gt; --worker-model &lt;id&gt;</code> shows what it would write and prints the console checklist (it writes nothing; the <code>--</code> is needed so npm passes the options on); add <code>--apply</code> to write <code>.env</code> (mode 600, the old file backed up first). It asks for the two agent keys without echo, or reads them from <code>MAIN_AGENT_KEY</code> and <code>WORKER_AGENT_KEY</code> in your shell, and never prints one. <strong>On Path A add <code>--path a</code> to every command</strong>: the default is Path B, which also points the worker, trace and MCP URLs at the gateway. It supports Anthropic and Google; for Groq or llama.cpp edit <code>.env</code> by hand (Step 1). It wants both keys in this <code>.env</code>, even if the worker runs in a cluster, because <code>--verify</code> uses them; that is an extra copy of a credential, so skip it (and those checks) if you prefer. See <a href="#what-a-script-can-and-cannot-do-for-you">What a script can and cannot do for you</a>.</p>
+<p>By hand: copy <code>config.example</code> to <code>.env</code> (it sets the provider names for you; a hand-written <code>.env</code> falls back to a different default provider) and set:</p>
 <pre><code class="language-dotenv">ANTHROPIC_BASE_URL=https://&lt;gateway&gt;/llm/anthropic
 MAIN_AGENT_KEY=&lt;the main agent key&gt;
 WORKER_AGENT_KEY=&lt;the worker key, if the worker runs on this machine&gt;
@@ -281,7 +282,7 @@ MCP_URL=https://&lt;gateway&gt;/&lt;mcp app name&gt;/mcp
 </ul>
 <h2 id="step-9-wait-then-verify"><a class="hl" href="#step-9-wait-then-verify" aria-label="Link to this section">#</a>Step 9: Wait, then verify</h2>
 <p>App and policy changes take about <strong>four minutes</strong> to reach the gateway; allow up to six. Do not conclude it failed before then, and read the <strong>response body</strong>, not just the status: a <code>200</code> can carry a JSON-RPC error.</p>
-<p><code>npm run doctor</code> checks only your own machine (Node, <code>.env</code> permissions, the build, the lab&#39;s <code>/api/health</code>). It never calls the gateway, and it can pass with nothing configured. The checks that tell you Privilege is set up are these:</p>
+<p><code>npm run doctor</code> checks only your own machine (Node, <code>.env</code> permissions, the build, the lab&#39;s <code>/api/health</code>). It never calls the gateway, and it can pass with nothing configured. The checks that tell you Privilege is set up are these, and <code>npm run setup -- --verify --wait 6</code> runs them for you (add <code>--path a</code> for Path A):</p>
 <div class="table-wrap"><table>
 <thead>
 <tr>
@@ -319,7 +320,7 @@ MCP_URL=https://&lt;gateway&gt;/&lt;mcp app name&gt;/mcp
 <td>A missing scope is refused</td>
 <td>B only</td>
 <td>Call <code>&lt;gateway&gt;/&lt;mcp app name&gt;/mcp</code> with the <strong>main</strong> key (it has no <code>mcp</code> scope)</td>
-<td><code>403 key not scoped for mcp access</code></td>
+<td><code>403</code> (or <code>401</code>) with a &quot;not scoped&quot; message</td>
 </tr>
 <tr>
 <td>An unknown key is refused</td>
@@ -399,8 +400,13 @@ MCP_URL=https://&lt;gateway&gt;/&lt;mcp app name&gt;/mcp
 <td>Check the key exists, is not revoked, is not past its expiry</td>
 </tr>
 <tr>
+<td><code>401 virtual key not scoped for llm access</code> (seen on a real gateway, 2026-11-25)</td>
+<td>The key was created without the <code>llm</code> scope, or the route is for another provider</td>
+<td>Add the scope on the key in the console (Steps 4 and 5), or use the key made for that provider; wait for the change to reach the gateway</td>
+</tr>
+<tr>
 <td><code>403 key not scoped for mcp access</code></td>
-<td>The key lacks that scope (the only self-describing refusal)</td>
+<td>The key lacks that scope (self-describing refusals like this and the 401 above are the exceptions)</td>
 <td>Add the scope</td>
 </tr>
 <tr>
@@ -438,7 +444,29 @@ MCP_URL=https://&lt;gateway&gt;/&lt;mcp app name&gt;/mcp
 <h2 id="running-everything-on-one-machine-path-a"><a class="hl" href="#running-everything-on-one-machine-path-a" aria-label="Link to this section">#</a>Running everything on one machine (Path A)</h2>
 <p>Leave <code>WORKER_A2A_URL</code>, <code>WORKER_TRACE_URL</code> and <code>MCP_URL</code> on their loopback defaults and keep only <code>ANTHROPIC_BASE_URL</code> (and the keys) pointing at the gateway. Then only the model calls go through Privilege; the A2A and MCP hops stay local and are not governed. That is enough to see model records and policy, but it is not the full four-hop story. You still need the gateway to be reachable from your machine, and the worker key must be the one the worker process reads (<code>WORKER_AGENT_KEY</code> in <code>.env</code>).</p>
 <h2 id="what-a-script-can-and-cannot-do-for-you"><a class="hl" href="#what-a-script-can-and-cannot-do-for-you" aria-label="Link to this section">#</a>What a script can and cannot do for you</h2>
-<p>This section is for people who want to automate setup; you can skip it. There is <strong>no setup script</strong> for this lab yet: every Privilege object in the steps (Steps 1 and 3 to 6) is created by hand in the console. What a script could do, from what we found (&quot;Yes&quot; means possible, not available):</p>
+<p>This section is for people who want to automate setup; you can skip it. <code>npm run setup</code> does the part that needs no console credentials, and it never creates a Privilege object: every one in the steps (Steps 1 and 3 to 6) is still made by hand in the console. It has three modes:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>npm run setup -- --gateway &lt;host&gt; --main-model &lt;id&gt; --worker-model &lt;id&gt;</code></td>
+<td>The plan (the default): shows the <code>.env</code> lines it would write and prints the console checklist (the apps, scopes, models and tool names to enter). Writes nothing (<code>--checklist</code> prints only the checklist). The <code>--</code> after <code>npm run setup</code> is required, and on Path A every command also needs <code>--path a</code></td>
+</tr>
+<tr>
+<td><code>npm run setup -- --apply</code></td>
+<td>Writes <code>.env</code> from <code>config.example</code> (mode 600), changing only the lines it names. An existing <code>.env</code> is backed up first, and running it twice changes nothing. Keys come from a hidden prompt or from <code>MAIN_AGENT_KEY</code> and <code>WORKER_AGENT_KEY</code> in your shell. Refuses a doubled or too-short key, a key or value the <code>.env</code> loader would misread, a partial PingFederate trio, a missing model, a gateway with a path, a provider other than Anthropic or Google, or a linked <code>.env</code>, before writing anything</td>
+</tr>
+<tr>
+<td><code>npm run setup -- --verify</code></td>
+<td>The six checks in Step 9, each PASS or FAIL with the status and the reason; exits 1 if any fail. It changes nothing in <code>.env</code> or Privilege, but it makes real model and agent calls (a few tokens, and records in the gateway log). It refuses to send a key to any address that is not the gateway&#39;s own, or that is not https. <code>--wait &lt;minutes&gt;</code> keeps retrying checks that can clear on their own, up to that long in total across all the checks (the gateway takes about four, up to six, minutes). A <code>200</code> with an empty body or a JSON-RPC error is a FAIL</td>
+</tr>
+</tbody></table></div>
+<p>It never prints a key, not even in an error. When it writes keys it reminds you to save them in your password manager; it cannot read your vault. <code>npm run setup -- --help</code> lists every option.</p>
+<p>What more could be automated, from what we found (&quot;Partly&quot; means possible but not built):</p>
 <div class="table-wrap"><table>
 <thead>
 <tr>
@@ -447,14 +475,6 @@ MCP_URL=https://&lt;gateway&gt;/&lt;mcp app name&gt;/mcp
 </tr>
 </thead>
 <tbody><tr>
-<td>Fill in <code>.env</code> from <code>config.example</code> (mode 600, keys typed without echo)</td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>The checks in the table in Step 9</td>
-<td>Yes, read-only</td>
-</tr>
-<tr>
 <td>Create the two apps, the two keys and their grants through the console API</td>
 <td>Partly. The API supports it, but no working body has been proven on an empty tenant, and signing in to the API for a cloud console is a 60-minute browser cookie</td>
 </tr>
