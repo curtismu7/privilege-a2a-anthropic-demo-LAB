@@ -9,9 +9,9 @@ export interface SimulatedRun { kind: 'allowed' | 'blocked'; steps: SimulatedSte
 
 const GATEWAY = 'https://gateway.example/workeragent/a2a/jsonrpc';
 const KEY = 'sk-simulated… (masked)';
-const TOOL_REPLY = {
+export const TOOL_REPLY = {
   user: { id: 'bob.reyes', name: 'Bob Reyes', email: '[REDACTED:pii]', department: 'Revenue and Payments', employmentType: 'employee', manager: 'dana.olsen', status: 'active' },
-  entitlements: [{ user: 'bob.reyes', resource: 'fare-payments-api', role: 'payments-deployer', grantedAt: '2024-11-08', expiresAt: null, grantedBy: 'dana.olsen', lastUsed: '2026-07-31', justification: 'Service owner; deploys payment service releases.' }],
+  entitlements: [{ user: 'bob.reyes', resource: 'fare-payments-api', role: 'payments-deployer', grantedAt: '2024-11-08', expiresAt: null, grantedBy: 'dana.olsen', lastUsed: '2026-07-31', justification: 'Service owner; deploys fare payment service releases.' }],
 };
 const BOB_ANSWER = 'Bob Reyes holds one access grant:\n\n- **Resource**: fare-payments-api\n- **Role**: payments-deployer\n- **Granted**: 2024-11-08 by dana.olsen\n- **Expires**: No expiration\n- **Last Used**: 2026-07-31\n\nBob is an active Revenue and Payments employee and can access the fare-payments-api with deployer permissions. (Simulated answer: no model was called.)';
 const BLOCKED_ANSWER = 'The data call for passenger-records-db was stopped on its way back: the response was blocked by a security policy, so no access grants came back. (Simulated answer: no model was called.)';

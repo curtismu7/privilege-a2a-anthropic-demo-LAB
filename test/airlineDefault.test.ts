@@ -1,10 +1,17 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { createServer, type AddressInfo } from 'node:net';
 import { dirname, join, relative } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 import { INJECTION_PAYLOAD, RESOURCES, USERS, findUser, grants } from '../src/mcp-server/data.js';
+import { TOOL_REPLY } from '../src/storyReplay.js';
 
 // The default demo is an access review of Meridian Air, a fictional airline (spec: docs/specs/2026-11-25-airline-default.md).
 const root = `${dirname(dirname(fileURLToPath(import.meta.url)))}/`;
@@ -28,15 +35,15 @@ function walk(dir: string, out: string[] = []): string[] {
     if (SKIP_DIRS.has(name)) continue;
     const path = join(dir, name);
     if (statSync(path).isDirectory()) walk(path, out);
-    else if (/\.(ts|js|jsx|mjs|md|py|json|yaml|yml|example|html)$/.test(name)) out.push(path);
+    else if (/\.(ts|js|jsx|mjs|md|py|json|yaml|yml|example|html|sh)$/.test(name)) out.push(path);
   }
   return out;
 }
 
 test('no retired cloud-estate identifier is left in any shipped file (code, tests, docs, Story wording, video sources)', () => {
   const files = [
-    ...walk(`${root}src`), ...walk(`${root}web/src`), ...walk(`${root}test`), ...walk(`${root}docs`), ...walk(`${root}video`), ...walk(`${root}k8s`),
-    `${root}README.md`, `${root}CLAUDE.md`, `${root}config.example`,
+    ...walk(`${root}src`), ...walk(`${root}web/src`), ...walk(`${root}test`), ...walk(`${root}docs`), ...walk(`${root}video`), ...walk(`${root}k8s`), ...walk(`${root}scripts`), ...walk(`${root}server`),
+    `${root}README.md`, `${root}CLAUDE.md`, `${root}config.example`, `${root}Dockerfile`, `${root}docker-compose.yml`, `${root}package.json`,
   ].filter(f => !f.endsWith('airlineDefault.test.ts'));
   assert.ok(files.length > 40, `${files.length} files scanned`);
   const hits: string[] = [];
@@ -93,14 +100,57 @@ test('the default questions and the Story questions are the airline ones, the tw
   assert.ok(!/(united|delta|american airlines|lufthansa|emirates|ryanair|jetblue|southwest)/i.test(read('src/mcp-server/data.ts')), 'no real airline name in the data');
 });
 
-test('the simulated Story answer for Bob Reyes tells the same story as the seeded data (department, role, resource, grant date, manager)', () => {
+test('the simulated Story answer for Bob Reyes is exactly the seeded record (every field), and its text names the same facts', () => {
   const bob = findUser('bob.reyes');
-  const grant = grants(false).find(g => g.user === 'bob.reyes');
-  assert.ok(bob && grant);
+  assert.ok(bob);
+  assert.deepEqual(TOOL_REPLY.user, { ...bob, email: '[REDACTED:pii]' }, 'the replayed user is the seeded user with the email redacted');
+  assert.deepEqual(TOOL_REPLY.entitlements, grants(false).filter(g => g.user === 'bob.reyes'), 'the replayed grants are the seeded grants, justification and expiry included');
   const replay = read('src/storyReplay.ts');
-  assert.ok(replay.includes(`department: '${bob.department}'`), 'the replayed user record has the seeded department');
-  assert.ok(replay.includes(`manager: '${bob.manager}'`));
-  assert.ok(replay.includes(`active ${bob.department} employee`), 'the answer text names the seeded department');
-  for (const part of [grant.resource, grant.role, grant.grantedAt, grant.grantedBy, grant.lastUsed ?? '']) assert.ok(replay.includes(part), `the replay mentions ${part}`);
-  assert.ok(!/\bFinance\b/.test(replay), 'no retired department');
+  const [grant] = TOOL_REPLY.entitlements;
+  for (const part of [grant.resource, grant.role, `${grant.grantedAt} by ${grant.grantedBy}`, grant.lastUsed ?? '', `active ${bob.department} employee`]) assert.ok(replay.includes(part), `the answer text mentions ${part}`);
+});
+
+test('no real airline name appears in the code, docs or page text', () => {
+  const REAL = /\b(american airlines|delta air|united airlines|lufthansa|emirates|ryanair|jetblue|southwest airlines|qantas|air france|british airways|klm|air canada|alaska airlines)\b/i;
+  const files = [...walk(`${root}src`), ...walk(`${root}web/src`), ...walk(`${root}docs`), `${root}README.md`];
+  const hits = files.filter(f => REAL.test(readFileSync(f, 'utf8'))).map(f => relative(root, f));
+  assert.deepEqual(hits, [], 'a real airline is named');
+});
+
+async function freePort(): Promise<number> {
+  const probe = createServer();
+  probe.listen(0, '127.0.0.1');
+  await once(probe, 'listening');
+  const port = (probe.address() as AddressInfo).port;
+  await new Promise<void>(resolve => probe.close(() => resolve()));
+  return port;
+}
+
+test('a question about a retired resource gets resource_not_found with the four real names, so the analyst can invent nothing (the MCP server, called for real)', async () => {
+  const port = await freePort();
+  const child = spawn(process.execPath, [join(root, 'node_modules/tsx/dist/cli.mjs'), 'src/mcp-server/index.ts'], {
+    cwd: root,
+    env: { ...process.env, MCP_SERVER_PORT: String(port), MCP_REQUIRE_BEARER: 'false', MCP_STATEFUL: 'false', MCP_JSON_RESPONSE: 'true' },
+    stdio: 'ignore',
+  });
+  try {
+    for (let i = 0; i < 150; i += 1) {
+      try { if ((await fetch(`http://127.0.0.1:${port}/healthz`)).ok) break; } catch { /* not up yet */ }
+      await delay(100);
+    }
+    const client = new Client({ name: 'airline-default-test', version: '1' }, { capabilities: {} });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`)));
+    const call = async (resource: string) => JSON.parse(((await client.callTool({ name: 'get_access_grants', arguments: { resource } })) as { content: Array<{ text: string }> }).content[0]!.text) as { error?: string; requested?: string; knownResources?: string[]; resource?: string; grants?: unknown[] };
+    const retired = await call('prod-db-primary');
+    assert.equal(retired.error, 'resource_not_found');
+    assert.equal(retired.requested, 'prod-db-primary');
+    assert.deepEqual([...(retired.knownResources ?? [])].sort(), ['fare-payments-api', 'flight-manifest-exports', 'ops-deploy-pipeline', 'passenger-records-db']);
+    const real = await call('passenger-records-db');
+    assert.equal(real.error, undefined);
+    assert.equal(real.resource, 'passenger-records-db');
+    assert.ok((real.grants ?? []).length >= 3, 'the airline resource has its grants');
+    await client.close();
+  } finally {
+    child.kill('SIGTERM');
+  }
 });
