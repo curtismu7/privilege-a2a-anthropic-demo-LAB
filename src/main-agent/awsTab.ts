@@ -18,9 +18,9 @@ export const AWS_INTRO: AwsPrompt = {
 
 export const AWS_PROMPTS: readonly AwsPrompt[] = [
   AWS_INTRO,
-  { q: 'Review cloud access for the data platform' },
+  { q: 'Review cloud access for the Meridian Air booking platform' },
   { q: 'Which service accounts hold roles they have not used?' },
-  { q: 'Is any storage bucket publicly readable?' },
+  { q: 'Is the flight manifest bucket publicly readable?' },
 ];
 
 const promptButton = ({ q, proves }: AwsPrompt): string =>

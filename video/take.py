@@ -352,7 +352,7 @@ def main():
                                 "blocked": (Path(__file__).parent / "assets" / "sample-part1-blocked.sse").read_text()}
                     def replay(route):
                         body = json.loads(route.request.post_data or "{}")
-                        route.fulfill(status=200, headers={"Content-Type": "text/event-stream"}, body=fixtures["blocked" if "prod-db" in body.get("message", "") else "bob"])
+                        route.fulfill(status=200, headers={"Content-Type": "text/event-stream"}, body=fixtures["blocked" if "passenger-records-db" in body.get("message", "") else "bob"])
                     page.route("**/chat", replay)
                 page.goto(APP + "/"); page.wait_for_selector("#tab-aws")
                 page.select_option("[data-testid=theme-select]", THEME); page.select_option("[data-testid=font-select]", FONT)

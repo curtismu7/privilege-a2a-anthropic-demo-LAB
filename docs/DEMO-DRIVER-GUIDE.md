@@ -3,6 +3,12 @@
 For the person driving this demo for an audience. One page: what to ask, what
 the audience will see, and why each screen looks the way it does.
 
+The demo is an access review at **Meridian Air**, a fictional airline. Its
+systems are `passenger-records-db` (the critical one: bookings, passports,
+loyalty), `fare-payments-api`, `flight-manifest-exports` and
+`ops-deploy-pipeline`; the six people (Dana, Alice, Bob, Carol, Dave, Erin) work
+in flight operations, reservations, revenue, security and support.
+
 **The one thing to know before you start:** the MCP server deliberately plants
 a prompt-injection payload in one seeded record (Dave Okoro's access grant on
 `passenger-records-db`). The gateway's AI Guard catches it and blocks that tool

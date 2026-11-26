@@ -5,7 +5,7 @@ Tier: Demo
 Repo: https://github.com/curtismu7/privilege-a2a-anthropic-demo-LAB
 
 
-Three Node processes demonstrate A2A with remote agents (an access review is the worked example) through A2A and MCP, on
+Three Node processes demonstrate A2A with remote agents (an access review at Meridian Air, a fictional airline, is the worked example) through A2A and MCP, on
 Anthropic or Google models. The page is titled "A2A with remote agents". The main agent owns the browser conversation and delegates to the worker.
 The worker owns the access-review tools and calls the separate MCP process.
 

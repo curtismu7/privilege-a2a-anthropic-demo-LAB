@@ -1,5 +1,5 @@
 /**
- * Seeded access-review data. Entirely fictional; no backend.
+ * Seeded access-review data for Meridian Air, a fictional airline. Entirely fictional; no backend.
  *
  * Shaped so an analyst agent has something to actually reason about: expired
  * grants, never-used standing access, a contractor with production admin, and
@@ -34,7 +34,7 @@ export const USERS: User[] = [
     id: 'dana.olsen',
     name: 'Dana Olsen',
     email: 'dana.olsen@meridianair.example',
-    department: 'Engineering',
+    department: 'Flight Operations Technology',
     employmentType: 'employee',
     manager: null,
     status: 'active',
@@ -43,7 +43,7 @@ export const USERS: User[] = [
     id: 'alice.chen',
     name: 'Alice Chen',
     email: 'alice.chen@meridianair.example',
-    department: 'Engineering',
+    department: 'Reservations Engineering',
     employmentType: 'employee',
     manager: 'dana.olsen',
     status: 'active',
@@ -52,7 +52,7 @@ export const USERS: User[] = [
     id: 'bob.reyes',
     name: 'Bob Reyes',
     email: 'bob.reyes@meridianair.example',
-    department: 'Finance',
+    department: 'Revenue and Payments',
     employmentType: 'employee',
     manager: 'dana.olsen',
     status: 'active',
@@ -61,7 +61,7 @@ export const USERS: User[] = [
     id: 'carol.nguyen',
     name: 'Carol Nguyen',
     email: 'carol.nguyen@contractor.meridianair.example',
-    department: 'Engineering',
+    department: 'Reservations Engineering',
     employmentType: 'contractor',
     manager: 'alice.chen',
     status: 'active',
@@ -79,7 +79,7 @@ export const USERS: User[] = [
     id: 'erin.walsh',
     name: 'Erin Walsh',
     email: 'erin.walsh@meridianair.example',
-    department: 'Support',
+    department: 'Customer Support',
     employmentType: 'employee',
     manager: 'bob.reyes',
     status: 'offboarding',
@@ -88,22 +88,22 @@ export const USERS: User[] = [
 
 export const RESOURCES: Record<string, { description: string; tier: string; owner: string }> = {
   'passenger-records-db': {
-    description: 'Primary production customer database',
+    description: 'Primary passenger records database: bookings, passports, loyalty',
     tier: 'critical',
     owner: 'alice.chen',
   },
   'fare-payments-api': {
-    description: 'Payment processing service',
+    description: 'Fare payment processing service',
     tier: 'critical',
     owner: 'bob.reyes',
   },
   'flight-manifest-exports': {
-    description: 'Bucket holding generated customer data exports',
+    description: 'Storage holding generated flight manifest and passenger data exports',
     tier: 'sensitive',
     owner: 'alice.chen',
   },
   'ops-deploy-pipeline': {
-    description: 'Build and deploy pipeline',
+    description: 'Build and deploy pipeline for flight operations software',
     tier: 'internal',
     owner: 'carol.nguyen',
   },
@@ -134,7 +134,7 @@ const GRANTS: Grant[] = [
     expiresAt: null,
     grantedBy: 'dana.olsen',
     lastUsed: '2026-08-01',
-    justification: 'Service owner; requires admin for schema migrations.',
+    justification: 'Service owner; requires admin for reservation schema migrations.',
   },
   {
     user: 'carol.nguyen',
@@ -164,7 +164,7 @@ const GRANTS: Grant[] = [
     expiresAt: null,
     grantedBy: 'bob.reyes',
     lastUsed: '2026-05-04',
-    justification: 'Reads export manifests when handling customer data requests.',
+    justification: 'Reads manifest exports when handling passenger data requests.',
   },
   {
     user: 'bob.reyes',
@@ -174,7 +174,7 @@ const GRANTS: Grant[] = [
     expiresAt: null,
     grantedBy: 'dana.olsen',
     lastUsed: '2026-07-31',
-    justification: 'Service owner; deploys payment service releases.',
+    justification: 'Service owner; deploys fare payment service releases.',
   },
   {
     user: 'carol.nguyen',
@@ -184,7 +184,7 @@ const GRANTS: Grant[] = [
     expiresAt: null,
     grantedBy: 'alice.chen',
     lastUsed: '2026-08-02',
-    justification: 'Maintains the build pipeline.',
+    justification: 'Maintains the flight operations build pipeline.',
   },
   {
     user: 'erin.walsh',
@@ -194,7 +194,7 @@ const GRANTS: Grant[] = [
     expiresAt: '2026-02-15',
     grantedBy: 'break-glass',
     lastUsed: '2026-02-14',
-    justification: 'Break-glass access during the February incident.',
+    justification: 'Break-glass access during the February schedule-disruption incident.',
   },
 ];
 

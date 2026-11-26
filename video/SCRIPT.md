@@ -2,6 +2,7 @@
 
 Written first, before any recording (video standard: every video has a script, built from the specs and docs actually read, not from memory). `captions.md` carries the on-screen wording and must say what this script says. If a source changes, change the script, then the captions, then retake. Revised 2026-11-22 for the two-part cut (the first cut was reviewed 2026-11-21 by an independent reader; its corrections are folded in, and the new reel pop-outs were reviewed the same way on 2026-11-22).
 
+- **Scenario (2026-11-26):** the app's default demo is now an access review at Meridian Air, a fictional airline. The released recording predates this and shows the earlier generic access-review data; the questions in the table below are the airline ones, for the next re-record. Not re-recorded yet.
 - **Format:** silent screen capture with numbered captions and full-screen slides, light theme, about 10 minutes. **No slide is held longer than 10 seconds** (owner, 2026-11-22), so slide text is a skim of at most about 75 words, not a read. Opens and closes with a slide.
 - **Part 1, normal A2A (A2A with remote agents tab):** our two agents. The concierge hands a question to the analyst agent over A2A; the analyst reads data over MCP. One question that succeeds (with personal data redacted on the MCP leg) and one that Privilege stops.
 - **Part 2, A2A with an agent in AWS (Custodian to AWS agent tab):** the same idea across clouds. Two questions that succeed, then a refusal.

@@ -38,7 +38,7 @@ test('a tool call and its result round-trip through Groq in OpenAI format, with 
   assert.deepEqual([call.type, call.id, call.name, call.input], ['tool_use', 'call_1', 'list_grants', { user: 'carol' }]);
 
   messages.push({ role: 'assistant', content: first.content });
-  messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: 'call_1', content: 'grant: prod-db' }] });
+  messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: 'call_1', content: 'grant: passenger-records-db' }] });
   const second = await client.messages.create({ model: 'llama-test', max_tokens: 100, system: 'Be brief.', tools: [TOOL], messages });
   assert.equal(second.stop_reason, 'end_turn');
   assert.equal((second.content[0] as Anthropic.TextBlock).text, 'Carol has one grant.');
@@ -54,7 +54,7 @@ test('a tool call and its result round-trip through Groq in OpenAI format, with 
   // The second request carries the assistant tool call and the tool result in OpenAI shape.
   const sent = requests[1]!.body.messages;
   assert.deepEqual(sent[2], { role: 'assistant', content: null, tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'list_grants', arguments: '{"user":"carol"}' } }] });
-  assert.deepEqual(sent[3], { role: 'tool', tool_call_id: 'call_1', content: 'grant: prod-db' });
+  assert.deepEqual(sent[3], { role: 'tool', tool_call_id: 'call_1', content: 'grant: passenger-records-db' });
 });
 
 test('tool arguments that are not valid JSON become an empty input, not a crash', () => {

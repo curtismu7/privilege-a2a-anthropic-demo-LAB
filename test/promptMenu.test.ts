@@ -23,7 +23,7 @@ test('opening and closing: the toggle flips aria-expanded, Escape closes it, and
 });
 
 test('an empty chat says where the prompts went', () => {
-  assert.match(page, /#messages:empty::before\{content:"Open Example prompts below, or type your own question\."/);
+  assert.match(page, /#messages:empty::before\{content:"Meridian Air is a fictional airline\. Open Example prompts below, or type your own question\."/);
 });
 
 test('the shell bar wraps at 600px and the top menu may shrink to the screen, so a 360px phone does not scroll sideways', () => {

@@ -63,7 +63,7 @@ export function createAwsAgentMockApp(options: AwsMockOptions = {}): Express {
       capabilities: { streaming: false },
       defaultInputModes: ['text'],
       defaultOutputModes: ['text'],
-      skills: [{ id: 'cloud-access-review', name: 'Cloud access review', description: 'Reviews who and what holds access to cloud resources (sample data).', tags: ['aws', 'entitlements'] }],
+      skills: [{ id: 'cloud-access-review', name: 'Cloud access review', description: 'Reviews who and what holds access to Meridian Air cloud resources (sample data).', tags: ['aws', 'entitlements'] }],
     });
   });
 
@@ -82,7 +82,7 @@ export function createAwsAgentMockApp(options: AwsMockOptions = {}): Express {
     const answer = INTRODUCTION.test(question) ? [
       'SIMULATED reply from the AWS agent. This is a local stand-in; no AWS account or runtime was called.',
       '',
-      'I am the Cloud Access Agent. I review who and what holds access to cloud resources, and I speak A2A (JSON-RPC message/send).',
+      'I am the Cloud Access Agent. I review who and what holds access to the cloud resources of Meridian Air, a fictional airline, and I speak A2A (JSON-RPC message/send).',
       'In a live run I would be the agent hosted in AWS on Amazon Bedrock AgentCore, reached through your Privilege gateway; here I am running as a small local process so the demo works offline.',
     ].join('\n') : [
       'SIMULATED reply from the AWS agent. This is a local stand-in; no AWS account or runtime was called.',
@@ -90,9 +90,9 @@ export function createAwsAgentMockApp(options: AwsMockOptions = {}): Express {
       `You asked: "${echoed}"`,
       '',
       'Cloud access review (sample data):',
-      '- Role example-data-reader: unused for 94 days, still attached to 2 service accounts.',
-      '- Role example-deploy-admin: broad permissions, last used 3 days ago.',
-      '- Bucket example-audit-logs: public access blocked.',
+      '- Role meridian-booking-reader: unused for 94 days, still attached to 2 service accounts.',
+      '- Role meridian-ops-deploy-admin: broad permissions, last used 3 days ago.',
+      '- Bucket meridian-flight-manifests: public access blocked.',
     ].join('\n');
     res.json({ jsonrpc: '2.0', id, result: { artifacts: [{ artifactId: 'sim-artifact-1', name: 'agent_response', parts: [{ kind: 'text', text: answer }] }] } });
   });

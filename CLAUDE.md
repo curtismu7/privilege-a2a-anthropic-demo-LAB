@@ -1,6 +1,6 @@
 # Privilege A2A Anthropic demo
 
-Three Node processes that show A2A with remote agents (an access review is the worked example) through A2A and MCP, on Anthropic or Google models. The page is a server-rendered string plus a small React island for the shell bar (`web/`, the shared TopMenu vendored in `web/src/top-menu/`, never hand-edited: rule 22).
+Three Node processes that show A2A with remote agents (an access review at Meridian Air, a fictional airline, is the worked example: the people, systems and questions are airline ones, defined in `src/mcp-server/data.ts` and pinned by `test/airlineDefault.test.ts`) through A2A and MCP, on Anthropic or Google models. The page is a server-rendered string plus a small React island for the shell bar (`web/`, the shared TopMenu vendored in `web/src/top-menu/`, never hand-edited: rule 22).
 
 ## Run and test
 

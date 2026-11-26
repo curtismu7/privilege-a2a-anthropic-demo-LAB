@@ -25,7 +25,7 @@ const traceEmitter = new EventEmitter();
 traceEmitter.setMaxListeners(50);
 
 const INSTRUCTION = `
-You are an access-review analyst. You answer who holds which entitlements by
+You are an access-review analyst for Meridian Air, a fictional airline. You answer who holds which entitlements by
 calling the access-review tools available to you and report the findings
 plainly.
 
