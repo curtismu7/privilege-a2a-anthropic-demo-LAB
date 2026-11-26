@@ -274,7 +274,10 @@ const envFor = (origin: string, extra: Record<string, string> = {}): Record<stri
   WORKER_A2A_URL: `${origin}/workeragentdemo/a2a`, MCP_URL: `${origin}/mcpdemo/mcp`, ...extra,
 });
 type R = { id: string; ok: boolean; status?: number; reason: string; attempts: number };
-const verify = async (env: Record<string, string>, o: object = {}): Promise<R[]> => lib.runVerify(env, { timeoutMs: 3000, ...o });
+// 8s: the fake gateway answers in ms, but under full-suite parallel load on a busy
+// machine one 3s exchange occasionally breaches; the dedicated hang test uses its
+// own 300ms timeout, so the hang behaviour is still covered.
+const verify = async (env: Record<string, string>, o: object = {}): Promise<R[]> => lib.runVerify(env, { timeoutMs: 8000, ...o });
 const byId = (rs: R[], id: string): R => rs.find(r => r.id === id) as R;
 const ids = (rs: R[]): Array<[string, boolean]> => rs.map(r => [r.id, r.ok]);
 const ALL_PASS: Array<[string, boolean]> = [['worker-model', true], ['main-model', true], ['unknown-key', true], ['mcp-tools', true], ['scope-refused', true], ['a2a', true]];
