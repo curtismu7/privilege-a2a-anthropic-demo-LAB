@@ -17,7 +17,7 @@
 // Hold times for Play for me are not here: they come from the wording and the shared hold.js (the video's own formulas), except `fixedSecs`.
 
 export const P1_Q1 = 'What can Bob Reyes reach?';
-export const P1_Q2 = 'Review access on prod-db-primary';
+export const P1_Q2 = 'Review access on passenger-records-db';
 export const P2_Q1 = 'Use add_numbers to add 987654321 and 123456789. Show the exact tool call you made and the value it returned.';
 export const P2_Q2 = 'Add 48,213 and 9,787, then say whether the result is even or odd.';
 export const P2_SUM = '1111111110';   // the video's own answer checks (take.py): a live answer is only called right when it holds the sum

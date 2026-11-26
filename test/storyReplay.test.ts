@@ -15,7 +15,7 @@ import { P1_Q1, P1_Q2 } from '../web/src/storyScript.js';
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const tsxCli = join(root, 'node_modules/tsx/dist/cli.mjs');
 const BOB = 'What can Bob Reyes reach?';
-const BLOCKED = 'Review access on prod-db-primary';
+const BLOCKED = 'Review access on passenger-records-db';
 
 test('story replay: only the two scripted questions get a simulated run', () => {
   assert.equal(simulatedRun(BOB)?.kind, 'allowed');
@@ -23,8 +23,8 @@ test('story replay: only the two scripted questions get a simulated run', () => 
   assert.equal(simulatedRun('who is Carol Nguyen?'), null);
   assert.equal(simulatedRun(''), null);
   // matched whole: a question that only mentions them is the viewer's own
-  assert.equal(simulatedRun('Remove Bob Reyes from payments-api'), null);
-  assert.equal(simulatedRun('Is prod-db-primary safe?'), null);
+  assert.equal(simulatedRun('Remove Bob Reyes from fare-payments-api'), null);
+  assert.equal(simulatedRun('Is passenger-records-db safe?'), null);
   assert.equal(simulatedRun('  what can   BOB reyes reach? ')?.kind, 'allowed');
   // the server's copies of the questions are the script's (the page fills the box from the script)
   assert.equal(SCRIPTED_ALLOWED, P1_Q1); assert.equal(SCRIPTED_BLOCKED, P1_Q2);

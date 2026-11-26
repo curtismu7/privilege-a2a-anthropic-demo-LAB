@@ -49,7 +49,7 @@ Slides are full screen and unnumbered; caption bubbles are numbered.
 | 5 | Reel MCP frames | The analyst uses MCP to reach the data; A2A is agent to agent, MCP is agent to tools. | A2A Appendix B |
 | 6 | MCP result pop-out | The grant is readable; the email came back as `[REDACTED:pii]`. Privilege screened the data in flight. | PRIV (AI Guard); LIVE |
 | 7 | Answer | The answer, from the analyst's data. | LIVE |
-| 8 | Typing "Review access on prod-db-primary" | Same path, a question whose data the gateway will not pass. | LIVE |
+| 8 | Typing "Review access on passenger-records-db" | Same path, a question whose data the gateway will not pass. | LIVE |
 | 9 | Reel with the stopped call | The tool response was blocked by a security policy; no data came back. | PRIV (AI Guard); LIVE |
 | **Part 2** | | | |
 | Slide | Slide | An agent in AWS (Bedrock AgentCore) reached through the same gateway; our agent holds no AWS credentials. | AWS-AUTH; PRIV |

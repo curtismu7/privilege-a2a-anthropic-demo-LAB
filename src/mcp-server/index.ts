@@ -78,7 +78,7 @@ function buildServer(): McpServer {
         'List every user holding a given role, across all resources. Use this to ' +
         'answer "who can do X" and to spot roles that have spread too widely.',
       inputSchema: {
-        role: z.string().describe('Role name, e.g. "prod-db-admin"'),
+        role: z.string().describe('Role name, e.g. "passenger-db-admin"'),
       },
       annotations: { readOnlyHint: true },
     },
@@ -101,7 +101,7 @@ function buildServer(): McpServer {
         'List every grant on one resource, plus the resource\'s tier and owner. ' +
         'Use this when reviewing a specific system rather than a specific person.',
       inputSchema: {
-        resource: z.string().describe('Resource name, e.g. "prod-db-primary"'),
+        resource: z.string().describe('Resource name, e.g. "passenger-records-db"'),
       },
       annotations: { readOnlyHint: true },
     },
