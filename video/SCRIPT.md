@@ -70,7 +70,7 @@ Slides are full screen and unnumbered; caption bubbles are numbered.
 | 20 | Boxes, then the reel | Refused at the gateway (401); AWS never reached. | LIVE |
 | 21 | Refused frame pop-out | A 401 carries a challenge: the parts explained, with the specs. | RFC 9110 §15.5.2; RFC 6750 §3, §3.1; A2A §7.4 |
 | 22 | Metadata frame | The challenge points at sign-in metadata; the gateway's own host is the one read. | RFC 9728 §2, §3, §5.1 |
-| Slide | Console screenshot | Every call is on record: the app's Activity Logs after the runs (the Agent Card read and the message send as `aws-agent-caller-identity`; the AWS account id is masked in the display before the screenshot). | CONSOLE; PRIV |
+| Slide | Observability slide | Every call is on record: what the recorded run left behind for observability, one line per layer (the lab, the gateway, the MCP server), built from the lab's own run-observability record of the run that was just filmed (`video/build_obs_slide.py`, `assets/observability.json`). No console screenshot: the slide is made from the run itself. | LIVE; PRIV |
 | Slide | Slide | What the gateway can protect. | PRIV |
 | Close | Slide | What both parts showed, and why it matters. | all |
 
