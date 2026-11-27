@@ -110,7 +110,7 @@ def detect_capture_device(work):
 # The pop-ups and slides are the SHARED overlay (web/src/story/overlay.js, vendored) and the holds are the shared formulas (hold.js): see story_bridge.py. The video has no copy of either.
 TOTAL = 25 if SAMPLE else 27   # numbered caption bubbles; the take counts them and logs a mismatch (conditional scenes change the count)
 P1_Q1 = "What can Bob Reyes reach?"                      # a clean A2A handoff, MCP data with the email redacted
-P1_Q2 = "Review access on prod-db-primary"               # the data call the gateway blocks (AI Guard), by design of the injection demo
+P1_Q2 = "Review access on passenger-records-db"               # the data call the gateway blocks (AI Guard), by design of the injection demo
 P2_Q1 = "Use add_numbers to add 987654321 and 123456789. Show the exact tool call you made and the value it returned."
 P2_Q2 = "Add 48,213 and 9,787, then say whether the result is even or odd."
 P2_SUM = "1111111110"; P2_SUM2 = "58000"
@@ -352,7 +352,7 @@ def main():
                                 "blocked": (Path(__file__).parent / "assets" / "sample-part1-blocked.sse").read_text()}
                     def replay(route):
                         body = json.loads(route.request.post_data or "{}")
-                        route.fulfill(status=200, headers={"Content-Type": "text/event-stream"}, body=fixtures["blocked" if "prod-db" in body.get("message", "") else "bob"])
+                        route.fulfill(status=200, headers={"Content-Type": "text/event-stream"}, body=fixtures["blocked" if "passenger-records-db" in body.get("message", "") else "bob"])
                     page.route("**/chat", replay)
                 page.goto(APP + "/"); page.wait_for_selector("#tab-aws")
                 page.select_option("[data-testid=theme-select]", THEME); page.select_option("[data-testid=font-select]", FONT)

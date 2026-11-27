@@ -9,12 +9,12 @@ export interface SimulatedRun { kind: 'allowed' | 'blocked'; steps: SimulatedSte
 
 const GATEWAY = 'https://gateway.example/workeragent/a2a/jsonrpc';
 const KEY = 'sk-simulated… (masked)';
-const TOOL_REPLY = {
-  user: { id: 'bob.reyes', name: 'Bob Reyes', email: '[REDACTED:pii]', department: 'Finance', employmentType: 'employee', manager: 'dana.olsen', status: 'active' },
-  entitlements: [{ user: 'bob.reyes', resource: 'payments-api', role: 'payments-deployer', grantedAt: '2024-11-08', expiresAt: null, grantedBy: 'dana.olsen', lastUsed: '2026-07-31', justification: 'Service owner; deploys payment service releases.' }],
+export const TOOL_REPLY = {
+  user: { id: 'bob.reyes', name: 'Bob Reyes', email: '[REDACTED:pii]', department: 'Revenue and Payments', employmentType: 'employee', manager: 'dana.olsen', status: 'active' },
+  entitlements: [{ user: 'bob.reyes', resource: 'fare-payments-api', role: 'payments-deployer', grantedAt: '2024-11-08', expiresAt: null, grantedBy: 'dana.olsen', lastUsed: '2026-07-31', justification: 'Service owner; deploys fare payment service releases.' }],
 };
-const BOB_ANSWER = 'Bob Reyes holds one access grant:\n\n- **Resource**: payments-api\n- **Role**: payments-deployer\n- **Granted**: 2024-11-08 by dana.olsen\n- **Expires**: No expiration\n- **Last Used**: 2026-07-31\n\nBob is an active Finance employee and can access the payments-api with deployer permissions. (Simulated answer: no model was called.)';
-const BLOCKED_ANSWER = 'The data call for prod-db-primary was stopped on its way back: the response was blocked by a security policy, so no access grants came back. (Simulated answer: no model was called.)';
+const BOB_ANSWER = 'Bob Reyes holds one access grant:\n\n- **Resource**: fare-payments-api\n- **Role**: payments-deployer\n- **Granted**: 2024-11-08 by dana.olsen\n- **Expires**: No expiration\n- **Last Used**: 2026-07-31\n\nBob is an active Revenue and Payments employee and can access the fare-payments-api with deployer permissions. (Simulated answer: no model was called.)';
+const BLOCKED_ANSWER = 'The data call for passenger-records-db was stopped on its way back: the response was blocked by a security policy, so no access grants came back. (Simulated answer: no model was called.)';
 
 const request = (question: string): string => `POST ${GATEWAY}\nContent-Type: application/json\nAuthorization: Bearer ${KEY}\n\n${JSON.stringify({ jsonrpc: '2.0', id: '<request id>', method: 'message/send', params: { message: { role: 'user', messageId: '<message id>', parts: [{ kind: 'text', text: question }] } } }, null, 2)}`;
 const response = (answer: string): string => `HTTP 200\n\n${JSON.stringify({ jsonrpc: '2.0', id: '<request id>', result: { kind: 'message', role: 'agent', parts: [{ kind: 'text', text: answer }] } }, null, 2)}`;
@@ -36,13 +36,13 @@ function build(question: string, tool: string, toolInput: string, outcome: Simul
 // The two scripted Part 1 questions (the same text as web/src/storyScript.js P1_Q1 and P1_Q2; a test keeps them equal). Matched whole, ignoring case and spacing:
 // a question that merely mentions Bob Reyes or the resource is the viewer's own and takes the normal path.
 export const SCRIPTED_ALLOWED = 'What can Bob Reyes reach?';
-export const SCRIPTED_BLOCKED = 'Review access on prod-db-primary';
+export const SCRIPTED_BLOCKED = 'Review access on passenger-records-db';
 const norm = (s: string): string => s.trim().replace(/\s+/g, ' ').toLowerCase();
 
 /** The simulated run for one of the two scripted questions, or null (any other question is left to the normal path). */
 export function simulatedRun(message: string): SimulatedRun | null {
   if (norm(message) === norm(SCRIPTED_BLOCKED)) {
-    return build(message, 'get_access_grants', '{"resource":"prod-db-primary"}',
+    return build(message, 'get_access_grants', '{"resource":"passenger-records-db"}',
       { delayMs: 500, event: 'trace', payload: { kind: 'error', text: 'get_access_grants failed', detail: 'Streamable HTTP error: Error POSTing to endpoint: {"error":{"code":"content_blocked","message":"response blocked by security policy"}}', from: 'mcp', to: 'analyst' } },
       BLOCKED_ANSWER, 'blocked');
   }

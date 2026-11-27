@@ -46,7 +46,7 @@ export function analystCard(url: string): AgentCard {
         name: 'Resource grants',
         description: 'List who has been granted access to a given resource, including expired and break-glass grants.',
         tags: ['identity', 'access', 'review', 'grants'],
-        examples: ['Who can access the production database?', 'Are any expired grants on the payroll system still in use?'],
+        examples: ['Who can access the passenger records database?', 'Are any expired grants on the fare payments system still in use?'],
       },
       {
         id: 'open_ticket',

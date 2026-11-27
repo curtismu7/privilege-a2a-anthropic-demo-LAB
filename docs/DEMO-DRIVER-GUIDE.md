@@ -3,9 +3,15 @@
 For the person driving this demo for an audience. One page: what to ask, what
 the audience will see, and why each screen looks the way it does.
 
+The demo is an access review at **Meridian Air**, a fictional airline. Its
+systems are `passenger-records-db` (the critical one: bookings, passports,
+loyalty), `fare-payments-api`, `flight-manifest-exports` and
+`ops-deploy-pipeline`; the six people (Dana, Alice, Bob, Carol, Dave, Erin) work
+in flight operations, reservations, revenue, security and support.
+
 **The one thing to know before you start:** the MCP server deliberately plants
 a prompt-injection payload in one seeded record (Dave Okoro's access grant on
-`prod-db-primary`). The gateway's AI Guard catches it and blocks that tool
+`passenger-records-db`). The gateway's AI Guard catches it and blocks that tool
 response. That block is the demo's centrepiece, not a malfunction — the UI
 example prompt for it says so on the card. Everything else you ask returns
 real data.
@@ -26,7 +32,7 @@ real data.
 Use the **Example prompts** panel — each card states what it proves. The
 three:
 
-1. **"Review access on prod-db-primary"** — the A2A hand-off end to end, and
+1. **"Review access on passenger-records-db"** — the A2A hand-off end to end, and
    the AI Guard block. Expect: the concierge hands off to the analyst agent;
    the analyst's tool call succeeds; the *tool reply* comes back
    **blocked by the gateway** (`content_blocked`) because the planted record
@@ -39,11 +45,11 @@ three:
 3. **"Is Erin Walsh offboarding, and what access does she still hold?"** —
    the analyst, not the concierge, does the data work. Expect: real records,
    Erin flagged as offboarding with a standing grant on
-   `s3-customer-exports`.
+   `flight-manifest-exports`.
 
 If you want a question that returns an access-review list **without** the
 planted block (for a clean-data beat), ask about any other resource or user:
-`payments-api`, `jenkins-ci`, `s3-customer-exports`, or any name other than
+`fare-payments-api`, `ops-deploy-pipeline`, `flight-manifest-exports`, or any name other than
 Dave Okoro. Only records seeded with the injection payload block.
 
 ## Reading the screens

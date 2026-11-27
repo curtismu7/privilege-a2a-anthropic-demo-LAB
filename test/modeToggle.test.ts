@@ -43,7 +43,7 @@ test('the page is named A2A with remote agents: title, heading and first tab; no
   assert.match(page, /<title>A2A with remote agents — Privilege A2A<\/title>/);
   assert.match(page, /id="tab-review"[^>]*>A2A with remote agents<\/button>/);
   assert.match(page, /id="tab-aws"[^>]*>Custodian to AWS agent<\/button>/);
-  assert.ok(!/Access review/i.test(page.replace(/Review access on prod-db-primary|cloud access review/gi, '')), 'no Access review wording left');
+  assert.ok(!/Access review/i.test(page.replace(/Review access on passenger-records-db|cloud access review/gi, '')), 'no Access review wording left');
 });
 
 async function freePort(): Promise<number> {

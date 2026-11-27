@@ -196,7 +196,7 @@ test('the denied topic is found by keyword, and the two scenario questions fall 
   assert.ok(isDeniedTopic('Is bitcoin a good investment?'));
   assert.ok(!isDeniedTopic('Which roles can invoke the model?'));
   // Review: bare words from this lab's own domain once tripped the guardrail.
-  for (const q of ['Who shares the prod-db service account?', 'Take stock of who has admin access', 'Which portfolio of apps does finance own?', 'Which stock reports does Bob reach?']) assert.ok(!isDeniedTopic(q), q);
+  for (const q of ['Who shares the passenger-records-db service account?', 'Take stock of who has admin access', 'Which portfolio of apps does finance own?', 'Which stock reports does Bob reach?']) assert.ok(!isDeniedTopic(q), q);
   for (const q of ['Should I buy shares in a chip maker?', 'Is the stock market a good bet this year?', 'Where should I invest my bonus?']) assert.ok(isDeniedTopic(q), q);
 });
 

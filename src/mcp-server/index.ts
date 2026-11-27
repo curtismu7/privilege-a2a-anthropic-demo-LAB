@@ -43,7 +43,7 @@ const json = (value: unknown) => ({
 
 /** Builds a server with the four access-review tools registered. */
 function buildServer(): McpServer {
-  const server = new McpServer({ name: 'acme-access-tools', version: '1.0.0' });
+  const server = new McpServer({ name: 'meridian-access-tools', version: '1.0.0' });
 
   server.registerTool(
     'list_entitlements',
@@ -78,7 +78,7 @@ function buildServer(): McpServer {
         'List every user holding a given role, across all resources. Use this to ' +
         'answer "who can do X" and to spot roles that have spread too widely.',
       inputSchema: {
-        role: z.string().describe('Role name, e.g. "prod-db-admin"'),
+        role: z.string().describe('Role name, e.g. "passenger-db-admin"'),
       },
       annotations: { readOnlyHint: true },
     },
@@ -101,7 +101,7 @@ function buildServer(): McpServer {
         'List every grant on one resource, plus the resource\'s tier and owner. ' +
         'Use this when reviewing a specific system rather than a specific person.',
       inputSchema: {
-        resource: z.string().describe('Resource name, e.g. "prod-db-primary"'),
+        resource: z.string().describe('Resource name, e.g. "passenger-records-db"'),
       },
       annotations: { readOnlyHint: true },
     },
@@ -360,7 +360,7 @@ app.delete('/mcp', sessionScoped);
 app.listen(config.port, config.host, () => {
   const shape = config.stateful ? 'stateful (Mcp-Session-Id)' : 'stateless';
   const replies = config.jsonResponse ? 'application/json' : 'text/event-stream';
-  console.log(`\n[mcp] acme-access-tools on http://127.0.0.1:${config.port}/mcp`);
+  console.log(`\n[mcp] meridian-access-tools on http://127.0.0.1:${config.port}/mcp`);
   console.log(`[mcp] transport: Streamable HTTP, ${shape}, replies as ${replies}`);
   console.log(`[mcp] bearer required: ${config.requireBearer}`);
   if (config.demoInjection) {
