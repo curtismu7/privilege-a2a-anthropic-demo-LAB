@@ -80,7 +80,7 @@ function responseFor(request: AnthropicRequest): {
     return { stopReason: 'end_turn', content: [{ type: 'text', text: 'Investment positions reviewed.' }] };
   }
   if (request.model === 'test-worker' && !hasToolResult(request.messages)) {
-    assert.deepEqual(request.tools?.map(tool => tool.name).sort(), ['get_access_grants', 'list_entitlements', 'open_ticket', 'who_has_role'], 'no-profile worker is offered exactly the four Acme tools');
+    assert.deepEqual(request.tools?.map(tool => tool.name).sort(), ['get_access_grants', 'list_entitlements', 'open_ticket', 'who_has_role'], 'no-profile worker is offered exactly the four access-review tools');
     const person = delegatedPerson(request);
     return {
       stopReason: 'tool_use',

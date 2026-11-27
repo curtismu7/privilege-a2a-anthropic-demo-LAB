@@ -43,7 +43,7 @@ const json = (value: unknown) => ({
 
 /** Builds a server with the four access-review tools registered. */
 function buildServer(): McpServer {
-  const server = new McpServer({ name: 'acme-access-tools', version: '1.0.0' });
+  const server = new McpServer({ name: 'meridian-access-tools', version: '1.0.0' });
 
   server.registerTool(
     'list_entitlements',
@@ -360,7 +360,7 @@ app.delete('/mcp', sessionScoped);
 app.listen(config.port, config.host, () => {
   const shape = config.stateful ? 'stateful (Mcp-Session-Id)' : 'stateless';
   const replies = config.jsonResponse ? 'application/json' : 'text/event-stream';
-  console.log(`\n[mcp] acme-access-tools on http://127.0.0.1:${config.port}/mcp`);
+  console.log(`\n[mcp] meridian-access-tools on http://127.0.0.1:${config.port}/mcp`);
   console.log(`[mcp] transport: Streamable HTTP, ${shape}, replies as ${replies}`);
   console.log(`[mcp] bearer required: ${config.requireBearer}`);
   if (config.demoInjection) {

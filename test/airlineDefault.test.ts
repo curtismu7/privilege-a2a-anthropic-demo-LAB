@@ -26,6 +26,9 @@ const RETIRED: Array<[string, RegExp]> = [
   ['exports-reader', /exports-reader/],
   ['ci-admin', /ci-admin/],
   ['acme.com', /acme\.com/],
+  ['acme-access-tools', /acme-access-tools/],
+  ['acme-tools', /acme-tools/],
+  ['ACME_TOOLS', /ACME_TOOLS/],
   ['sharding', /sharding/],
 ];
 

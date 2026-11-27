@@ -15,7 +15,7 @@ test('the page carries the wiring diagram between the header and the main area, 
 test('all four hops go through a numbered gateway box, with the routes on them', () => {
   const badges = [...WIRING_HTML.matchAll(/wire__badge" aria-hidden="true">(\d)</g)].map((m) => m[1]);
   assert.deepEqual(badges, ['1', '4', '2', '3']);
-  for (const path of ['/analyst-agent/a2a', '/acme-tools/mcp', '/llm/google']) assert.ok(WIRING_HTML.includes(path), path);
+  for (const path of ['/analyst-agent/a2a', '/lab-a2a-full/mcp', '/llm/google']) assert.ok(WIRING_HTML.includes(path), path);
 });
 
 test('names both agents, the MCP server and the no-provider-keys point, and one card per hop', () => {

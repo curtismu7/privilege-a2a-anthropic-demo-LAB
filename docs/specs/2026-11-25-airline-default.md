@@ -39,8 +39,11 @@ The six people keep their ids and names (Dana Olsen, Alice Chen, Bob Reyes, Caro
 - Story offline Mock with no model key: the two scripted questions still get the simulated run, now with airline data.
 
 ## Out of scope
-The tenant-visible identifiers `acme-access-tools` (the MCP server's name), `/acme-tools/mcp` (the gateway route the wiring diagram and its test name) and `ACME_TOOLS` (the worker's tool list) are kept on purpose: they appear in the released video and in a customer's gateway configuration, so renaming them is a separate change with its own migration.
+Nothing about the tools' own names (`list_entitlements`, `who_has_role`, `get_access_grants`, `open_ticket`).
 Re-recording the public video (the released cut stays up, labelled as the earlier access-review cut, until a re-record is asked for); the other labs and AI-DEMO2 (the airline default reaches them one lab at a time, reusing this world); renaming tools; changing the people; new airline tools; real airline names, data or logos.
+
+## Also renamed in this change (owner decision 2026-11-27)
+The leftover "Acme" identifiers: the MCP server's name `acme-access-tools` -> `meridian-access-tools`; the gateway route the wiring diagram and its test show, `/acme-tools/mcp` -> `/lab-a2a-full/mcp` (a door name from `AI-DEMO2/privilege/NAMING-CONVENTION.md`: `lab-<system>-<variant>`, system `a2a`; the diagram is illustrative, no tenant object is created); the worker's `ACME_TOOLS` -> `ACCESS_REVIEW_TOOLS`. The retired-name test now covers all three.
 
 ## Protected / must not break
 The vendored Story, run-observability and TopMenu code (never hand-edited); the AI Guard injection demonstration; the A2A/MCP/Privilege flow and its tests; the setup script and its checklist (which names the four tools); no real tenant, host, key or real airline anywhere in the repo.
