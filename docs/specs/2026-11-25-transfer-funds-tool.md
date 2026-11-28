@@ -37,3 +37,6 @@ Real money movement; the hold policy (it lives in Privilege, `lab-banking-hitl-h
 - After: `npx tsc --noEmit` OK; `npm test` 325/325 server tests and 136/136 web tests pass. Criteria 1 to 4 and every unhappy path above are asserted in `test/transferFunds.test.ts`.
 - One existing check changed: `test/setupScript.test.ts` now counts only unconditionally registered tools (two-space indent), so the flag-gated `transfer_funds` is not required in the setup checklist. The checklist itself is unchanged.
 - Not done yet: independent code review, image build, cluster rollout (owner's go).
+
+## Rollout correction (2026-11-27)
+The flag was first set on the shared `mcpdemo`. That broke the "Protected" promise above: `lab-banking-full` permits `.*`, so it lists whatever its backend lists, and it grew from 18 to 19 tools (the A2A agents share that backend too). The tool now lives on its own backend, `mcpdemo-hitl` (`k8s/mcpdemo-hitl.yaml`, flag on), and only the door `lab-banking-hitl` points at it (`http://mcpdemo-hitl.ping-devops-cmuir.svc.cluster.local`, entry path `/mcp`). The shared `mcpdemo` has the flag off again. Checked through the gateway: full 18 (no `transfer_funds`), limited 7, hitl 1 (`transfer_funds`). Rule for next time: a flag-gated tool needs its own backend unless every door on the shared one has a fixed tool list.
