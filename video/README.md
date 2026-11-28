@@ -2,7 +2,9 @@
 
 ## Watch the videos (no setup needed)
 
-The published cuts are committed in this repo:
+The current cuts (28 November 2026, 7:03 monitor and 7:10 laptop) are on the repository's [Releases page](https://github.com/curtismu7/privilege-a2a-anthropic-demo-LAB/releases/tag/privilege-a2a-anthropic-demo-lab-video-2026-11-28), with checksums.
+
+The earlier cuts (24 November) are still committed in this repo:
 
 - [`video/releases/2026-11-24-monitor.mp4`](releases/2026-11-24-monitor.mp4) — 1920x1080, 6:58, for a monitor or projector
 - [`video/releases/2026-11-24-laptop.mp4`](releases/2026-11-24-laptop.mp4) — 1800x1168, 6:53, the same run at laptop text size

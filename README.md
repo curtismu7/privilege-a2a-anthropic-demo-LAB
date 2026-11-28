@@ -27,7 +27,7 @@ policies.
 
 ## Watch it
 
-The recorded demo, about seven minutes with numbered pop-ups, is on the repository's [Releases page](https://github.com/curtismu7/privilege-a2a-anthropic-demo-LAB/releases/tag/privilege-a2a-anthropic-demo-lab-video-2026-11-24): a monitor cut (1920x1080) and a laptop cut (1800x1168), with checksums. It is a real run: two of our agents over A2A, then our agent calling an agent in AWS (Bedrock AgentCore), every hop through the PingOne Privilege gateway, ending on a refused call. Hosts, ids and keys on screen are placeholders.
+The recorded demo, about seven minutes with numbered pop-ups, is on the repository's [Releases page](https://github.com/curtismu7/privilege-a2a-anthropic-demo-LAB/releases/tag/privilege-a2a-anthropic-demo-lab-video-2026-11-28): a monitor cut (1920x1080) and a laptop cut (1800x1168), with checksums. It is a real run: two of our agents over A2A, then our agent calling an agent in AWS (Bedrock AgentCore), every hop through the PingOne Privilege gateway, ending on a refused call. Hosts, ids and keys on screen are placeholders.
 
 To walk through it yourself in the app, switch **Demo | Story** in the top bar (offline in Mock mode, labelled as a simulated run). Driving it for an audience? Read [docs/DEMO-DRIVER-GUIDE.md](docs/DEMO-DRIVER-GUIDE.md) first — what to ask, what each screen proves, and why the injection block is the centrepiece.
 
