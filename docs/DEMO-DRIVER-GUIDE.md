@@ -3,7 +3,7 @@
 For the person driving this demo for an audience. One page: what to ask, what
 the audience will see, and why each screen looks the way it does.
 
-The demo is an access review at **Meridian Air**, a fictional airline. Its
+The demo is an access review at **AirGuard Airlines**, a fictional airline. Its
 systems are `passenger-records-db` (the critical one: bookings, passports,
 loyalty), `fare-payments-api`, `flight-manifest-exports` and
 `ops-deploy-pipeline`; the six people (Dana, Alice, Bob, Carol, Dave, Erin) work

@@ -1,5 +1,5 @@
 /**
- * Seeded access-review data for Meridian Air, a fictional airline. Entirely fictional; no backend.
+ * Seeded access-review data for AirGuard Airlines, a fictional airline. Entirely fictional; no backend.
  *
  * Shaped so an analyst agent has something to actually reason about: expired
  * grants, never-used standing access, a contractor with production admin, and
@@ -33,7 +33,7 @@ export const USERS: User[] = [
     // reviewer asks about — she needs a record of her own or the lookup 404s.
     id: 'dana.olsen',
     name: 'Dana Olsen',
-    email: 'dana.olsen@meridianair.example',
+    email: 'dana.olsen@airguard.example',
     department: 'Flight Operations Technology',
     employmentType: 'employee',
     manager: null,
@@ -42,7 +42,7 @@ export const USERS: User[] = [
   {
     id: 'alice.chen',
     name: 'Alice Chen',
-    email: 'alice.chen@meridianair.example',
+    email: 'alice.chen@airguard.example',
     department: 'Reservations Engineering',
     employmentType: 'employee',
     manager: 'dana.olsen',
@@ -51,7 +51,7 @@ export const USERS: User[] = [
   {
     id: 'bob.reyes',
     name: 'Bob Reyes',
-    email: 'bob.reyes@meridianair.example',
+    email: 'bob.reyes@airguard.example',
     department: 'Revenue and Payments',
     employmentType: 'employee',
     manager: 'dana.olsen',
@@ -60,7 +60,7 @@ export const USERS: User[] = [
   {
     id: 'carol.nguyen',
     name: 'Carol Nguyen',
-    email: 'carol.nguyen@contractor.meridianair.example',
+    email: 'carol.nguyen@contractor.airguard.example',
     department: 'Reservations Engineering',
     employmentType: 'contractor',
     manager: 'alice.chen',
@@ -69,7 +69,7 @@ export const USERS: User[] = [
   {
     id: 'dave.okoro',
     name: 'Dave Okoro',
-    email: 'dave.okoro@meridianair.example',
+    email: 'dave.okoro@airguard.example',
     department: 'Security',
     employmentType: 'employee',
     manager: 'dana.olsen',
@@ -78,7 +78,7 @@ export const USERS: User[] = [
   {
     id: 'erin.walsh',
     name: 'Erin Walsh',
-    email: 'erin.walsh@meridianair.example',
+    email: 'erin.walsh@airguard.example',
     department: 'Customer Support',
     employmentType: 'employee',
     manager: 'bob.reyes',

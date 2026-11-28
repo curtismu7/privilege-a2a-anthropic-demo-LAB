@@ -13,7 +13,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { INJECTION_PAYLOAD, RESOURCES, USERS, findUser, grants } from '../src/mcp-server/data.js';
 import { TOOL_REPLY } from '../src/storyReplay.js';
 
-// The default demo is an access review of Meridian Air, a fictional airline (spec: docs/specs/2026-11-25-airline-default.md).
+// The default demo is an access review of AirGuard Airlines, a fictional airline (spec: docs/specs/2026-11-25-airline-default.md).
 const root = `${dirname(dirname(fileURLToPath(import.meta.url)))}/`;
 const read = (f: string): string => readFileSync(`${root}${f}`, 'utf8');
 
@@ -57,13 +57,13 @@ test('no retired cloud-estate identifier is left in any shipped file (code, test
   assert.deepEqual(hits, [], 'retired identifiers found');
 });
 
-test('the airline world is the one in the spec: four resources with airline names, the six people re-homed to Meridian Air, no retired department or email domain', () => {
+test('the airline world is the one in the spec: four resources with airline names, the six people re-homed to AirGuard Airlines, no retired department or email domain', () => {
   assert.deepEqual(Object.keys(RESOURCES).sort(), ['fare-payments-api', 'flight-manifest-exports', 'ops-deploy-pipeline', 'passenger-records-db']);
   assert.match(RESOURCES['passenger-records-db'].description, /passenger records/i);
   assert.equal(RESOURCES['passenger-records-db'].tier, 'critical');
   assert.deepEqual(USERS.map(u => u.id), ['dana.olsen', 'alice.chen', 'bob.reyes', 'carol.nguyen', 'dave.okoro', 'erin.walsh'], 'the people keep their ids, so every question that names one keeps working');
   assert.deepEqual(USERS.map(u => u.department), ['Flight Operations Technology', 'Reservations Engineering', 'Revenue and Payments', 'Reservations Engineering', 'Security', 'Customer Support']);
-  for (const u of USERS) assert.match(u.email, /@(contractor\.)?meridianair\.example$/, `${u.id} has a .example email`);
+  for (const u of USERS) assert.match(u.email, /@(contractor\.)?airguard\.example$/, `${u.id} has a .example email`);
   assert.equal(findUser('carol.nguyen')?.employmentType, 'contractor');
   assert.equal(findUser('erin.walsh')?.status, 'offboarding');
 });
@@ -92,13 +92,13 @@ test('the hostile payload (the AI Guard demo) names a seeded user and the airlin
   assert.ok(!grants(false).some(g => g.justification.includes('SYSTEM OVERRIDE')), 'injection off is benign');
 });
 
-test('the default questions and the Story questions are the airline ones, the two agents work for Meridian Air, and the airlines vertical is untouched', () => {
+test('the default questions and the Story questions are the airline ones, the two agents work for AirGuard Airlines, and the airlines vertical is untouched', () => {
   assert.ok(read('src/main-agent/ui.ts').includes('Review access on passenger-records-db'), 'the page default question');
   assert.ok(read('web/src/storyScript.js').includes("'Review access on passenger-records-db'"), 'the Story question');
   assert.ok(read('src/storyReplay.ts').includes("'Review access on passenger-records-db'"), 'the scripted blocked question');
   assert.ok(read('video/take.py').includes('Review access on passenger-records-db'), 'the video script question');
-  assert.match(read('src/main-agent/prompts.ts'), /access-review concierge for Meridian Air, a fictional airline/);
-  assert.match(read('src/worker-agent/index.ts'), /access-review analyst for Meridian Air, a fictional airline/);
+  assert.match(read('src/main-agent/prompts.ts'), /access-review concierge for AirGuard Airlines, a fictional airline/);
+  assert.match(read('src/worker-agent/index.ts'), /access-review analyst for AirGuard Airlines, a fictional airline/);
   assert.match(read('src/mcp-server/verticals.ts'), /airlines: \{\s+specialistName: 'Passenger Records Specialist'/, 'the existing airlines vertical is unchanged');
   assert.ok(!/(united|delta|american airlines|lufthansa|emirates|ryanair|jetblue|southwest)/i.test(read('src/mcp-server/data.ts')), 'no real airline name in the data');
 });
