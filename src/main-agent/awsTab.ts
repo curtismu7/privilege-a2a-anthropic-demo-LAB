@@ -18,7 +18,7 @@ export const AWS_INTRO: AwsPrompt = {
 
 export const AWS_PROMPTS: readonly AwsPrompt[] = [
   AWS_INTRO,
-  { q: 'Review cloud access for the Meridian Air booking platform' },
+  { q: 'Review cloud access for the AirGuard Airlines booking platform' },
   { q: 'Which service accounts hold roles they have not used?' },
   { q: 'Is the flight manifest bucket publicly readable?' },
 ];
