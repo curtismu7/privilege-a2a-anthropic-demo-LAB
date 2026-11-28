@@ -69,7 +69,7 @@ The A2A spec leaves how a client gets credentials to the deployment (section 7.3
 How Privilege is set up: the app
 
 ## Lead
-Read from the Privilege console on 22 November 2026, nothing changed.
+Read from the Privilege console on 28 November 2026, nothing changed.
 
 ## Image
 console-app-worker-crop.jpg
