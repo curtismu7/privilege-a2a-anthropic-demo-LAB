@@ -1,0 +1,52 @@
+# A second MCP backend for the HITL MFA door `lab-banking-hitl` only (2026-11-27).
+# Why: `mcpdemo` is shared by every banking door, and a door that permits `.*` (lab-banking-full) lists whatever
+# the backend lists. With MCP_ENABLE_TRANSFER_FUNDS=true on the shared `mcpdemo`, the full door grew from 18 to 19
+# tools. So the flag lives only here, and `mcpdemo` keeps it off. Same image and settings as `mcpdemo` otherwise.
+# Apply (owner-approved, cluster `us`):  IMAGE=<the image mcpdemo runs> sed "s|__IMAGE__|$IMAGE|" k8s/mcpdemo-hitl.yaml | kubectl -n ping-devops-cmuir apply -f -
+# The Privilege door lab-banking-hitl points its backend at http://mcpdemo-hitl.ping-devops-cmuir.svc.cluster.local (entry path /mcp).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcpdemo-hitl
+  labels: {app: mcpdemo-hitl, component: privilege-a2a-demo}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: mcpdemo-hitl}
+  template:
+    metadata:
+      labels: {app: mcpdemo-hitl, component: privilege-a2a-demo}
+    spec:
+      imagePullSecrets:
+      - name: ghcr-pull-secret
+      containers:
+      - name: mcpdemo-hitl
+        image: __IMAGE__
+        imagePullPolicy: Always
+        command: ["node", "dist/mcp-server/index.js"]
+        ports:
+        - {containerPort: 3302, name: http}
+        env:
+        - {name: MCP_SERVER_HOST, value: "0.0.0.0"}
+        - {name: MCP_SERVER_PORT, value: "3302"}
+        - {name: MCP_DEMO_INJECTION, value: "true"}
+        - {name: MODE, value: live}
+        - {name: MCP_ENABLE_TRANSFER_FUNDS, value: "true"}
+        resources:
+          requests: {memory: 64Mi, cpu: 50m}
+          limits: {memory: 256Mi, cpu: 250m}
+        readinessProbe:
+          httpGet: {path: /healthz, port: 3302}
+          initialDelaySeconds: 5
+          periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcpdemo-hitl
+  labels: {app: mcpdemo-hitl, component: privilege-a2a-demo}
+spec:
+  type: ClusterIP
+  ports:
+  - {port: 80, targetPort: 3302, protocol: TCP, name: http}
+  selector: {app: mcpdemo-hitl}
